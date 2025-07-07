@@ -367,6 +367,63 @@ input[type="checkbox"] {
         </div>
     </div>
 
+    <div class="section-card">
+        <div class="section-title"><i class="fa fa-file-archive"></i> Generate Admin Pack ZIP</div>
+        <form method="post" action="{% url 'generate_bulk_admin_pack_zip' %}" target="_blank" id="bulk-admin-pack-form" style="margin-top:1.5em;">
+            {% csrf_token %}
+            <input type="hidden" name="group_id" value="{{ group.id }}">
+            <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+                <label class="fw-bold me-2">Admin Pack Template:</label>
+                {% if group.service.admin_pack_document %}
+                    <a href="{{ group.service.admin_pack_document.url }}" target="_blank" class="btn btn-sm btn-info">View Template</a>
+                {% else %}
+                    <span class="text-danger">No admin pack uploaded for this service.</span>
+                {% endif %}
+                <select name="template_id" class="form-select" required>
+                    <option value="">Select LIF Template</option>
+                    {% for t in lif_templates %}
+                        <option value="{{ t.id }}">{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-warning btn-sm" {% if not group.service.admin_pack_document %}disabled{% endif %}>
+                    <i class="fa fa-file-archive"></i> Generate Admin Pack ZIP for Selected
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width:32px;"><input type="checkbox" id="select-all-learners-admin"></th>
+                            <th>Name</th>
+                            <th>ID Number</th>
+                            <th>Email</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for learner in group_learners %}
+                        <tr>
+                            <td class="text-center">
+                                <input type="checkbox" name="learner_ids" value="{{ learner.id }}" class="learner-checkbox-admin">
+                            </td>
+                            <td>{{ learner.FirstName }} {{ learner.Surname }}</td>
+                            <td>{{ learner.IDNumber }}</td>
+                            <td>{{ learner.EmailAddress }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted">No learners linked to this group.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </form>
+        <script>
+        document.getElementById('select-all-learners-admin').addEventListener('change', function() {
+            const checked = this.checked;
+            document.querySelectorAll('.learner-checkbox-admin').forEach(cb => cb.checked = checked);
+        });
+        </script>
+    </div>
+
     <div class="d-flex gap-2 mt-4 justify-content-end">
         <a href="{% url 'group-edit' group.id %}" class="btn btn-primary"><i class="fa fa-edit"></i> Edit</a>
         <a href="{% url 'group-delete' group.id %}" class="btn btn-danger"><i class="fa fa-trash"></i> Delete</a>
