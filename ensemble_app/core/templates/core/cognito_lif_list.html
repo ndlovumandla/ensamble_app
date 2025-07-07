@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Cognito LIF Entries</h2>
+{% if error %}
+  <div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Entry ID</th>
+      <th>Date Submitted</th>
+      <th>Data</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for entry in entries %}
+    <tr>
+      <td>{{ entry.EntryId }}</td>
+      <td>{{ entry.DateCreated }}</td>
+      <td>
+        <pre style="white-space: pre-wrap;">{{ entry|safe }}</pre>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="3">No entries found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

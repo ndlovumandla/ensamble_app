@@ -1,0 +1,274 @@
+{% extends 'base.html' %}
+{% block title %}Assessment Results{% endblock %}
+{% block content %}
+<style>
+  /* Improved Typography */
+  :root {
+    --font-primary: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-weight-bold: 700;
+    --font-weight-medium: 500;
+    --line-height-text: 1.6;
+  }
+
+  .learner-hero h2 {
+    font-family: var(--font-primary);
+    font-size: 2.8em;
+    font-weight: var(--font-weight-bold);
+    background: linear-gradient(120deg, #ffffff 0%, #f0f0f0 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5em;
+  }
+
+  .section-header {
+    font-family: var(--font-primary);
+    font-size: 1.4em;
+    font-weight: var(--font-weight-bold);
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1.2em 1.5em;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    border-bottom: 3px solid rgba(255,255,255,0.1);
+  }
+
+  .assessment-table {
+    font-family: var(--font-primary);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  }
+
+  .assessment-table th {
+    font-size: 0.9em;
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    color: #ffffff;
+    padding: 1.2em 1em;
+    border: none;
+  }
+
+  .assessment-table td {
+    font-size: 1.05em;
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-text);
+    padding: 1.2em 1em;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    transition: all 0.3s ease;
+  }
+
+  /* Module Name Enhancement */
+  .module-name {
+    font-weight: var(--font-weight-bold);
+    color: var(--primary);
+    font-size: 1.1em;
+    letter-spacing: -0.01em;
+    transition: color 0.3s ease;
+  }
+
+  .module-name:hover {
+    color: var(--secondary);
+  }
+
+  /* Enhanced Hero Section */
+  .learner-hero {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: var(--white);
+    border-radius: 16px;
+    padding: 40px 24px 32px;
+    margin-bottom: 36px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transform: translateZ(0);
+  }
+
+  .learner-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(255,255,255,0.1), transparent);
+    z-index: 1;
+  }
+
+  /* Enhanced Results Card */
+  .results-card {
+    background: var(--white);
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    margin-bottom: 36px;
+    border: 1px solid rgba(0,0,0,0.04);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    transform: translateZ(0);
+  }
+
+  .results-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  }
+
+  /* Enhanced Status Badges */
+  .status-badge {
+    font-family: var(--font-primary);
+    font-size: 0.85em;
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.6em 1.2em;
+    border-radius: 30px;
+    background: linear-gradient(135deg, #34C759 0%, #32d184 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(52,199,89,0.2);
+    transition: all 0.3s ease;
+  }
+
+  /* Date Enhancement */
+  .assessment-date {
+    font-family: var(--font-primary);
+    font-size: 0.95em;
+    color: #666;
+    letter-spacing: 0.02em;
+  }
+
+  /* Feedback Enhancement */
+  .feedback-text {
+    font-family: var(--font-primary);
+    font-size: 1em;
+    line-height: 1.6;
+    color: #444;
+    background: rgba(0,0,0,0.02);
+    padding: 0.8em 1.2em;
+    border-radius: 8px;
+    border-left: 3px solid var(--primary);
+    transition: all 0.3s ease;
+  }
+
+  .feedback-text:hover {
+    background: rgba(0,0,0,0.04);
+    transform: translateX(4px);
+  }
+
+  /* Empty State Enhancement */
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--secondary);
+    font-style: italic;
+    background: linear-gradient(to right, rgba(0,0,0,0.02), transparent);
+    border-radius: 8px;
+  }
+
+  /* Enhanced Animations */
+  @keyframes heroSlideUp {
+    from { 
+      opacity: 0;
+      transform: translateY(40px);
+    }
+    to { 
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes tableAppear {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* Responsive Enhancements */
+  @media (max-width: 768px) {
+    .learner-hero {
+      padding: 32px 20px 28px;
+      margin: 16px;
+      border-radius: 12px;
+    }
+
+    .learner-hero h2 {
+      font-size: 2em;
+    }
+
+    .results-card {
+      margin: 16px;
+      border-radius: 12px;
+    }
+
+    .assessment-table th,
+    .assessment-table td {
+      padding: 12px;
+      font-size: 0.95em;
+    }
+
+    .status-badge {
+      padding: 6px 12px;
+      font-size: 0.85em;
+    }
+  }
+</style>
+
+<div class="container glass fade-in" style="margin-top: 32px;">
+  <div class="learner-hero">
+    <h2>Assessment Results</h2>
+  </div>
+
+  <div class="results-card">
+    <div class="section-header">POE Assessment Results</div>
+    <div class="section-body" style="overflow-x: auto;">
+      <table class="assessment-table">
+        <thead>
+          <tr>
+            <th>Module</th>
+            <th>Status</th>
+            <th>Assessed On</th>
+            <th>Feedback</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for poe in poes %}
+          <tr>
+            <td>
+              <div class="module-name">{{ poe.module.name }}</div>
+            </td>
+            <td>
+              <span class="status-badge">{{ poe.get_status_display }}</span>
+            </td>
+            <td>
+              <span class="assessment-date">{{ poe.review_date|date:"d M Y, H:i" }}</span>
+            </td>
+            <td>
+              <div class="feedback-text">
+                {% if poe.feedback %}
+                  {{ poe.feedback }}
+                {% else %}
+                  <em>No feedback provided yet</em>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="empty-state">
+              No assessment results available yet.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

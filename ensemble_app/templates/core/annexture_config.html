@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Manage POE Annextures</h2>
+    <div class="card p-4 mb-4">
+        <h5>Module: {{ template.module.name }}</h5>
+        <form method="post" class="mb-3">
+            {% csrf_token %}
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <label for="annexture_count" class="form-label">Number of Annextures</label>
+                    <input type="number" min="1" max="20" name="annexture_count" id="annexture_count" class="form-control" value="{{ annexture_count|default:template.required_annextures.count }}">
+                </div>
+                <div class="col-md-9">
+                    <label class="form-label">Annexture Names (one per line)</label>
+                    <textarea name="annexture_names" class="form-control" rows="4">{% for ann in template.required_annextures.all %}{{ ann.name }}{% if not forloop.last %}\n{% endif %}{% endfor %}</textarea>
+                </div>
+            </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="all_required" id="all_required" {% if all_required %}checked{% endif %}>
+                <label class="form-check-label" for="all_required">
+                    All annextures required
+                </label>
+            </div>
+            <button type="submit" class="btn btn-success">Save Annextures</button>
+            <a href="{% url 'poe_template_list' %}" class="btn btn-secondary">Back</a>
+        </form>
+        <hr>
+        <h6>Current Annextures:</h6>
+        <ul>
+            {% for ann in template.required_annextures.all %}
+                <li>
+                    <b>{{ ann.name }}</b>
+                    {% if ann.required %}<span class="badge bg-success">Required</span>{% else %}<span class="badge bg-secondary">Optional</span>{% endif %}
+                </li>
+            {% empty %}
+                <li>No annextures configured.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

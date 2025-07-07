@@ -1,0 +1,122 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Manage Learners – SLA {{ selected_sla }}</title>
+    <link href="{% static 'styles2.css' %}" rel="stylesheet">
+</head>
+<body>
+        <h1 class="mb-4">Manage Learners for SLA {{ selected_sla }}</h1>
+        {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+        {% if success %}
+            <div class="alert alert-success">{{ success }}</div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="filter-form">
+                    <div class="form-group">
+                        <label for="slaSelect" class="form-label">Select SLA</label>
+                        <select id="slaSelect" name="sla" class="select-field form-control" required onchange="this.form.submit()">
+                            <option value="" disabled {% if not selected_sla %}selected{% endif %}>-- Choose SLA --</option>
+                            {% for sla in slas %}
+                                <option value="{{ sla.id }}" {% if sla.id|stringformat:"s" == selected_sla|stringformat:"s" %}selected{% endif %}>
+                                    {{ sla.sla_reference }} – {{ sla.customer.name }} {% if sla.end_client_name %} ({{ sla.end_client_name }}){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if sla_qualifications %}
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h5">Add Learner</h2>
+                    <form method="post" class="filter-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="sla" value="{{ selected_sla }}">
+                        <div class="form-group">
+                            <label for="learnerSearch" class="form-label">Search Learner</label>
+                            <input type="text" id="learnerSearch" name="learner_search" class="form-control" placeholder="Name or ID">
+                        </div>
+                        <div class="form-group">
+                            <label for="qualSelect" class="form-label">Qualification</label>
+                            <select id="qualSelect" name="sla_qualification" class="select-field form-control" required>
+                                <option value="" disabled selected>-- Select Qualification --</option>
+                                {% for qual in sla_qualifications %}
+                                    <option value="{{ qual.id }}">{{ qual.service.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-success">Add</button>
+                    </form>
+                </div>
+            </div>
+
+            {% for qual in sla_qualifications %}
+                {% with learners=learners_by_qualification|get_item:qual.id %}
+                    {% if learners %}
+                        <div class="card">
+                            <div class="card-body">
+                                <h3 class="h6 mb-3">{{ qual.service.name }}</h3>
+                                <table class="attendance-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>ID Number</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for learner in learners %}
+                                            <tr>
+                                                <td>{{ learner.FirstName }} {{ learner.Surname }}</td>
+                                                <td>{{ learner.IDNumber }}</td>
+                                                <td>
+                                                    {% if learner.status == "removed" %}
+                                                        <span class="badge badge-missing">Removed</span>
+                                                    {% else %}
+                                                        <span class="badge badge-on_time">Active</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <form method="post" class="d-inline">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="learner_qualification_id" value="{{ learner.learnerqualification_id }}">
+                                                        <input type="hidden" name="sla" value="{{ selected_sla }}">
+                                                        <select name="exit_reason" class="select-field form-control d-inline" style="width: auto;">
+                                                            <option value="">No reason (delete)</option>
+                                                            <option value="completed">Completed</option>
+                                                            <option value="dropped">Dropped Out</option>
+                                                            <option value="abducted">Abducted by Aliens</option>
+                                                        </select>
+                                                        <button name="action" value="remove" class="btn btn-danger">Remove</button>
+                                                    </form>
+                                                    {% if learner.status == "removed" %}
+                                                        <form method="post" class="d-inline ms-2">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="learner_qualification_id" value="{{ learner.learnerqualification_id }}">
+                                                            <input type="hidden" name="sla" value="{{ selected_sla }}">
+                                                            <button name="action" value="reactivate" class="btn btn-primary">Reactivate</button>
+                                                        </form>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endwith %}
+            {% endfor %}
+        {% endif %}
+</body>
+</html>

@@ -1,0 +1,490 @@
+{% extends 'base.html' %}
+{% block title %}Attendance Records{% endblock %}
+{% block content %}
+<style>
+  /* Minimalistic, clean, and consistent with styles2.css and base.html */
+  .learner-hero {
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    color: var(--white);
+    border-radius: 14px;
+    padding: 36px 18px 28px 18px;
+    margin-bottom: 32px;
+    box-shadow: 0 4px 18px var(--shadow);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .learner-hero h2 {
+    font-size: 2.2em;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    margin-bottom: 0;
+    color: var(--white);
+    text-shadow: 0 2px 8px var(--secondary);
+    animation: heroFadeIn 1.2s cubic-bezier(.77,0,.18,1) both;
+  }
+  /* Micro-animated floating dot in hero */
+  .micro-dot {
+    position: absolute;
+    top: 22px;
+    right: 38px;
+    width: 18px;
+    height: 18px;
+    background: var(--secondary);
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 var(--secondary);
+    animation: dotPulse 2.2s infinite cubic-bezier(.66,0,.34,1);
+    z-index: 2;
+  }
+  @keyframes dotPulse {
+    0% { box-shadow: 0 0 0 0 var(--secondary); }
+    70% { box-shadow: 0 0 0 12px rgba(0,0,0,0); }
+    100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+  }
+  @keyframes heroFadeIn {
+    from { opacity: 0; transform: translateY(40px) scale(0.98);}
+    to { opacity: 1; transform: none;}
+  }
+  .section-card {
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 2px 12px var(--shadow);
+    margin-bottom: 32px;
+    padding: 0;
+    border-left: 6px solid var(--primary);
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+    animation: cardAppear 0.7s cubic-bezier(.77,0,.18,1) both;
+  }
+  .section-card:hover {
+    box-shadow: 0 6px 24px var(--secondary);
+  }
+  @keyframes cardAppear {
+    from { opacity: 0; transform: translateY(30px);}
+    to { opacity: 1; transform: none;}
+  }
+  .section-header {
+    background: var(--primary);
+    color: var(--white);
+    font-weight: 700;
+    font-size: 1.15em;
+    padding: 16px 24px;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--secondary);
+    position: relative;
+    overflow: hidden;
+  }
+  /* Micro-animated underline for section headers */
+  .section-header::after {
+    content: "";
+    display: block;
+    width: 36px;
+    height: 3px;
+    background: var(--secondary);
+    border-radius: 2px;
+    margin-top: 8px;
+    animation: underlineGrow 1.1s cubic-bezier(.77,0,.18,1);
+  }
+  @keyframes underlineGrow {
+    from { width: 0; }
+    to { width: 36px; }
+  }
+  .section-body {
+    padding: 24px 28px;
+    color: var(--text);
+    font-size: 1.07em;
+  }
+  .section-body p, .section-body li {
+    margin-bottom: 8px;
+    font-size: 1.07em;
+    transition: color 0.2s;
+  }
+  .section-body li:hover {
+    color: var(--secondary);
+  }
+  .section-label {
+    font-weight: 600;
+    color: var(--primary);
+    margin-right: 6px;
+    letter-spacing: 0.03em;
+    transition: color 0.2s;
+  }
+  .filter-form-min {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: flex-end;
+    background: linear-gradient(to right, var(--background), #ffffff);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 28px;
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  }
+  .filter-form-min label {
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 4px;
+    font-size: 0.98em;
+    transition: color 0.2s;
+  }
+  .filter-form-min input,
+  .filter-form-min select {
+    background: var(--white);
+    color: var(--text);
+    border: 2px solid var(--light-gray);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 1em;
+    min-width: 140px;
+    transition: all 0.3s ease;
+  }
+  .filter-form-min input:focus,
+  .filter-form-min select:focus {
+    border: 1.5px solid var(--secondary);
+    outline: none;
+    box-shadow: 0 0 0 2px var(--secondary);
+  }
+  .filter-form-min button {
+    background: linear-gradient(to right, var(--primary), var(--secondary));
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 28px;
+    font-weight: 600;
+    font-size: 1em;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .filter-form-min button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+  }
+  .minimal-table {
+    width: 100%;
+    min-width: 800px;
+    max-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 15px;
+    background: var(--white);
+    font-size: 1em;
+    animation: tableFadeIn 0.8s cubic-bezier(.77,0,.18,1) both;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  @keyframes tableFadeIn {
+    from { opacity: 0; transform: translateY(20px);}
+    to { opacity: 1; transform: none;}
+  }
+  .minimal-table th, .minimal-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--light-gray);
+    text-align: left;
+    transition: all 0.2s ease;
+  }
+  .minimal-table tr:hover td {
+    background: var(--background);
+  }
+  .minimal-table th {
+    background: linear-gradient(to right, var(--primary), var(--secondary));
+    color: var(--white);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    font-size: 1.02em;
+    padding: 14px 12px;
+    text-transform: uppercase;
+    font-size: 0.95em;
+  }
+  .minimal-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--light-gray);
+    transition: all 0.2s ease;
+  }
+  .minimal-table tr:last-child td {
+    border-bottom: none;
+  }
+  .badge {
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.92em;
+    font-weight: 600;
+    margin-right: 4px;
+    display: inline-block;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+  .badge:hover {
+    transform: scale(1.05) translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+  .badge-early { background: #FF6F61; color: #fff; }
+  .badge-on_time { background: #34C759; color: #fff; }
+  .badge-late { background: #FFB347; color: #fff; }
+  .badge-missing { background: #FF3B30; color: #fff; }
+  .badge-early_leave { background: #FF9500; color: #fff; }
+  .badge-overtime { background: var(--secondary); color: #fff; }
+  .pagination {
+    text-align: center;
+    margin-top: 18px;
+  }
+  .pagination a, .pagination span {
+    color: var(--primary);
+    background: var(--white);
+    border: 2px solid var(--light-gray);
+    border-radius: 8px;
+    padding: 8px 16px;
+    margin: 0 4px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95em;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .pagination a:hover {
+    background: linear-gradient(to right, var(--primary), var(--secondary));
+    color: var(--white);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    border-color: transparent;
+  }
+  .no-records {
+    color: var(--secondary);
+    text-align: center;
+    font-style: italic;
+    padding: 18px 0;
+    animation: fadeIn 0.7s both;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0;}
+    to { opacity: 1;}
+  }
+  @media (max-width: 700px) {
+    .section-body, .filter-form-min { padding: 12px 6px; }
+    .learner-hero { padding: 24px 6px 18px 6px; }
+  }
+  .project-session-list {
+    margin-top: 8px;
+    margin-bottom: 0;
+    padding-left: 0;
+    list-style: none;
+  }
+  /* Enhanced styles for the session list items */
+  .project-session-list li {
+    background: var(--background);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    padding: 16px 20px;
+    color: var(--text);
+    font-size: 1.02em;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+    border-left: 4px solid var(--primary);
+    position: relative;
+    animation: sessionFadeIn 0.6s cubic-bezier(.77,0,.18,1) both;
+  }
+  .project-session-list li:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    background: linear-gradient(to right, var(--background), #ffffff);
+  }
+  .project-session-list .session-date {
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 1.08em;
+    margin-bottom: 2px;
+    letter-spacing: 0.01em;
+    display: block;
+    animation: datePulse 2s infinite alternate;
+  }
+  @keyframes datePulse {
+    0% { color: var(--primary);}
+    100% { color: var(--secondary);}
+  }
+  .project-session-list .session-label {
+    font-weight: 600;
+    color: var(--secondary);
+    margin-right: 4px;
+  }
+  .project-session-list .session-value {
+    color: var(--text);
+    font-weight: 500;
+  }
+  .project-session-list .session-missing {
+    color: var(--secondary);
+    font-style: italic;
+    font-size: 0.98em;
+    margin-left: 4px;
+  }
+  /* Attendance table fit */
+  .section-body {
+    overflow-x: auto;
+  }
+  .minimal-table {
+    width: 100%;
+    min-width: 800px;
+    max-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 15px;
+    background: var(--white);
+    font-size: 1em;
+    animation: tableFadeIn 0.8s cubic-bezier(.77,0,.18,1) both;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+</style>
+<div class="container glass fade-in" style="margin-top: 32px;">
+    <div class="learner-hero">
+        <span class="micro-dot"></span>
+        <h2>Attendance Records</h2>
+    </div>
+    
+    <form id="attendance-filter-form" method="get" class="filter-form-min">
+        <div>
+            <label for="date">Date</label>
+            <input type="date" id="date" name="date" value="{{ filters.date|default:'' }}">
+        </div>
+        <div>
+            <label for="start_date">Start Date</label>
+            <input type="date" id="start_date" name="start_date" value="{{ filters.start_date|default:'' }}">
+        </div>
+        <div>
+            <label for="end_date">End Date</label>
+            <input type="date" id="end_date" name="end_date" value="{{ filters.end_date|default:'' }}">
+        </div>
+        <div>
+            <label for="clock_in_status">Clock In Status</label>
+            <select id="clock_in_status" name="clock_in_status">
+                <option value="">All</option>
+                <option value="early" {% if filters.clock_in_status == "early" %}selected{% endif %}>Early</option>
+                <option value="on_time" {% if filters.clock_in_status == "on_time" %}selected{% endif %}>On Time</option>
+                <option value="late" {% if filters.clock_in_status == "late" %}selected{% endif %}>Late</option>
+                <option value="missing" {% if filters.clock_in_status == "missing" %}selected{% endif %}>Missing</option>
+            </select>
+        </div>
+        <div>
+            <label for="clock_out_status">Clock Out Status</label>
+            <select id="clock_out_status" name="clock_out_status">
+                <option value="">All</option>
+                <option value="early_leave" {% if filters.clock_out_status == "early_leave" %}selected{% endif %}>Early Leave</option>
+                <option value="on_time" {% if filters.clock_out_status == "on_time" %}selected{% endif %}>On Time</option>
+                <option value="overtime" {% if filters.clock_out_status == "overtime" %}selected{% endif %}>Overtime</option>
+                <option value="missing" {% if filters.clock_out_status == "missing" %}selected{% endif %}>Missing</option>
+            </select>
+        </div>
+        <div>
+            <button type="submit">Apply Filters</button>
+        </div>
+    </form>
+
+    {% if summary %}
+    <div class="section-card">
+        <div class="section-header">Attendance Summary</div>
+        <div class="section-body">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <h6>Clock In Summary</h6>
+                    <ul style="list-style: none; padding-left: 0;">
+                        <li><span class="badge badge-early">Early: {{ summary.clock_in.early }}</span></li>
+                        <li><span class="badge badge-on_time">On Time: {{ summary.clock_in.on_time }}</span></li>
+                        <li><span class="badge badge-late">Late: {{ summary.clock_in.late }}</span></li>
+                        <li><span class="badge badge-missing">Missing: {{ summary.clock_in.missing }}</span></li>
+                    </ul>
+                </div>
+                <div>
+                    <h6>Clock Out Summary</h6>
+                    <ul style="list-style: none; padding-left: 0;">
+                        <li><span class="badge badge-early_leave">Early Leave: {{ summary.clock_out.early_leave }}</span></li>
+                        <li><span class="badge badge-on_time">On Time: {{ summary.clock_out.on_time }}</span></li>
+                        <li><span class="badge badge-overtime">Overtime: {{ summary.clock_out.overtime }}</span></li>
+                        <li><span class="badge badge-missing">Missing: {{ summary.clock_out.missing }}</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="section-card">
+        <div class="section-header">Attendance Records</div>
+        <div class="section-body">
+            {% if fingerprint_data %}
+                {% regroup fingerprint_data by date as date_list %}
+                {% for date_group in date_list %}
+                    <div style="margin-bottom: 18px;">
+                        <h5 style="color: var(--primary); font-weight:700; margin-bottom: 8px;">
+                            {{ date_group.grouper|date:"l, Y-m-d" }}
+                        </h5>
+                        <div style="overflow-x:auto;">
+                            <table class="minimal-table">
+                                <thead>
+                                    <tr>
+                                        <th>User ID</th>
+                                        <th>Learner</th>
+                                        <th>Qualification</th>
+                                        <th>SLA</th>
+                                        <th>Expected In</th>
+                                        <th>Clock In</th>
+                                        <th>In Status</th>
+                                        <th>Expected Out</th>
+                                        <th>Clock Out</th>
+                                        <th>Out Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in date_group.list %}
+                                        <tr>
+                                            <td>{{ record.user_id }}</td>
+                                            <td>{{ record.learner_name }}</td>
+                                            <td>{{ record.qualification }}</td>
+                                            <td>{{ record.sla_group }}</td>
+                                            <td>{{ record.expected_clock_in|default:"N/A" }}</td>
+                                            <td>{{ record.clock_in_time|default:"N/A" }}</td>
+                                            <td>
+                                                <span class="badge badge-{{ record.clock_in_category }}">
+                                                    {{ record.clock_in_category|title }}
+                                                </span>
+                                            </td>
+                                            <td>{{ record.expected_clock_out|default:"N/A" }}</td>
+                                            <td>{{ record.clock_out_time|default:"N/A" }}</td>
+                                            <td>
+                                                <span class="badge badge-{{ record.clock_out_category }}">
+                                                    {{ record.clock_out_category|title }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% endfor %}
+
+                {% if is_paginated %}
+                    <div class="pagination">
+                        {% if page_obj.has_previous %}
+                            <a href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">« Previous</a>
+                        {% endif %}
+                        <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                        {% if page_obj.has_next %}
+                            <a href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next »</a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="no-records">No fingerprint records found for your account.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

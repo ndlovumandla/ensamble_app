@@ -1,0 +1,707 @@
+{% load static %}
+{% load role_permissions %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Ensemble App{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{% static 'styles2.css' %}">
+  <style>
+    html, body {
+      font-size: 16px;
+      width: 100vw;
+      min-width: 0;
+      max-width: 100vw;
+      overflow-x: hidden;
+      box-sizing: border-box;
+    }
+    body {
+      background: linear-gradient(135deg, #f0f4f8 0%, #e0f7fa 100%);
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+    .top-navbar {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      box-shadow: 0 2px 8px rgba(67,233,123,0.07);
+      padding: 0.5rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 1040;
+      min-height: 56px;
+    }
+    .top-navbar .nav-pills {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .top-navbar .nav-link {
+      color: #020381;
+      font-weight: 600;
+      font-size: 1.07em;
+      background: none;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      transition: background 0.18s, color 0.18s;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+    }
+    .top-navbar .nav-link.active,
+    .top-navbar .nav-link:focus,
+    .top-navbar .nav-link:hover {
+      background: linear-gradient(90deg, #34C759 0%, #38f9d7 100%);
+      color: #fff !important;
+      outline: none;
+    }
+    .ensemble-glow {
+      color: #020381;
+      text-shadow: 0 0 8px #34C759, 0 0 16px #34C759, 0 0 24px #020381, 0 0 32px #34C759;
+      font-size: 1.3em;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+    /* Sidebar overlay for mobile */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.25);
+      z-index: 1039;
+    }
+    .sidebar-nav {
+      position: fixed;
+      left: 0;
+      top: 0;
+      height: 100vh;
+      width: 280px; /* or more if needed */
+      background: #fff;
+      box-shadow: 2px 0 16px rgba(2,3,129,0.08);
+      z-index: 1040;
+      padding: 24px 0 24px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: transform 0.3s;
+      transform: translateX(0);
+      overflow-y: auto; /* Enable vertical scrolling when sidebar is long */
+    }
+    .sidebar-nav.closed {
+      transform: translateX(-110%);
+    }
+    .sidebar-nav .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 0.7em;
+      padding: 10px 24px;
+      color: #020381 !important;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1.05em;
+      letter-spacing: 0.01em;
+      margin-bottom: 4px;
+      border: 2px solid transparent;
+      background: none;
+      transition: background 0.18s, color 0.18s, border 0.18s;
+      white-space: normal;           /* allow wrapping */
+      word-break: break-word;        /* break long words */
+      overflow: hidden;              /* prevent overflow */
+    }
+    .sidebar-nav .nav-link.active,
+    .sidebar-nav .nav-link:hover {
+      background: #f0f4f8;
+      color: #34C759 !important;
+      border: 2px solid #34C759;
+    }
+    .sidebar-nav .nav-link i {
+      min-width: 22px;
+      flex-shrink: 0;                /* icon never shrinks */
+      opacity: 0.8;
+    }
+    .sidebar-nav .nav-link span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: normal;
+      display: inline-block;
+    }
+    .sidebar-nav .sidebar-collapse-btn {
+      background: none;
+      border: none;
+      color: #020381;
+      font-size: 1em;
+      font-weight: 700;
+      padding: 8px 24px;
+      width: 100%;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 0.6em;
+      cursor: pointer;
+      transition: color 0.2s;
+      outline: none;
+      margin-bottom: 2px;
+    }
+    .sidebar-nav .sidebar-collapse-btn:focus,
+    .sidebar-nav .sidebar-collapse-btn:hover {
+      color: #34C759;
+    }
+    .sidebar-nav .sidebar-collapse-icon {
+      margin-left: auto;
+      transition: transform 0.3s;
+    }
+    .sidebar-nav .fa-rotate-90 {
+      transform: rotate(90deg);
+    }
+    .sidebar-nav .sidebar-collapse-list {
+      padding-left: 0;
+      margin: 0;
+      display: none;
+    }
+    .sidebar-nav .sidebar-collapse-list.show {
+      display: block;
+    }
+    .sidebar-nav .sidebar-category {
+      font-size: 0.95em;
+      font-weight: 700;
+      color: #34C759;
+      padding: 8px 24px 4px 24px;
+      text-transform: uppercase;
+      opacity: 0.85;
+      margin-top: 10px;
+      margin-bottom: 2px;
+      user-select: none;
+    }
+    .sidebar-nav .mt-auto {
+      margin-top: auto;
+    }
+    /* Hamburger */
+    #sidebarHamburger {
+      display: none;
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      z-index: 1101;
+      background: #fff;
+      border: 2px solid #34C759;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 1.5em;
+      color: #020381;
+      box-shadow: 0 2px 8px rgba(67,233,123,0.12);
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    @media (max-width: 991px) {
+      #sidebarHamburger { display: block; }
+      .sidebar-nav { transform: translateX(-110%); }
+      .sidebar-nav.open { transform: translateX(0); }
+      .sidebar-overlay { display: none; }
+      .sidebar-overlay.active { display: block; }
+    }
+    @media (min-width: 992px) {
+      .sidebar-nav { transform: translateX(0) !important; }
+      .sidebar-overlay { display: none !important; }
+      #sidebarHamburger { display: none !important; }
+    }
+    /* Content wrapper */
+    .content-wrapper {
+      margin-left: 220px;
+      margin-top: 0;
+      padding: 32px 2vw 32px 2vw;
+      width: auto;
+      min-width: 0;
+      box-sizing: border-box;
+      transition: margin-left 0.3s, width 0.3s;
+      overflow-x: auto; /* Allow wide content to scroll horizontally if needed */
+    }
+    @media (max-width: 991px) {
+      .content-wrapper {
+        margin-left: 0;
+        padding: 24px 2vw 24px 2vw;
+        width: 100vw;
+        min-width: 0;
+        overflow-x: auto;
+      }
+    }
+    @media (max-width: 600px) {
+      .content-wrapper {
+        padding: 14px 1vw 14px 1vw;
+      }
+    }
+    .role-switcher {
+      position: fixed;
+      top: 70px;
+      right: 20px;
+      z-index: 1050;
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 10px 16px;
+    }
+    .role-switcher .btn {
+      background: #2563eb !important;
+      color: #fff !important;
+      border: none !important;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(37,99,235,0.10);
+    }
+    .role-switcher .btn:hover, .role-switcher .btn:focus {
+      background: #1d4ed8 !important;
+      color: #fff !important;
+    }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  <!-- Hamburger for sidebar -->
+  <button id="sidebarHamburger" aria-label="Toggle sidebar">
+    <i class="fa fa-bars"></i>
+  </button>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <!-- Top Navbar -->
+  <header class="top-navbar">
+    <nav aria-label="Top navigation">
+      <ul class="nav-pills">
+        <li>
+          <a href="/" class="nav-logo nav-link" tabindex="0" aria-label="Home">
+            <span class="ensemble-glow">Ensemble</span>
+            <span class="sr-only">Home</span>
+          </a>
+        </li>
+        
+          {% has_role_permission 'role_permission_management' as can_role_perm %}
+          {% if can_role_perm %}
+          <li>
+            <a href="{% url 'role_permission_management' %}" class="nav-link{% if request.resolver_match.url_name == 'role_permission_management' %} active{% endif %}">Role Permissions</a>
+          </li>
+          {% endif %}
+      </ul>
+    </nav>
+  </header>
+  <!-- Sidebar -->
+  <nav class="sidebar-nav closed" id="sidebarNav">
+    {% if current_role %}
+      {% if current_role == "Learner" %}
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#learnerDashboardMenu" aria-expanded="true">
+            <i class="fa fa-graduation-cap"></i> <span>Learner Dashboard</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right fa-rotate-90"></span>
+          </button>
+          <ul class="sidebar-collapse-list show" id="learnerDashboardMenu">
+            {% has_role_permission 'learner_home' as can_learner_home %}
+            {% if can_learner_home %}
+            <li><a href="{% url 'learner_home' %}" class="nav-link{% if request.resolver_match.url_name == 'learner_home' %} active{% endif %}"><i class="fa fa-home"></i> Home</a></li>
+            {% endif %}
+            {% has_role_permission 'learner_attendance' as can_learner_attendance %}
+            {% if can_learner_attendance %}
+            <li><a href="{% url 'learner_attendance' %}" class="nav-link{% if request.resolver_match.url_name == 'learner_attendance' %} active{% endif %}"><i class="fa fa-clock"></i> Attendance</a></li>
+            {% endif %}
+            {% has_role_permission 'learner_groups' as can_learner_groups %}
+            {% if can_learner_groups %}
+            <li><a href="{% url 'learner_groups' %}" class="nav-link{% if request.resolver_match.url_name == 'learner_groups' %} active{% endif %}"><i class="fa fa-users"></i> Groups</a></li>
+            {% endif %}
+            {% has_role_permission 'learner_project_plans' as can_learner_project_plans %}
+            {% if can_learner_project_plans %}
+            <li><a href="{% url 'learner_project_plans' %}" class="nav-link{% if request.resolver_match.url_name == 'learner_project_plans' %} active{% endif %}"><i class="fa fa-calendar-alt"></i> Project Plans</a></li>
+            {% endif %}
+            {% has_role_permission 'poe_submission' as can_poe_submission %}
+            {% if can_poe_submission %}
+            <li><a href="{% url 'poe_submission' %}" class="nav-link{% if request.resolver_match.url_name == 'poe_submission' %} active{% endif %}"><i class="fa fa-file-upload"></i> Submit POE</a></li>
+            {% endif %}
+            {% has_role_permission 'learner_assessment_results' as can_learner_assessment_results %}
+            {% if can_learner_assessment_results %}
+            <li><a href="{% url 'learner_assessment_results' %}" class="nav-link{% if request.resolver_match.url_name == 'learner_assessment_results' %} active{% endif %}"><i class="fa fa-chart-bar"></i> Assessment Results</a></li>
+            {% endif %}
+            {% has_role_permission 'view_attendance' as can_view_attendance %}
+            {% if can_view_attendance %}
+            <li><a href="{% url 'view_attendance' %}" class="nav-link{% if request.resolver_match.url_name == 'view_attendance' %} active{% endif %}"><i class="fa fa-calendar-check"></i> View Attendance</a></li>
+            {% endif %}
+            {% has_role_permission 'view_upcoming_dates' as can_view_upcoming_dates %}
+            {% if can_view_upcoming_dates %}
+            <li><a href="{% url 'view_upcoming_dates' %}" class="nav-link{% if request.resolver_match.url_name == 'view_upcoming_dates' %} active{% endif %}"><i class="fa fa-calendar"></i> Upcoming Dates</a></li>
+            {% endif %}
+            {% has_role_permission 'submit_poe' as can_submit_poe %}
+            {% if can_submit_poe %}
+            <li><a href="{% url 'submit_poe' %}" class="nav-link{% if request.resolver_match.url_name == 'submit_poe' %} active{% endif %}"><i class="fa fa-file-upload"></i> Submit POE (Portal)</a></li>
+            {% endif %}
+            <!-- LIF Form Link -->
+            <li>
+              <a href="{% url 'lif_form' %}?learner_id={{ request.user.learner_profile.id }}" class="nav-link{% if request.resolver_match.url_name == 'lif_form' %} active{% endif %}">
+                <i class="fa fa-id-card"></i> Learner Information Form (LIF)
+              </a>
+            </li>
+          </ul>
+        </div>
+      {% else %}
+        <!-- Admin Sidebar -->
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#dashboardMenu" aria-expanded="true">
+            <i class="fa fa-gauge"></i> <span>Dashboards</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right fa-rotate-90"></span>
+          </button>
+          <ul class="sidebar-collapse-list show" id="dashboardMenu">
+            {% has_role_permission 'sla_dashboard' as can_sla_dashboard %}
+            {% if can_sla_dashboard %}
+            <li><a href="{% url 'sla_dashboard' %}" class="nav-link{% if request.resolver_match.url_name == 'sla_dashboard' %} active{% endif %}"><i class="fa fa-tachometer-alt"></i> SLA Dashboard</a></li>
+            {% endif %}
+            {% has_role_permission 'finance_dashboard' as can_finance_dashboard %}
+            {% if can_finance_dashboard %}
+            <li><a href="{% url 'finance_dashboard' %}" class="nav-link{% if request.resolver_match.url_name == 'finance_dashboard' %} active{% endif %}"><i class="fa fa-chart-line"></i> Finance Dashboard</a></li>
+            {% endif %}
+            {% has_role_permission 'admin_poe_dashboard' as can_admin_poe_dashboard %}
+            {% if can_admin_poe_dashboard %}
+            <li><a href="{% url 'admin_poe_dashboard' %}" class="nav-link{% if request.resolver_match.url_name == 'admin_poe_dashboard' %} active{% endif %}"><i class="fa fa-tasks"></i> POE Dashboard</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#poeMenu" aria-expanded="false">
+            <i class="fa fa-folder"></i> <span>POE Management</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="poeMenu">
+            {% has_role_permission 'poe_template_list' as can_poe_template_list %}
+            {% if can_poe_template_list %}
+            <li><a href="{% url 'poe_template_list' %}" class="nav-link{% if request.resolver_match.url_name == 'poe_template_list' %} active{% endif %}"><i class="fa fa-file-alt"></i> POE Templates</a></li>
+            {% endif %}
+            {% has_role_permission 'poe_template_add' as can_poe_template_add %}
+            {% if can_poe_template_add %}
+            <li><a href="{% url 'poe_template_add' %}" class="nav-link{% if request.resolver_match.url_name == 'poe_template_add' %} active{% endif %}"><i class="fa fa-plus"></i> Add POE Template</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#projectMenu" aria-expanded="false">
+            <i class="fa fa-project-diagram"></i> <span>Project Management</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="projectMenu">
+            {% has_role_permission 'projectplan_list' as can_projectplan_list %}
+            {% if can_projectplan_list %}
+            <li><a href="{% url 'projectplan_list' %}" class="nav-link{% if request.resolver_match.url_name == 'projectplan_list' %} active{% endif %}"><i class="fa fa-calendar"></i> Project Plans</a></li>
+            {% endif %}
+            {% has_role_permission 'upload_project_plan_excel' as can_upload_project_plan_excel %}
+            {% if can_upload_project_plan_excel %}
+            <li><a href="{% url 'upload_project_plan_excel' %}" class="nav-link"><i class="fa fa-file-excel"></i> Upload Project Plans (Excel)</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#sessionMenu" aria-expanded="false">
+            <i class="fa fa-clock"></i> <span>Session Dates</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="sessionMenu">
+            {% has_role_permission 'sessiondate_list' as can_sessiondate_list %}
+            {% if can_sessiondate_list %}
+            <li><a href="{% url 'sessiondate_list' %}" class="nav-link{% if request.resolver_match.url_name == 'sessiondate_list' %} active{% endif %}"><i class="fa fa-clock"></i> Session Dates</a></li>
+            {% endif %}
+            {% has_role_permission 'upload_session_date_excel' as can_upload_session_date_excel %}
+            {% if can_upload_session_date_excel %}
+            <li><a href="{% url 'upload_session_date_excel' %}" class="nav-link"><i class="fa fa-file-excel"></i> Upload Session Dates (Excel)</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#venueMenu" aria-expanded="false">
+            <i class="fa fa-building"></i> <span>Venues</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="venueMenu">
+            {% has_role_permission 'venue_list' as can_venue_list %}
+            {% if can_venue_list %}
+            <li><a href="{% url 'venue_list' %}" class="nav-link{% if request.resolver_match.url_name == 'venue_list' %} active{% endif %}"><i class="fa fa-building"></i> Venues</a></li>
+            {% endif %}
+            {% has_role_permission 'venue_add' as can_venue_add %}
+            {% if can_venue_add %}
+            <li><a href="{% url 'venue_add' %}" class="nav-link"><i class="fa fa-plus"></i> Add Venue</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#venueBookingMenu" aria-expanded="false">
+            <i class="fa fa-calendar-check"></i> <span>Venue Bookings</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="venueBookingMenu">
+            {% has_role_permission 'venuebooking_list' as can_venuebooking_list %}
+            {% if can_venuebooking_list %}
+            <li><a href="{% url 'venuebooking_list' %}" class="nav-link{% if request.resolver_match.url_name == 'venuebooking_list' %} active{% endif %}"><i class="fa fa-calendar-check"></i> Venue Bookings</a></li>
+            {% endif %}
+            {% has_role_permission 'venuebooking_add' as can_venuebooking_add %}
+            {% if can_venuebooking_add %}
+            <li><a href="{% url 'venuebooking_add' %}" class="nav-link"><i class="fa fa-plus"></i> Add Venue Booking</a></li>
+            {% endif %}
+            {% has_role_permission 'venuebooking_events_api' as can_venuebooking_events_api %}
+            {% if can_venuebooking_events_api %}
+            <li><a href="{% url 'venuebooking_events_api' %}" class="nav-link"><i class="fa fa-calendar"></i> Venue Booking Events API</a></li>
+            {% endif %}
+            {% has_role_permission 'venuebooking_calendar' as can_venuebooking_calendar %}
+            {% if can_venuebooking_calendar %}
+            <li><a href="{% url 'venuebooking_calendar' %}" class="nav-link{% if request.resolver_match.url_name == 'venuebooking_calendar' %} active{% endif %}"><i class="fa fa-calendar-days"></i> Venue Calendar</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#servicesMenu" aria-expanded="false">
+            <i class="fa fa-cogs"></i> <span>Services & Modules</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="servicesMenu">
+            {% has_role_permission 'service-list' as can_service_list %}
+            {% if can_service_list %}
+            <li><a href="{% url 'service-list' %}" class="nav-link{% if request.resolver_match.url_name == 'service-list' %} active{% endif %}"><i class="fa fa-list"></i> Services</a></li>
+            {% endif %}
+            {% has_role_permission 'service-add' as can_service_add %}
+            {% if can_service_add %}
+            <li><a href="{% url 'service-add' %}" class="nav-link"><i class="fa fa-plus"></i> Add Service</a></li>
+            {% endif %}
+            {% has_role_permission 'module-list' as can_module_list %}
+            {% if can_module_list %}
+            <li><a href="{% url 'module-list' %}" class="nav-link{% if request.resolver_match.url_name == 'module-list' %} active{% endif %}"><i class="fa fa-book"></i> Modules</a></li>
+            {% endif %}
+            {% has_role_permission 'module-add' as can_module_add %}
+            {% if can_module_add %}
+            <li><a href="{% url 'module-add' %}" class="nav-link"><i class="fa fa-plus"></i> Add Module</a></li>
+            {% endif %}
+            {% has_role_permission 'service-module-list' as can_service_module_list %}
+            {% if can_service_module_list %}
+            <li><a href="{% url 'service-module-list' %}" class="nav-link{% if request.resolver_match.url_name == 'service-module-list' %} active{% endif %}"><i class="fa fa-link"></i> Service Modules</a></li>
+            {% endif %}
+            {% has_role_permission 'service-module-add' as can_service_module_add %}
+            {% if can_service_module_add %}
+            <li><a href="{% url 'service-module-add' %}" class="nav-link"><i class="fa fa-plus"></i> Add Service Module</a></li>
+            {% endif %}
+            {% has_role_permission 'upload_group_excel' as can_upload_group_excel %}
+            {% if can_upload_group_excel %}
+            <li><a href="{% url 'upload_group_excel' %}" class="nav-link"><i class="fa fa-file-excel"></i> Upload Groups (Excel)</a></li>
+            {% endif %}
+            {% has_role_permission 'upload_module_excel' as can_upload_module_excel %}
+            {% if can_upload_module_excel %}
+            <li><a href="{% url 'upload_module_excel' %}" class="nav-link"><i class="fa fa-file-excel"></i> Upload Modules (Excel)</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#groupMenu" aria-expanded="false">
+            <i class="fa fa-users-cog"></i> <span>Group Management</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="groupMenu">
+            {% has_role_permission 'group_management' as can_group_management %}
+            {% if can_group_management %}
+            <li><a href="{% url 'group_management' %}" class="nav-link{% if request.resolver_match.url_name == 'group_management' %} active{% endif %}"><i class="fa fa-users-cog"></i> Manage Groups</a></li>
+            {% endif %}
+            {% has_role_permission 'group_create' as can_group_create %}
+            {% if can_group_create %}
+            <li><a href="{% url 'group_create' %}" class="nav-link"><i class="fa fa-plus"></i> Create Group</a></li>
+            {% endif %}
+            {% has_role_permission 'group_qualification_assignment' as can_group_qualification_assignment %}
+            {% if can_group_qualification_assignment %}
+            <li><a href="{% url 'group_qualification_assignment' %}" class="nav-link{% if request.resolver_match.url_name == 'group_qualification_assignment' %} active{% endif %}"><i class="fa fa-tasks"></i> Group Qualifications</a></li>
+            {% endif %}
+            {% has_role_permission 'assign_learner_qualification_to_group' as can_assign_learner_qualification_to_group %}
+            {% if can_assign_learner_qualification_to_group %}
+            <li><a href="{% url 'assign_learner_qualification_to_group' %}" class="nav-link"><i class="fa fa-user-plus"></i> Assign Learner Qualification</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#billingMenu" aria-expanded="false">
+            <i class="fa fa-credit-card"></i> <span>Billing</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="billingMenu">
+            {% has_role_permission 'billing_payments' as can_billing_payments %}
+            {% if can_billing_payments %}
+            <li><a href="{% url 'billing_payments' %}" class="nav-link{% if request.resolver_match.url_name == 'billing_payments' %} active{% endif %}"><i class="fa fa-credit-card"></i> Payments</a></li>
+            {% endif %}
+            {% has_role_permission 'billing_export' as can_billing_export %}
+            {% if can_billing_export %}
+            <li><a href="{% url 'billing_export' %}" class="nav-link{% if request.resolver_match.url_name == 'billing_export' %} active{% endif %}"><i class="fa fa-file-export"></i> Export Billing</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#fingerprintMenu" aria-expanded="false">
+            <i class="fa fa-fingerprint"></i> <span>Fingerprint</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="fingerprintMenu">
+            {% has_role_permission 'upload_fingerprint' as can_upload_fingerprint %}
+            {% if can_upload_fingerprint %}
+            <li><a href="{% url 'upload_fingerprint' %}" class="nav-link"><i class="fa fa-upload"></i> Upload Fingerprint</a></li>
+            {% endif %}
+            {% has_role_permission 'fingerprint_list' as can_fingerprint_list %}
+            {% if can_fingerprint_list %}
+            <li><a href="{% url 'fingerprint_list' %}" class="nav-link"><i class="fa fa-list"></i> Fingerprint List</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#roleMenu" aria-expanded="false">
+            <i class="fa fa-user-shield"></i> <span>Role Management</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="roleMenu">
+            {% has_role_permission 'role_permission_management' as can_role_permission_management %}
+            {% if can_role_permission_management %}
+            <li><a href="{% url 'role_permission_management' %}" class="nav-link{% if request.resolver_match.url_name == 'role_permission_management' %} active{% endif %}"><i class="fa fa-key"></i> Role Permissions</a></li>
+            {% endif %}
+            {% has_role_permission 'learner_role_assignment' as can_learner_role_assignment %}
+            {% if can_learner_role_assignment %}
+            <li><a href="{% url 'learner_role_assignment' %}" class="nav-link{% if request.resolver_match.url_name == 'learner_role_assignment' %} active{% endif %}"><i class="fa fa-user-tag"></i> Assign Roles</a></li>
+            {% endif %}
+            {% has_role_permission 'add_learner' as can_add_learner %}
+            {% if can_add_learner %}
+            <li><a href="{% url 'add_learner' %}" class="nav-link"><i class="fa fa-user-plus"></i> Add Learner</a></li>
+            {% endif %}
+            {% has_role_permission 'qualification_times_list' as can_qualification_times_list %}
+            {% if can_qualification_times_list %}
+            <li><a href="{% url 'qualification_times_list' %}" class="nav-link"><i class="fa fa-clock"></i> Qualification Times List</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#miscMenu" aria-expanded="false">
+            <i class="fa fa-ellipsis-h"></i> <span>Other</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="miscMenu">
+            {% has_role_permission 'home_redirect' as can_home_redirect %}
+            {% if can_home_redirect %}
+            <li><a href="{% url 'home_redirect' %}" class="nav-link"><i class="fa fa-arrow-right"></i> Home Redirect</a></li>
+            {% endif %}
+            {% has_role_permission 'learner-autocomplete' as can_learner_autocomplete %}
+            {% if can_learner_autocomplete %}
+            <li><a href="{% url 'learner-autocomplete' %}" class="nav-link"><i class="fa fa-search"></i> Learner Autocomplete</a></li>
+            {% endif %}
+            {% has_role_permission 'facilitator-autocomplete' as can_facilitator_autocomplete %}
+            {% if can_facilitator_autocomplete %}
+            <li><a href="{% url 'facilitator-autocomplete' %}" class="nav-link"><i class="fa fa-search"></i> Facilitator Autocomplete</a></li>
+            {% endif %}
+            {% has_role_permission 'get_learner_qualifications' as can_get_learner_qualifications %}
+            {% if can_get_learner_qualifications %}
+            <li><a href="{% url 'get_learner_qualifications' %}" class="nav-link"><i class="fa fa-search"></i> Get Learner Qualifications</a></li>
+            {% endif %}
+            {% has_role_permission 'get_sla_qualifications' as can_get_sla_qualifications %}
+            {% if can_get_sla_qualifications %}
+            <li><a href="{% url 'get_sla_qualifications' %}" class="nav-link"><i class="fa fa-search"></i> Get SLA Qualifications</a></li>
+            {% endif %}
+          </ul>
+        </div>
+      {% endif %}
+      <div class="mt-auto">
+        <div class="p-3 text-center" style="font-weight:600;">
+          <i class="fa fa-user"></i>
+          {{ request.user.get_full_name|default:request.user.username }}
+          <small class="d-block text-muted">{{ current_role }}</small>
+        </div>
+        <div class="p-3">
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger w-100">
+              <i class="fa fa-sign-out-alt"></i> Logout
+            </button>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+  </nav>
+  <!-- Role Switcher -->
+  {% if available_roles|length > 1 %}
+  <div class="role-switcher">
+    <div class="dropdown">
+      <button class="btn dropdown-toggle" type="button" id="roleSwitchDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="fa fa-exchange-alt"></i> Role: {{ current_role|default:"Select Role" }}
+      </button>
+      <ul class="dropdown-menu" aria-labelledby="roleSwitchDropdown">
+        {% if has_learner_role %}
+        <li>
+          <a class="dropdown-item {% if current_role == 'Learner' %}active{% endif %}" href="{% url 'switch_role' %}?role=learner">
+            <i class="fa fa-user-graduate"></i> Learner
+          </a>
+        </li>
+        {% endif %}
+        {% for role in admin_roles %}
+        <li>
+          <a class="dropdown-item {% if current_role == role.role.name %}active{% endif %}" href="{% url 'switch_role' %}?role={{ role.role.name|lower }}">
+            <i class="fa fa-user-shield"></i> {{ role.role.name }}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+  <!-- Content Wrapper -->
+  <div class="content-wrapper">
+    {% block content %}{% endblock %}
+  </div>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+  <script>
+    // Sidebar collapse/expand
+    document.querySelectorAll('.sidebar-collapse-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var target = document.querySelector(btn.getAttribute('data-bs-target'));
+        var expanded = btn.getAttribute('aria-expanded') === 'true';
+        btn.setAttribute('aria-expanded', !expanded);
+        if (target) {
+          target.classList.toggle('show');
+          target.classList.toggle('collapse');
+        }
+        var icon = btn.querySelector('.sidebar-collapse-icon');
+        if (icon) {
+          icon.classList.toggle('fa-rotate-90');
+        }
+      });
+    });
+    // Hamburger toggle for sidebar
+    const sidebar = document.getElementById('sidebarNav');
+    const hamburger = document.getElementById('sidebarHamburger');
+    const overlay = document.getElementById('sidebarOverlay');
+    function openSidebar() {
+      sidebar.classList.add('open');
+      sidebar.classList.remove('closed');
+      overlay.classList.add('active');
+    }
+    function closeSidebar() {
+      sidebar.classList.remove('open');
+      sidebar.classList.add('closed');
+      overlay.classList.remove('active');
+    }
+    hamburger.addEventListener('click', openSidebar);
+    overlay.addEventListener('click', closeSidebar);
+    // On resize, close sidebar on mobile, open on desktop
+    function handleSidebarOnResize() {
+      if (window.innerWidth < 992) {
+        closeSidebar();
+      } else {
+        sidebar.classList.remove('closed');
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+      }
+    }
+    window.addEventListener('resize', handleSidebarOnResize);
+    document.addEventListener('DOMContentLoaded', handleSidebarOnResize);
+  </script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

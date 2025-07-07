@@ -1,0 +1,356 @@
+{% load static %}
+{% load dict_extras %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Venue Bookings</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="stylesheet" href="{% static 'styles2.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: linear-gradient(135deg, #f0f4f8 60%, #eaf6ff 100%); font-family: 'Segoe UI', 'Arial', sans-serif; margin: 0; padding: 0; min-height: 100vh; }
+        .goto-fab { position: fixed; top: 32px; right: 32px; z-index: 1000; }
+        .goto-fab .goto-btn { border-radius: 50px; padding: 16px 32px; font-size: 1.3em; font-weight: 700; background: linear-gradient(90deg, #020381 80%, #34C759 100%); color: #fff; box-shadow: 0 4px 24px #02038133; border: none; display: flex; align-items: center; gap: 0.7em; cursor: pointer; }
+        .goto-fab .goto-dropdown { display: none; position: absolute; top: 110%; right: 0; min-width: 260px; background: #fff; border-radius: 14px; box-shadow: 0 6px 24px #02038122; padding: 0.7em 0; font-size: 1.1em; z-index: 1001; }
+        .goto-fab .goto-dropdown.show { display: block; }
+        .goto-fab .goto-dropdown a { display: flex; align-items: center; font-size: 1.1em; padding: 10px 18px; color: #222; font-weight: 600; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; transition: background 0.18s, color 0.18s; }
+        .goto-fab .goto-dropdown a i { font-size: 1.2em; margin-right: 0.7em; color: #34C759; }
+        .goto-fab .goto-dropdown a:hover, .goto-fab .goto-dropdown a:focus { background: #eaf6ff; color: #020381; }
+        .venue-list-board { max-width: 1800px; margin: 0 auto; padding: 30px 10px 30px 10px; }
+        .venue-list-title { font-size: 2.5em; font-weight: 900; color: #020381; text-align: center; letter-spacing: 0.08em; margin-bottom: 8px; text-shadow: 0 0 16px #34C759, 0 0 32px #020381; }
+        .venue-list-date { font-size: 1.5em; font-weight: 700; color: #228B22; text-align: center; margin-bottom: 18px; letter-spacing: 0.06em; background: #eaf6ff; border-radius: 10px; padding: 10px 30px; display: inline-block; box-shadow: 0 2px 12px #b3e5fc; }
+        .live-clock { font-size: 1.2em; font-weight: 700; color: #228B22; text-align: center; margin-bottom: 1em; letter-spacing: 0.06em; background: #fff; border-radius: 12px; padding: 8px 24px; box-shadow: 0 2px 12px #b3e5fc; display: inline-block; }
+        .venue-date-filter { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; margin-bottom: 18px; }
+        .venue-date-filter label, .venue-date-filter input, .venue-date-filter button, .venue-date-filter a { font-size: 1.1em !important; font-weight: 600; letter-spacing: 0.04em; }
+        .venue-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; justify-content: center; align-items: stretch; }
+        .venue-card { background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(2,3,129,0.10); overflow: hidden; display: flex; flex-direction: column; border: 4px solid #eaf6ff; min-width: 0; min-height: 210px; transition: box-shadow 0.2s, border 0.2s; }
+        .venue-card-header { padding: 16px 18px 8px 18px; background: linear-gradient(90deg, var(--venue-color, #3A7AFE) 80%, #fff 100%); color: #fff; font-size: 1.3em; font-weight: 800; letter-spacing: 0.04em; border-bottom: 2px solid #fff4; display: flex; align-items: center; gap: 12px; }
+        .venue-card-header .fa { font-size: 1.1em; opacity: 0.85; }
+        .venue-card-body { padding: 10px 18px 14px 18px; display: flex; flex-direction: column; gap: 7px; font-size: 1.08em; }
+        .venue-card-row { display: flex; align-items: center; gap: 8px; }
+        .venue-card-row .label { font-weight: 400; color: #020381; min-width: 80px; font-size: 1em; }
+        .venue-card-row .value { font-weight: 600; color: #333; flex: 1; font-size: 1em; }
+        .venue-status-badge { display: inline-block; font-size: 1em; font-weight: 800; border-radius: 8px; padding: 4px 14px; color: #fff; background: linear-gradient(90deg, #34C759 70%, #43e97b 100%); box-shadow: 0 2px 8px #b3e5fc; border: 2px solid #43e97b; }
+        .venue-status-cancelled { background: linear-gradient(90deg, #d32f2f 70%, #ff6f61 100%); border-color: #ff6f61; }
+        .venue-status-rescheduled { background: linear-gradient(90deg, #FFA500 70%, #FFD580 100%); border-color: #FFA500; color: #333; }
+        .venue-status-virtual { background: linear-gradient(90deg, #3A7AFE 70%, #34C759 100%); border-color: #3A7AFE; }
+        .venue-card-footer { padding: 7px 18px; background: #f8f8ff; border-top: 1px solid #eaf6ff; font-size: 0.95em; color: #888; text-align: right; }
+        .no-bookings { font-size: 2em; color: #d32f2f; text-align: center; padding: 48px 0; font-weight: 900; }
+        .unbooked-venues-list { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px #b3e5fc; padding: 18px 24px; margin-bottom: 24px; max-width: 900px; margin-left: auto; margin-right: auto; }
+        .unbooked-venues-list h3 { color: #020381; font-size: 1.3em; margin-bottom: 10px; }
+        .unbooked-venues-list ul { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 18px; }
+        .unbooked-venues-list li { background: #eaf6ff; color: #020381; font-weight: 700; border-radius: 8px; padding: 10px 22px; font-size: 1.15em; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 8px #b3e5fc; }
+        .unbooked-venues-list .fa { color: #34C759; }
+        @media (max-width: 1200px) { .venue-list-title { font-size: 1.5em; } .venue-cards { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); } }
+        @media (max-width: 700px) { .venue-list-title { font-size: 1.1em; } .venue-list-date, .live-clock { font-size: 1em; padding: 6px 12px; } .venue-cards { grid-template-columns: 1fr; } }
+    </style>
+    <script>
+        // Live clock
+        function updateClock() {
+            const now = new Date();
+            const pad = n => n.toString().padStart(2, '0');
+            const timeStr = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+            document.getElementById('liveClock').textContent = timeStr;
+        }
+        setInterval(updateClock, 1000);
+        window.onload = updateClock;
+
+        // Go To Dropdown
+        document.addEventListener('DOMContentLoaded', function() {
+            var btn = document.getElementById('gotoDropdownBtn');
+            var menu = document.getElementById('gotoDropdownMenu');
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                menu.classList.toggle('show');
+            });
+            document.addEventListener('click', function() {
+                menu.classList.remove('show');
+            });
+            menu.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+        });
+    </script>
+</head>
+<body>
+<!-- Floating Go To Button (robust dropdown) -->
+<div class="goto-fab">
+    <button class="goto-btn" type="button" id="gotoDropdownBtn" aria-expanded="false">
+        <i class="fa fa-compass"></i> Go To <span style="margin-left:0.7em;"><i class="fa fa-chevron-down"></i></span>
+    </button>
+    <div class="goto-dropdown" id="gotoDropdownMenu">
+        <a href="{% url 'venuebooking_calendar' %}"><i class="fa fa-calendar"></i> Venue Booking Calendar</a>
+        <a href="{% url 'venuebooking_list' %}"><i class="fa fa-list"></i> Venue Bookings List</a>
+        <a href="{% url 'venuebooking_add' %}"><i class="fa fa-plus-circle"></i> Book a Venue</a>
+    </div>
+</div>
+
+<div class="venue-list-board">
+    <div class="venue-list-title">
+        <i class="fa fa-calendar-check"></i> VENUE BOOKINGS
+    </div>
+    <div class="live-clock">
+        <i class="fa fa-clock"></i> <span id="liveClock"></span>
+    </div>
+    <form method="get" class="venue-date-filter">
+        <label for="date">Show for date:</label>
+        <input type="date" id="date" name="date" value="{{ request.GET.date|default:today|date:'Y-m-d' }}">
+        <button type="submit" class="btn btn-primary">Go</button>
+        <a href="?date={{ today|date:'Y-m-d' }}" class="btn btn-secondary">Today</a>
+        <a href="?date={{ tomorrow|date:'Y-m-d' }}" class="btn btn-success">Tomorrow</a>
+        <a href="?date={{ next7|date:'Y-m-d' }}" class="btn btn-info">Next 7 Days</a>
+    </form>
+    <div class="venue-list-date">
+        {% if selected_date %}
+            {{ selected_date|date:"l, d F Y" }}
+        {% else %}
+            {{ today|date:"l, d F Y" }}
+        {% endif %}
+    </div>
+
+    <!-- ----------- UNBOOKED VENUES (PHYSICAL ONLY) ----------- -->
+    <div class="unbooked-venues-list">
+        <h3><i class="fa fa-door-open"></i> Venues available to book:</h3>
+        <ul>
+        {% if unbooked_venues %}
+            {% for venue in unbooked_venues %}
+                <li><i class="fa fa-check-circle"></i> {{ venue.name }}</li>
+            {% endfor %}
+        {% else %}
+            <li style="color:#d32f2f;"><i class="fa fa-times-circle"></i> All venues are booked for this date.</li>
+        {% endif %}
+        </ul>
+    </div>
+
+    <!-- ----------- BOOKINGS: GROUPED (MULTI & SINGLE) ----------- -->
+    <div class="venue-cards">
+        <!-- PHYSICAL VENUE BOOKINGS FIRST -->
+        {% for group in grouped_bookings %}
+            {% with booking=group.0 %}
+                {% if "virtual session" not in booking.venue.name|lower %}
+                    {% with venue_color=venue_color_map|get:booking.venue.name %}
+                    <div class="venue-card" style="--venue-color: {{ venue_color }}; border-color: {{ venue_color }};">
+                        <div class="venue-card-header" style="background: linear-gradient(90deg, {{ venue_color }} 80%, #fff 100%);">
+                            <i class="fa fa-building"></i>
+                            {{ booking.venue.name }}
+                            {% if group|length > 1 %}
+                                <span style="margin-left:10px;color:#34C759;font-weight:700;">(Multiple Sessions)</span>
+                            {% endif %}
+                        </div>
+                        <div class="venue-card-body">
+                            <div style="border-bottom:1px solid #eaf6ff; margin-bottom:7px; padding-bottom:7px;">
+                                <!-- Groups row -->
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-users"></i> Group(s):</span>
+                                    <span class="value">
+                                        {% for b in group %}
+                                            {% if b.session_date and b.session_date.project_plan %}
+                                                {{ b.session_date.project_plan.group.name|default:"No Group" }}{% if not forloop.last %}, {% endif %}
+                                            {% else %}
+                                                <span style="color:#d32f2f;">No group{% if not forloop.last %}, {% endif %}</span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </span>
+                                </div>
+                                <!-- Modules row -->
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-book"></i> Module(s):</span>
+                                    <span class="value">
+                                        {% for b in group %}
+                                            {% if b.session_date and b.session_date.project_plan %}
+                                                {{ b.session_date.project_plan.module.name|default:"No Module" }}{% if not forloop.last %}, {% endif %}
+                                            {% else %}
+                                                <span style="color:#d32f2f;">No module{% if not forloop.last %}, {% endif %}</span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-calendar-day"></i> Session:</span>
+                                    <span class="value">
+                                        {% if booking.session_date %}
+                                            {{ booking.session_date.start_date|date:"d M" }} - {{ booking.session_date.end_date|date:"d M" }}
+                                        {% else %}
+                                            <span style="color:#d32f2f;">N/A</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-clock"></i> Time:</span>
+                                    <span class="value">{{ booking.start_datetime|date:"H:i" }} - {{ booking.end_datetime|date:"H:i" }}</span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-bullseye"></i> Purpose:</span>
+                                    <span class="value">{{ booking.booking_purpose|default:"—" }}</span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-user-graduate"></i> Learners:</span>
+                                    <span class="value">{{ booking.num_learners|default:"—" }}</span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-utensils"></i> Lunch:</span>
+                                    <span class="value">{{ booking.num_learners_lunch|default:"—" }}</span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-user-tie"></i> Facilitator:</span>
+                                    <span class="value">
+                                        {% if booking.facilitator and booking.facilitator.learner %}
+                                            {{ booking.facilitator.learner.FirstName }} {{ booking.facilitator.learner.Surname }}
+                                        {% else %}
+                                            <span style="color:#d32f2f;">N/A</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-user-check"></i> Booked by:</span>
+                                    <span class="value">
+                                        {% if booking.user %}
+                                            {{ booking.user.first_name }} {{ booking.user.last_name }}{% if not booking.user.first_name and not booking.user.last_name %}{{ booking.user.username }}{% endif %}
+                                        {% else %}
+                                            <span style="color:#d32f2f;">N/A</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-flag"></i> Status:</span>
+                                    <span class="value">
+                                        {% if booking.status == "cancelled" %}
+                                            <span class="venue-status-badge venue-status-cancelled">Cancelled</span>
+                                        {% elif booking.status == "rescheduled" %}
+                                            <span class="venue-status-badge venue-status-rescheduled">Rescheduled</span>
+                                        {% else %}
+                                            <span class="venue-status-badge">Booked</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="venue-card-footer">
+                            <i class="fa fa-info-circle"></i>
+                        </div>
+                    </div>
+                    {% endwith %}
+                {% endif %}
+            {% endwith %}
+        {% endfor %}
+
+        <!-- VIRTUAL VENUE BOOKINGS AT THE END -->
+        {% with virtual_count=0 %}
+        {% for group in grouped_bookings %}
+            {% with booking=group.0 %}
+                {% if "virtual session" in booking.venue.name|lower %}
+                    {% with venue_color=venue_color_map|get:booking.venue.name %}
+                    <div class="venue-card" style="--venue-color: {{ venue_color }}; border-color: {{ venue_color }};">
+                        <div class="venue-card-header" style="background: linear-gradient(90deg, {{ venue_color }} 80%, #fff 100%);">
+                            <i class="fa fa-building"></i>
+                            {{ booking.venue.name }}
+                            {% if group|length > 1 %}
+                                <span style="margin-left:10px;color:#34C759;font-weight:700;">(Multiple Sessions)</span>
+                            {% endif %}
+                        </div>
+                        <div class="venue-card-body">
+                            <div style="border-bottom:1px solid #eaf6ff; margin-bottom:7px; padding-bottom:7px;">
+                               <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-users"></i> Group(s):</span>
+                                    <span class="value">
+                                        {% for b in group %}
+                                            {% if b.session_date and b.session_date.project_plan %}
+                                                {{ b.session_date.project_plan.group.name|default:"No Group" }}{% if not forloop.last %}, {% endif %}
+                                            {% else %}
+                                                <span style="color:#d32f2f;">No group{% if not forloop.last %}, {% endif %}</span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </span>
+                                </div>
+                                <!-- Modules row -->
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-book"></i> Module(s):</span>
+                                    <span class="value">
+                                        {% for b in group %}
+                                            {% if b.session_date and b.session_date.project_plan %}
+                                                {{ b.session_date.project_plan.module.name|default:"No Module" }}{% if not forloop.last %}, {% endif %}
+                                            {% else %}
+                                                <span style="color:#d32f2f;">No module{% if not forloop.last %}, {% endif %}</span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-calendar-day"></i> Session:</span>
+                                    <span class="value">
+                                        {% if booking.session_date %}
+                                            {{ booking.session_date.start_date|date:"d M" }} - {{ booking.session_date.end_date|date:"d M" }}
+                                        {% else %}
+                                            <span style="color:#d32f2f;">N/A</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-clock"></i> Time:</span>
+                                    <span class="value">{{ booking.start_datetime|date:"H:i" }} - {{ booking.end_datetime|date:"H:i" }}</span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-bullseye"></i> Purpose:</span>
+                                    <span class="value">{{ booking.booking_purpose|default:"—" }}</span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-user-graduate"></i> Learners:</span>
+                                    <span class="value">{{ booking.num_learners|default:"—" }}</span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-utensils"></i> Lunch:</span>
+                                    <span class="value">{{ booking.num_learners_lunch|default:"—" }}</span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-user-tie"></i> Facilitator:</span>
+                                    <span class="value">
+                                        {% if booking.facilitator and booking.facilitator.learner %}
+                                            {{ booking.facilitator.learner.FirstName }} {{ booking.facilitator.learner.Surname }}
+                                        {% else %}
+                                            <span style="color:#d32f2f;">N/A</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-user-check"></i> Booked by:</span>
+                                    <span class="value">
+                                        {% if booking.user %}
+                                            {{ booking.user.first_name }} {{ booking.user.last_name }}{% if not booking.user.first_name and not booking.user.last_name %}{{ booking.user.username }}{% endif %}
+                                        {% else %}
+                                            <span style="color:#d32f2f;">N/A</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="venue-card-row">
+                                    <span class="label"><i class="fa fa-flag"></i> Status:</span>
+                                    <span class="value">
+                                        <span class="venue-status-badge venue-status-virtual">Virtual</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="venue-card-footer">
+                            <i class="fa fa-info-circle"></i>
+                        </div>
+                    </div>
+                    {% endwith %}
+                    {% with virtual_count=virtual_count|add:"1" %}{% endwith %}
+                {% endif %}
+            {% endwith %}
+        {% endfor %}
+        {% if virtual_count > 0 %}
+            <div style="grid-column: 1/-1; text-align:center; margin-top:10px; color:#3A7AFE; font-weight:700;">
+                Virtual Sessions: {{ virtual_count }}
+            </div>
+        {% endif %}
+        {% endwith %}
+        {% if grouped_bookings|length == 0 %}
+            <div class="no-bookings">
+                <i class="fa fa-info-circle"></i> No bookings found for this date.
+            </div>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>

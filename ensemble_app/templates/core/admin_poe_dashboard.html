@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+/* Make table cells wrap and prevent overflow */
+.table td, .table th {
+  white-space: normal !important;
+  vertical-align: middle;
+  font-size: 0.97em;
+  padding: 0.5rem 0.6rem;
+}
+
+/* Limit max-width for columns that can get too wide */
+.table td:nth-child(4), /* Qualification */
+.table td:nth-child(5), /* Module */
+.table td:nth-child(10) /* Assessment textarea */ {
+  max-width: 180px;
+}
+
+/* Limit width for textarea in assessment */
+.table textarea {
+  min-width: 100px;
+  max-width: 160px;
+  font-size: 0.96em;
+  resize: vertical;
+}
+
+/* Make select fit nicely */
+.table select {
+  min-width: 90px;
+  font-size: 0.96em;
+}
+
+/* Prevent the table from overflowing the container */
+.table-responsive {
+  overflow-x: unset !important;
+}
+
+.table .btn {
+  min-width: 90px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 0.35rem 0.8rem;
+  border-radius: 8px;
+  box-shadow: none;
+  white-space: nowrap;
+}
+.table .btn i {
+  margin-right: 4px;
+}
+</style>
+<div class="container glass mt-4 fade-in" style="max-width:1200px;">
+    <h2 class="dashboard-title ensemble-glow mb-4">POE Submissions Dashboard</h2>
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-2">
+            <label>Group</label>
+            <select name="group" class="form-select">
+                <option value="">All</option>
+                {% for group in groups %}
+                <option value="{{ group.id }}" {% if filter_group == group.id|stringformat:"s" %}selected{% endif %}>{{ group.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label>Qualification</label>
+            <select name="qualification" class="form-select">
+                <option value="">All</option>
+                {% for qual in qualifications %}
+                <option value="{{ qual.id }}" {% if filter_qualification == qual.id|stringformat:"s" %}selected{% endif %}>{{ qual }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label>Module</label>
+            <select name="module" class="form-select">
+                <option value="">All</option>
+                {% for module in modules %}
+                <option value="{{ module.id }}" {% if filter_module == module.id|stringformat:"s" %}selected{% endif %}>{{ module.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label>Status</label>
+            <select name="status" class="form-select">
+                <option value="">All</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if filter_status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label>Search</label>
+            <input type="text" name="search" class="form-control" value="{{ filter_search }}">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">Filter</button>
+        </div>
+    </form>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3 d-flex flex-wrap gap-10 align-items-center">
+            <button type="submit" name="action" value="send_email" class="btn btn-info">Send Selected to Email</button>
+            <input type="email" name="recipient_email" placeholder="Recipient Email" class="form-control d-inline w-auto ms-2" style="max-width:220px;">
+        </div>
+        <div class="table-responsive rounded shadow-sm">
+            <table class="table table-striped align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th><input type="checkbox" id="select_all" onclick="toggleAll(this)"></th>
+                        <th>Learner</th>
+                        <th>Group</th>
+                        <th>Qualification</th>
+                        <th>Module</th>
+                        <th>Submitted</th>
+                        <th>Status</th>
+                        <th>POE</th>
+                        <th>Annextures</th>
+                        <th>Assessment</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for poe in poes %}
+                    <tr>
+                        <td><input type="checkbox" name="selected_poes" value="{{ poe.id }}"></td>
+                        <td>{{ poe.learner }}</td>
+                        <td>
+                            {% with group=poe.learner_qualification.sla_qualification.groups.first %}
+                                {% if group %}
+                                    {{ group.name }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td>{{ poe.learner_qualification.sla_qualification }}</td>
+                        <td>{{ poe.module.name }}</td>
+                        <td>{{ poe.submission_date|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            <span class="badge bg-{% if poe.status == 'competent' %}success{% elif poe.status == 'not_yet_competent' %}danger{% else %}secondary{% endif %}">
+                                {{ poe.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <!-- Download button -->
+                            <a href="{{ poe.poe_file.url }}" class="btn btn-primary btn-sm text-nowrap" target="_blank">
+                            <i class="fa fa-download"></i> Download
+                            </a>
+                        </td>
+                        <td>
+                            {% for ann in poe.annextures.all %}
+                            <a href="{{ ann.file.url }}" class="btn btn-sm btn-info mb-1" target="_blank">{{ ann.annexture_template.name }}</a>
+                            {% empty %}
+                            <span class="text-muted">None</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            <select name="status_{{ poe.id }}" class="form-select form-select-sm mb-1">
+                                <option value="competent" {% if poe.status == 'competent' %}selected{% endif %}>Competent</option>
+                                <option value="not_yet_competent" {% if poe.status == 'not_yet_competent' %}selected{% endif %}>Not Yet Competent</option>
+                            </select>
+                            <textarea name="feedback_{{ poe.id }}" class="form-control form-control-sm" placeholder="Feedback (required if not yet competent)">{{ poe.feedback }}</textarea>
+                        </td>
+                        <td>
+                            <!-- Assess button -->
+                            <a href="{% url 'assess_poe' poe.id %}" class="btn btn-success btn-sm text-nowrap">
+                            <i class="fa fa-check"></i> Assess
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <button type="submit" name="action" value="assess" class="btn btn-success mt-3">Save Assessment</button>
+    </form>
+</div>
+<script>
+function toggleAll(source) {
+    checkboxes = document.getElementsByName('selected_poes');
+    for(var i=0, n=checkboxes.length;i<n;i++) {
+        checkboxes[i].checked = source.checked;
+    }
+}
+</script>
+{% endblock %}

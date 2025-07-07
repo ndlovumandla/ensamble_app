@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Service-Module Links{% endblock %}
+{% block content %}
+
+  <h1 class="dashboard-title">Service-Module Links</h1>
+  <a href="{% url 'service-module-add' %}" class="btn btn-primary btn-glow mb-3">Link Service & Module</a>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Service</th><th>Module</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for sm in service_modules %}
+      <tr>
+        <td>{{ sm.service }}</td>
+        <td>{{ sm.module }}</td>
+        <td>
+          <a href="{% url 'service-module-edit' sm.pk %}" class="btn btn-secondary btn-sm">Edit</a>
+          <a href="{% url 'service-module-delete' sm.pk %}" class="btn btn-danger btn-sm">Delete</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="3">No links found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+{% endblock %}

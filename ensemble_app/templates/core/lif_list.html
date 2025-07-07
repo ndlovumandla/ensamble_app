@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Learner Information Forms</h2>
+<form method="get" class="mb-3">
+  <input type="text" name="search" value="{{ request.GET.search }}" placeholder="Search by name or ID" class="form-control" style="max-width:300px;display:inline-block;">
+  <button type="submit" class="btn btn-primary">Search</button>
+</form>
+<table class="table table-striped table-bordered">
+  <thead>
+    <tr>
+      <th>Learner</th>
+      <th>National ID</th>
+      <th>Birth Date</th>
+      <th>Equity</th>
+      <th>Province</th>
+      <th>Email</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for lif in lif_entries %}
+    <tr>
+      <td>{{ lif.learner_first_name }} {{ lif.learner_last_name }}</td>
+      <td>{{ lif.national_id }}</td>
+      <td>{{ lif.learner_birth_date }}</td>
+      <td>{{ lif.get_equity_code_display }}</td>
+      <td>{{ lif.get_province_code_display }}</td>
+      <td>{{ lif.email_address }}</td>
+      <td>
+        <a href="{% url 'lif_update' pk=lif.pk %}" class="btn btn-sm btn-outline-primary">Edit</a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="text-center">No LIF entries found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if is_paginated %}
+  <nav>
+    <ul class="pagination">
+      {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">&laquo;</a></li>
+      {% endif %}
+      {% for num in page_obj.paginator.page_range %}
+        <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+          <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">{{ num }}</a>
+        </li>
+      {% endfor %}
+      {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">&raquo;</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+{% endif %}
+{% endblock %}

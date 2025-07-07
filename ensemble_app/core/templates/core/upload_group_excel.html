@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Upload Group Excel/CSV{% endblock %}
+{% block content %}
+
+    <h2>Upload Group Excel/CSV</h2>
+    <div class="card">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="excel_file" class="form-label">Select Excel or CSV File:</label>
+                <input type="file" id="excel_file" name="excel_file" accept=".xlsx,.xls,.csv" class="form-control">
+                <small class="form-text text-muted">Supported formats: .xlsx, .xls, .csv</small>
+            </div>
+            <button type="submit" class="btn btn-primary">Upload File</button>
+            <a href="{% url 'group_management' %}" class="btn btn-secondary">Back to Groups</a>
+        </form>
+    </div>
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="alert {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    {% if error_log %}
+        <div class="alert alert-warning">
+            <h5>Failed Rows:</h5>
+            <pre>{{ error_log }}</pre>
+        </div>
+    {% endif %}
+{% endblock %}

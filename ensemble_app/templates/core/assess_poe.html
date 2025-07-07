@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Assess POE for {{ learner.FirstName }} {{ learner.Surname }}</h2>
+    <p><strong>Module:</strong> {{ module.name }}</p>
+    <p><strong>POE File:</strong> <a href="{{ poe.poe_file.url }}" target="_blank">Download</a></p>
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="status" class="form-label">Assessment Status</label>
+            <select name="status" id="status" class="form-select" required>
+                <option value="competent" {% if poe.status == 'competent' %}selected{% endif %}>Competent</option>
+                <option value="not_yet_competent" {% if poe.status == 'not_yet_competent' %}selected{% endif %}>Not Yet Competent</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="feedback" class="form-label">Feedback</label>
+            <textarea name="feedback" id="feedback" class="form-control" rows="4">{{ poe.feedback }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-success">Save Assessment</button>
+        <a href="{% url 'admin_poe_dashboard' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

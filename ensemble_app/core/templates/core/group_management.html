@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block title %}Group Management{% endblock %}
+{% block content %}
+<h2 class="dashboard-title ensemble-glow mb-4">Group Management</h2>
+
+<div class="filter-panel glassy mb-4 p-3 rounded shadow">
+    <form method="get" id="filter-form" class="filter-form flex gap-20 flex-wrap">
+        <div class="form-group filter-group">
+            <label for="search">🔍 Search:</label>
+            <input type="text" id="search" name="search" value="{{ filters.search|default:'' }}"
+                   placeholder="Name, project code" class="form-control input-field">
+        </div>
+        <div class="form-group filter-group">
+            <label for="service">🛠 Service:</label>
+            <select id="service" name="service" class="form-control select-field">
+                <option value="">All Services</option>
+                {% for service in services %}
+                    <option value="{{ service.id }}" {% if filters.service == service.id|stringformat:"i" %}selected{% endif %}>
+                        {{ service.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group filter-group">
+            <label for="seta">🏢 SETA:</label>
+            <select id="seta" name="seta" class="form-control select-field">
+                <option value="">All SETAs</option>
+                {% for seta in setas %}
+                    <option value="{{ seta.id }}" {% if filters.seta == seta.id|stringformat:"i" %}selected{% endif %}>
+                        {{ seta.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-actions align-self-end">
+            <button type="button" class="btn btn-secondary" onclick="this.form.reset(); this.form.submit();">
+                <i class="fa fa-eraser"></i> Clear
+            </button>
+        </div>
+    </form>
+</div>
+
+<div class="table-container glassy rounded shadow p-3">
+    <table class="table table-hover table-striped align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Name</th>
+                <th>Project Code</th>
+                <th>Service</th>
+                <th>SETA</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for group in groups %}
+            <tr class="group-row" style="transition: background 0.2s;">
+                <td>
+                    <a href="{% url 'group_detail' group.id %}" class="fw-bold text-primary">
+                        {{ group.name|default:"—" }}
+                    </a>
+                </td>
+                <td>{{ group.projectcode|default:"—" }}</td>
+                <td>
+                    {% with first_qual=group.sla_qualifications.all|first %}
+                        {% if first_qual %}
+                            <span class="badge bg-info">{{ first_qual.service.name }}</span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    {% endwith %}
+                </td>
+                <td>
+                    <span class="badge bg-warning text-dark">{{ group.seta.name|default:"—" }}</span>
+                </td>
+                <td>{{ group.start_date|date:"Y-m-d"|default:"—" }}</td>
+                <td>{{ group.end_date|date:"Y-m-d"|default:"—" }}</td>
+                <td>
+                    <span class="badge bg-success">{{ group.learners.count }}</span>
+                </td>
+                <td>
+                    <span class="badge bg-secondary">{{ group.sessiondate_set.count }}</span>
+                </td>
+                <td>
+                    <a href="{% url 'group_detail' group.id %}" class="btn btn-info btn-sm"><i class="fa fa-eye"></i> View</a>
+                    <a href="{% url 'group-edit' group.id %}" class="btn btn-primary btn-sm"><i class="fa fa-edit"></i> Edit</a>
+                    <a href="{% url 'group-delete' group.id %}" class="btn btn-danger btn-sm"><i class="fa fa-trash"></i> Delete</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="9" class="text-center text-muted">No groups found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% include "core/includes/pagination.html" with page_obj=groups %}
+</div>
+
+<script>
+    function debounce(func, delay) {
+        let timeoutId;
+        return function (...args) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
+    const submitForm = debounce(() => {
+        document.getElementById('filter-form').submit();
+    }, 350);
+    document.getElementById('search').addEventListener('input', submitForm);
+    document.getElementById('service').addEventListener('change', submitForm);
+    document.getElementById('seta').addEventListener('change', submitForm);
+
+    // Row hover effect
+    document.querySelectorAll('.group-row').forEach(row => {
+        row.addEventListener('mouseenter', () => row.style.background = '#f0f8ff');
+        row.addEventListener('mouseleave', () => row.style.background = '');
+    });
+</script>
+{% endblock %}

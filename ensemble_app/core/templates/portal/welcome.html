@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Learner Portal{% endblock %}
+
+{% block content %}
+  <div class="container mt-5">
+
+    {# Learner profile card #}
+    {% if learner %}
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5 class="card-title">{{ learner.FirstName }} {{ learner.Surname }}</h5>
+          <p class="card-text mb-1">
+            ID Number: {{ learner.IDNumber }}
+          </p>
+          {% if learner.active_learnership %}
+            <p class="card-text mb-1">
+              Qualification: 
+              {{ learner.active_learnership.sla_qualification.service.name }}
+              {% if learner.active_learnership.status %}
+                ({{ learner.active_learnership.status }})
+              {% endif %}
+            </p>
+            <p class="card-text mb-1">
+              Started: {{ learner.active_learnership.start_date }}  
+              • Ends: {{ learner.active_learnership.end_date }}
+            </p>
+          {% else %}
+            <p class="card-text">You have no active learnership at the moment.</p>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="text-center">
+      <h1>Welcome to Your Learner Portal</h1>
+      <p class="lead">Choose an action below:</p>
+
+      <div class="d-grid gap-3 col-6 mx-auto mt-4">
+        <a href="{% url 'view_attendance' %}" class="btn btn-outline-primary btn-lg">
+          View Attendance
+        </a>
+        <a href="{% url 'view_upcoming_dates' %}" class="btn btn-outline-secondary btn-lg">
+          View Upcoming Dates
+        </a>
+        <a href="{% url 'submit_poe' %}" class="btn btn-outline-success btn-lg">
+          Submit PoE
+        </a>
+        {% if show_exam %}
+          <a href="{% url 'sit_summative_exam' %}" class="btn btn-outline-danger btn-lg">
+            Sit Summative Exam
+          </a>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+{% endblock %}

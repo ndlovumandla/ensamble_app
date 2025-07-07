@@ -1,0 +1,199 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SLA {{ sla.sla_reference }}</title>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
+  <link
+    href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="{% static 'core/styles.css' %}">
+</head>
+<body>
+
+    <h1 class="mb-4">SLA {{ sla.sla_reference }}</h1>
+
+    <div class="card mb-4">
+      <div class="card-body">
+        <h2>Details</h2>
+        <p><strong>Client:</strong> {{ sla.customer.name }}{% if sla.end_client_name %} {{ sla.end_client_name }}{% endif %}</p>
+        <p><strong>Start Date:</strong> {{ sla.start_date|date:"d/m/Y" }}</p>
+        <p><strong>End Date:</strong> {{ sla.end_date|date:"d/m/Y" }}</p>
+        <p><strong>Tranches:</strong> {{ display_num_tranches }}</p>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-body">
+        <h2>Qualifications</h2>
+        <table class="table table-striped">
+          <thead class="table-success">
+            <tr>
+              <th>Qualification</th>
+              <th>Learners</th>
+              <th>Employment Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for qual in quals %}
+            <tr>
+              <td>{{ qual.service.name }}</td>
+              <td>{{ qual.learner_count }}</td>
+              <td>{{ qual.employment_status|title }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-body">
+        <h2>Learners</h2>
+        {% for qual, learners in qual_learners.items %}
+          <h3 class="mt-4">{{ qual.service.name }}</h3>
+          <table class="table table-striped table-hover">
+            <thead class="table-success">
+              <tr>
+                <th>Name</th>
+                <th>Surname</th>
+                <th>ID</th>
+                <th>Gender</th>
+                <th>Equity</th>
+                <th>Venue</th>
+                <th>Lunch</th>
+                <th>Data</th>
+                <th>Laptop</th>
+                <th class="text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for lq in learners %}
+              <tr>
+                <td>{{ lq.learner.FirstName }}</td>
+                <td>{{ lq.learner.Surname }}</td>
+                <td>{{ lq.learner.IDNumber }}</td>
+                <td>{{ lq.learner.Gender }}</td>
+                <td>{{ lq.learner.Equity }}</td>
+                <td>
+                  {% if qual.venue_location %}
+                    {{ qual.venue_location }}
+                  {% else %}
+                    <em>—</em>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if qual.lunch_provided %}
+                    <span class="badge bg-success">Yes</span>
+                  {% else %}
+                    <span class="badge bg-danger">No</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if qual.getting_data %}
+                    <span class="badge bg-success">Yes</span>
+                  {% else %}
+                    <span class="badge bg-danger">No</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if qual.getting_laptop %}
+                    <span class="badge bg-success">Yes</span>
+                  {% else %}
+                    <span class="badge bg-danger">No</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if lq.status == "removed" %}
+                    <span class="badge bg-danger">Removed</span>
+                    {% if lq.exit_reason %}
+                      <br><small><em>{{ lq.exit_reason }}</em></small>
+                    {% endif %}
+                  {% else %}
+                    <span class="badge bg-success">Active</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-body">
+        <h2>Billing History</h2>
+        {% if bills %}
+          <table class="table table-striped">
+            <thead class="table-success">
+              <tr>
+                <th>Tranche</th>
+                <th>Invoice No.</th>
+                <th>Invoice Date</th>
+                <th>Due Date</th>
+                <th>Payment Date</th>
+                <th>Billed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for bill in bills %}
+              <tr>
+                <td>{{ bill.display_label }}</td>
+                <td>{{ bill.invoice_number }}</td>
+                <td>{{ bill.invoice_date|date:"d/m/Y" }}</td>
+                <td>{{ bill.due_date|date:"d/m/Y" }}</td>
+                <td>{{ bill.payment_date|date:"d/m/Y" }}</td>
+                <td>{{ bill.billed }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p>No billing history available.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <a href="{% url 'sla_dashboard' %}" class="btn btn-primary">Back to Dashboard</a>
+ 
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
+  <script
+    src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"
+  ></script>
+  <script
+    src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"
+  ></script>
+  <script>
+    $(document).ready(function() {
+      $('table').each(function() {
+        if (!$.fn.DataTable.isDataTable(this)) {
+          $(this).DataTable({
+            paging: false,
+            ordering: false,
+            info: true,
+            language: { search: "Filter:" },
+            infoCallback: (settings, start, end, max, total) => {
+              return total === 0
+                ? ''
+                : $(this).hasClass('table-hover')
+                  ? `Total learners: ${total}`
+                  : `Total rows: ${total}`;
+            }
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html>

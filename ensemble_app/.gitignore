@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Django
+db.sqlite3
+*.sqlite3
+*.log
+
+# VSCode
+.vscode/
+.history/
+
+# Environment
+.env
+.env.*
+*.env
+*.envrc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Migrations
+*/migrations/
+!*/migrations/__init__.py
+
+# Static/Media
+staticfiles/
+static/
+media/
+*.bak
+
+# Jupyter
+*.ipynb_checkpoints
+
+# Compiled
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Coverage
+htmlcov/
+.coverage
+.tox/
+.nox/
+.cache/
+.pytest_cache/
+
+# Test output
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+
+# IDEs
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Backup files
+*~
+*.swp
+*.tmp

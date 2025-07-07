@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block title %}Learner Information Form (LIF){% endblock %}
+{% block content %}
+<style>
+.lif-form-container {
+  background: rgba(255,255,255,0.97);
+  border-radius: 22px;
+  box-shadow: 0 8px 36px 0 rgba(64,162,227,0.18), 0 2px 12px 0 rgba(0,69,139,0.13);
+  padding: 2.8rem 2.2rem 2.2rem 2.2rem;
+  margin-top: 2.5rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  animation: fadeIn 0.7s cubic-bezier(.77,0,.18,1) both;
+  border: 1.5px solid #e6edf3;
+  backdrop-filter: blur(10px);
+}
+.lif-form-title {
+  font-size: 2.1em;
+  font-weight: 900;
+  color: #00458B;
+  letter-spacing: 0.04em;
+  margin-bottom: 1.1em;
+  text-align: center;
+  text-shadow: 0 2px 16px #e6edf3, 0 0 10px #40A2E3;
+}
+.lif-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 2.2rem;
+}
+.lif-form-field {
+  flex: 1 1 320px;
+  min-width: 220px;
+  margin-bottom: 1.2rem;
+  display: flex;
+  flex-direction: column;
+}
+.lif-form-label {
+  font-weight: 700;
+  color: #00458B;
+  font-size: 1.08em;
+  margin-bottom: 0.25em;
+  letter-spacing: 0.01em;
+}
+.lif-form-input,
+.lif-form-select,
+.lif-form-textarea {
+  border-radius: 10px;
+  border: 2px solid #40A2E3;
+  background: #f8fbff;
+  padding: 0.85em 1em;
+  font-size: 1.08em;
+  color: #22223B;
+  transition: border 0.2s, box-shadow 0.2s, background 0.2s;
+  box-shadow: 0 2px 8px rgba(64,162,227,0.10);
+  outline: none;
+}
+.lif-form-input:focus,
+.lif-form-select:focus,
+.lif-form-textarea:focus {
+  border: 2px solid #00458B;
+  box-shadow: 0 0 0 2.5px #40A2E344;
+  background: #fff;
+}
+.lif-form-select {
+  cursor: pointer;
+}
+.lif-form-textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+.lif-form-input::placeholder,
+.lif-form-textarea::placeholder {
+  color: #8ca0b3;
+  opacity: 1;
+  font-size: 1em;
+}
+.lif-form-help {
+  font-size: 0.97em;
+  color: #40A2E3;
+  margin-top: 0.13em;
+}
+.lif-form-error {
+  color: #FF3B30;
+  font-size: 0.97em;
+  margin-top: 0.13em;
+}
+.lif-form-btn {
+  background: linear-gradient(90deg, #00458B 0%, #40A2E3 100%);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 1em 2.5em;
+  font-size: 1.13em;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin-top: 2em;
+  box-shadow: 0 2px 16px #40A2E344;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.18s, box-shadow 0.18s;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+.lif-form-btn:hover, .lif-form-btn:focus {
+  background: linear-gradient(90deg, #40A2E3 0%, #00458B 100%);
+  color: #fff;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 4px 24px #40A2E355;
+}
+.form-check-input[type="checkbox"] {
+  accent-color: #00458B !important;
+  border: 2px solid #40A2E3;
+  background: #fff;
+  width: 1.3em;
+  height: 1.3em;
+  margin-right: 0.5em;
+  box-shadow: 0 1px 4px rgba(64,162,227,0.09);
+}
+.form-check-input[type="checkbox"]:checked {
+  border-color: #00458B !important;
+}
+.form-check-input[type="checkbox"]:focus {
+  outline: 2px solid #00458B;
+  outline-offset: 2px;
+}
+#consent-status {
+  width: 100%;
+  margin: 1em 0 0 0;
+  font-weight: 600;
+  color: #FF3B30;
+  text-align: center;
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 0.7em 0;
+  box-shadow: 0 1px 8px #40A2E322;
+  font-size: 1.08em;
+}
+@media (max-width: 900px) {
+  .lif-form-container { padding: 1.2rem 0.5rem; }
+  .lif-form-row { gap: 1.2rem 0.7rem; }
+}
+@media (max-width: 600px) {
+  .lif-form-container { padding: 0.7rem 0.1rem; }
+  .lif-form-row { flex-direction: column; gap: 0.7rem; }
+  .lif-form-title { font-size: 1.2em; }
+}
+</style>
+<div class="lif-form-container glass">
+  <h2 class="lif-form-title ensemble-glow">Learner Information Form (LIF)</h2>
+  {% if messages %}
+    <div>
+      {% for message in messages %}
+        {% if 'lif' in message.tags %}
+          <div class="alert alert-{{ message.tags }} mt-2 mb-2" role="alert">
+            {{ message }}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+  <form method="post" novalidate autocomplete="off">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="lif-form-row">
+      {% for field in form %}
+        {% if field.name == "consent_to_process" %}
+          <div class="lif-form-field" style="flex-basis:100%;display:flex;align-items:center;">
+            {% render_field field class="form-check-input" %}
+            <label for="{{ field.id_for_label }}" class="lif-form-label" style="margin-bottom:0;margin-left:0.5em;font-weight:500;">
+              {{ field.label }}
+              <span style="color:#FF3B30;">*</span>
+            </label>
+            {% for error in field.errors %}
+              <div class="lif-form-error">{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="lif-form-field">
+            <label class="lif-form-label" for="{{ field.id_for_label }}">
+              {{ field.label }}{% if field.field.required and field.name != "consent_to_process" %}<span style="color:#FF3B30;">*</span>{% endif %}
+            </label>
+            {% if field.field.widget.input_type == "textarea" %}
+              {% render_field field class="lif-form-textarea" %}
+            {% elif field.field.widget.input_type == "select" %}
+              {% render_field field class="lif-form-select" %}
+            {% elif field.field.widget.input_type == "checkbox" %}
+              {% render_field field class="form-check-input" style="width:1.3em;height:1.3em;" %}
+            {% else %}
+              {% render_field field class="lif-form-input" %}
+            {% endif %}
+            {% if field.help_text %}
+              <div class="lif-form-help">{{ field.help_text }}</div>
+            {% endif %}
+            {% for error in field.errors %}
+              <div class="lif-form-error">{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    
+    <div id="consent-status" style="width:100%;margin:1em 0 0 0;font-weight:600;color:#FF3B30;text-align:center;">
+      You have <span id="consent-indicator" style="color:#FF3B30;">NOT</span> agreed to consent.
+    </div>
+    <button type="submit" class="lif-form-btn btn-glow">Submit</button>
+  </form>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var checkbox = document.getElementById('id_consent_to_process');
+    var indicator = document.getElementById('consent-indicator');
+    var statusDiv = document.getElementById('consent-status');
+    function updateConsentStatus() {
+      if (checkbox.checked) {
+        indicator.textContent = "AGREED";
+        indicator.style.color = "#1cb34b";
+        statusDiv.style.color = "#1cb34b";
+        statusDiv.innerHTML = 'You have <span id="consent-indicator" style="color:#1cb34b;">AGREED</span> to consent.';
+      } else {
+        indicator.textContent = "NOT";
+        indicator.style.color = "#FF3B30";
+        statusDiv.style.color = "#FF3B30";
+        statusDiv.innerHTML = 'You have <span id="consent-indicator" style="color:#FF3B30;">NOT</span> agreed to consent.';
+      }
+    }
+    if (checkbox) {
+      checkbox.addEventListener('change', updateConsentStatus);
+      updateConsentStatus();
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Services{% endblock %}
+{% block content %}
+<div class="container glass mt-4 fade-in">
+  <h1 class="dashboard-title ensemble-glow mb-4">Services</h1>
+  <div class="filter-panel mb-3">
+    <form method="get" id="filter-form" class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label for="search" class="form-label">Search:</label>
+        <input type="text" id="search" name="search" value="{{ request.GET.search|default:'' }}" placeholder="Name, GL Code, SAQA ID" class="form-control">
+      </div>
+      <div class="col-auto">
+        <button type="button" class="btn btn-secondary" onclick="this.form.reset(); this.form.submit();">Clear</button>
+      </div>
+    </form>
+  </div>
+  <a href="{% url 'service-add' %}" class="btn btn-primary btn-glow mb-3">Add Service</a>
+  <div class="table-container glassy">
+    <table class="table table-striped align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Name</th>
+          <th>GL Code</th>
+          <th>SAQA ID</th>
+          <th>Shorthand</th>
+          <th>Unit Price</th>
+          <th>Summative Exam?</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for service in services %}
+        <tr>
+          <td>{{ service.name }}</td>
+          <td>{{ service.gl_code }}</td>
+          <td>{{ service.saqa_id }}</td>
+          <td>{{ service.shorthand }}</td>
+          <td>R{{ service.unit_price }}</td>
+          <td>{% if service.requires_summative_exam %}Yes{% else %}No{% endif %}</td>
+          <td>
+            <a href="{% url 'service-edit' service.pk %}" class="btn btn-secondary btn-sm">Edit</a>
+            <a href="{% url 'service-delete' service.pk %}" class="btn btn-danger btn-sm">Delete</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted">No services found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if is_paginated %}
+  <nav aria-label="Service pagination">
+    <ul class="pagination justify-content-center">
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" aria-label="Previous">
+            <span aria-hidden="true">&laquo;</span>
+          </a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+      {% endif %}
+      {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+          <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+          <li class="page-item"><a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">{{ num }}</a></li>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" aria-label="Next">
+            <span aria-hidden="true">&raquo;</span>
+          </a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+<script>
+  // Debounced filter
+  function debounce(func, delay) {
+    let timeoutId;
+    return function (...args) {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => func.apply(this, args), delay);
+    };
+  }
+  const submitForm = debounce(() => {
+    document.getElementById('filter-form').submit();
+  }, 300);
+  document.getElementById('search').addEventListener('input', submitForm);
+</script>
+{% endblock %}

@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block title %}Project Plan Details{% endblock %}
+{% block content %}
+
+    <h2 class="dashboard-title ensemble-glow fade-in">Project Plan Details</h2>
+
+    <div class="container glass fade-in p-20 mb-20">
+        <table class="table table-container animated-border mb-20" style="border-collapse: separate; border-spacing: 0; overflow: hidden;">
+            <thead>
+                <tr>
+                    <th colspan="2" class="text-center text-primary" style="font-size:1.3em; background: var(--background); letter-spacing: 1px; border-radius: 12px 12px 0 0;">Project Plan Information</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="background: var(--white);">
+                    <th class="text-accent" style="width: 220px; background: var(--light-gray); font-weight:700;">ID</th>
+                    <td>{{ projectplan.id }}</td>
+                </tr>
+                <tr>
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Group</th>
+                    <td>
+                        {{ projectplan.group }}<br>
+                        <span class="badge badge-time"><strong>Project Code:</strong> {{ projectplan.group.projectcode }}</span><br>
+                        <span class="badge badge-time"><strong>Service:</strong> {{ projectplan.group.service }}</span><br>
+                        <span class="badge badge-time"><strong>SETA:</strong> {{ projectplan.group.seta }}</span><br>
+                        <span class="badge badge-on_time"><strong>Start Date:</strong> {{ projectplan.group.start_date }}</span><br>
+                        <span class="badge badge-on_time"><strong>End Date:</strong> {{ projectplan.group.end_date }}</span>
+                    </td>
+                </tr>
+                <tr style="background: var(--white);">
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Module</th>
+                    <td>
+                        {{ projectplan.module }}<br>
+                        <span class="badge badge-time"><strong>Module Code:</strong> {{ projectplan.module.code }}</span>
+                    </td>
+                </tr>
+                <tr>
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Module Briefing Session Person</th>
+                    <td>{{ projectplan.module_briefing_session_person }}</td>
+                </tr>
+                <tr style="background: var(--white);">
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Module Briefing Session Start Date</th>
+                    <td>{{ projectplan.module_briefing_session_start_date }}</td>
+                </tr>
+                <tr>
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Module Briefing Session End Date</th>
+                    <td>{{ projectplan.module_briefing_session_end_date }}</td>
+                </tr>
+                <tr style="background: var(--white);">
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Remedial Briefing Session Person</th>
+                    <td>{{ projectplan.remedial_briefing_session_person }}</td>
+                </tr>
+                <tr>
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Remedial Briefing Session Start Date</th>
+                    <td>{{ projectplan.remedial_briefing_session_start_date }}</td>
+                </tr>
+                <tr style="background: var(--white);">
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Remedial Briefing Session End Date</th>
+                    <td>{{ projectplan.remedial_briefing_session_end_date }}</td>
+                </tr>
+                <tr>
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Complete Formative PoE Date</th>
+                    <td>{{ projectplan.complete_formative_poe_date }}</td>
+                </tr>
+                <tr style="background: var(--white);">
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Summative QA Session Person</th>
+                    <td>{{ projectplan.summative_qa_session_person }}</td>
+                </tr>
+                <tr>
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Summative QA Session Start Date</th>
+                    <td>{{ projectplan.summative_qa_session_start_date }}</td>
+                </tr>
+                <tr style="background: var(--white);">
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Summative QA Session End Date</th>
+                    <td>{{ projectplan.summative_qa_session_end_date }}</td>
+                </tr>
+                <tr>
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Complete Summative PoE Date</th>
+                    <td>{{ projectplan.complete_summative_poe_date }}</td>
+                </tr>
+                <tr style="background: var(--white);">
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Assessment Person</th>
+                    <td>{{ projectplan.assessment_person }}</td>
+                </tr>
+                <tr>
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Assessment Date</th>
+                    <td>{{ projectplan.assessment_date }}</td>
+                </tr>
+                <tr style="background: var(--white);">
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Assessment Book In Date</th>
+                    <td>{{ projectplan.assessment_book_in_date }}</td>
+                </tr>
+                <tr>
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Assessment Book Out Date</th>
+                    <td>{{ projectplan.assessment_book_out_date }}</td>
+                </tr>
+                <tr style="background: var(--white);">
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Results Release Due Date</th>
+                    <td>{{ projectplan.results_release_due_date }}</td>
+                </tr>
+                <tr>
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Remediation Submission Date</th>
+                    <td>{{ projectplan.remediation_submission_date }}</td>
+                </tr>
+                <tr style="background: var(--white);">
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Remediation Assessment Person</th>
+                    <td>{{ projectplan.remediation_assessment_person }}</td>
+                </tr>
+                <tr>
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Remediation Assessment Date</th>
+                    <td>{{ projectplan.remediation_assessment_date }}</td>
+                </tr>
+                <tr style="background: var(--white);">
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Remediation Booked In Date</th>
+                    <td>{{ projectplan.remediation_booked_in_date }}</td>
+                </tr>
+                <tr>
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Remediation Booked Out Date</th>
+                    <td>{{ projectplan.remediation_booked_out_date }}</td>
+                </tr>
+                <tr style="background: var(--white);">
+                    <th class="text-accent" style="background: var(--light-gray); font-weight:700;">Remediation Results Release Due Date</th>
+                    <td>{{ projectplan.remediation_results_release_due_date }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 class="summary-title text-primary fade-in">Session Dates</h3>
+        <table class="table table-striped table-container animated-border mb-20">
+            <thead>
+                <tr>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Preferred Training Methodology</th>
+                    <th>Venue Bookings</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in projectplan.sessiondate_set.all %}
+                <tr>
+                    <td>{{ session.start_date }}</td>
+                    <td>{{ session.end_date }}</td>
+                    <td>{{ session.preferred_training_methodology }}</td>
+                    <td>
+                        {% for booking in session.venuebooking_set.all %}
+                            <div class="badge badge-time mb-1">
+                                <strong>Venue:</strong> {{ booking.venue.name }}<br>
+                                <strong>Start:</strong> {{ booking.start_datetime }}<br>
+                                <strong>End:</strong> {{ booking.end_datetime }}<br>
+                                <strong>Purpose:</strong> {{ booking.booking_purpose }}
+                            </div>
+                        {% empty %}
+                            <span class="text-danger">No bookings</span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="no-records">No session dates.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h3 class="summary-title text-primary fade-in">Learners</h3>
+        <table class="table table-striped table-container animated-border mb-20 attendance-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>ID Number</th>
+                    <th>Email</th>
+                    <th>Gender</th>
+                    <th>Equity</th>
+                    <th>UserID</th>
+                    <th>Status</th>
+                    <th>Exit Reason</th>
+                    <th>Expected Clock In</th>
+                    <th>Expected Clock Out</th>
+                    <th>Active Learnership</th>
+                    <th>Date Added</th>
+                    <th>SLA Qualification</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for slaq in projectplan.group.sla_qualifications.all %}
+                    {% for lq in slaq.learnerqualification_set.all %}
+                        {% with learner=lq.learner %}
+                        <tr>
+                            <td>{{ learner.FirstName }} {{ learner.Surname }}</td>
+                            <td>{{ learner.IDNumber }}</td>
+                            <td>{{ learner.EmailAddress }}</td>
+                            <td>{{ learner.Gender }}</td>
+                            <td>{{ learner.Equity }}</td>
+                            <td>{{ learner.UserID }}</td>
+                            <td>
+                                <span class="badge badge-on_time">{{ lq.status }}</span>
+                            </td>
+                            <td>{{ lq.exit_reason }}</td>
+                            <td>{{ lq.expected_clock_in|default:learner.expected_clock_in }}</td>
+                            <td>{{ lq.expected_clock_out|default:learner.expected_clock_out }}</td>
+                            <td>
+                                {% if learner.active_learnership %}
+                                    <span class="badge badge-success">{{ learner.active_learnership }}</span>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ lq.created_at }}</td>
+                            <td>{{ slaq }}</td>
+                        </tr>
+                        {% endwith %}
+                    {% endfor %}
+                {% empty %}
+                    <tr><td colspan="13" class="no-records">No learners assigned.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="flex gap-10 mt-20">
+            <a href="{% url 'projectplan_list' %}" class="btn btn-secondary btn-glow">Back to Project Plans</a>
+            <a href="{% url 'projectplan_edit' projectplan.pk %}" class="btn btn-primary btn-glow">Edit Project Plan</a>
+        </div>
+    </div>
+
+{% endblock %}

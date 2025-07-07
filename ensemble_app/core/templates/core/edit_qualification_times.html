@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Edit Attendance Times for {{ qual.service.name }}{% endblock %}
+{% block content %}
+    <div class="card">
+        <h2>Edit Attendance Times for {{ qual.service.name }}</h2>
+        {% if messages %}
+            {% for message in messages %}
+                <p class="{{ message.tags }}">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="expected_clock_in" class="form-label">Expected Clock In:</label>
+                <input type="time" name="expected_clock_in" value="{{ expected_clock_in|default_if_none:'' }}" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="expected_clock_out" class="form-label">Expected Clock Out:</label>
+                <input type="time" name="expected_clock_out" value="{{ expected_clock_out|default_if_none:'' }}" class="form-control">
+            </div>
+            <button type="submit" class="btn btn-primary">Save</button>
+            <a href="{% url 'qualification_times_list' %}" class="btn btn-secondary">Back to Qualification Times</a>
+        </form>
+    </div>
+
+{% endblock %}

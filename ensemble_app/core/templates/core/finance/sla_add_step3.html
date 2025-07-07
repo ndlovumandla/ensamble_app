@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Step 3: Billing Tranches{% endblock %}
+
+{% block content %}
+<div class="main-content">
+  <div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+      <h2 class="mb-4 text-center">
+        Step 3: Billing Tranches for SLA {{ sla.sla_reference }}
+      </h2>
+
+      <form
+  method="post"
+  action="{% url 'add_sla_billing' sla_id=sla.id %}"
+  class="mb-4"
+>
+  {% csrf_token %}
+  {{ formset.management_form }}
+
+  {% for form in formset %}
+    {# -- IMPORTANT: include the hidden invoice_type field -- #}
+    {{ form.invoice_type }}
+
+    <div class="card mb-4 border-secondary">
+      <div class="card-header d-flex justify-content-between align-items-center bg-white">
+        <span class="fw-bold">
+          Tranche {{ form.initial.invoice_type|slice:"1:" }}
+        </span>
+        <div class="d-flex gap-3">
+          <div>
+            <label class="form-label mb-0 small">Due Date</label><br>
+            {{ form.due_date }}
+            {% if form.due_date.errors %}
+              <div class="text-danger small">{{ form.due_date.errors }}</div>
+            {% endif %}
+          </div>
+          <div>
+            <label class="form-label mb-0 small">Total (R)</label><br>
+            {{ form.total_amount }}
+            {% if form.total_amount.errors %}
+              <div class="text-danger small">{{ form.total_amount.errors }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body p-0 border-top">
+        <table class="table table-bordered mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Qualification</th>
+              <th class="text-end">Amount (R)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in form.qual_fields %}
+            <tr>
+              <td class="ps-4">{{ item.label }}</td>
+              <td class="pe-4 text-end">
+                {{ item.field }}
+                {% if item.field.errors %}
+                  <div class="text-danger small">{{ item.field.errors }}</div>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endfor %}
+
+  <div class="d-grid gap-2">
+    <button type="submit" class="btn btn-primary btn-lg">
+      Save &amp; Continue
+    </button>
+    <a href="{% url 'finance_dashboard' %}" class="btn btn-secondary btn-lg">
+      Cancel
+    </a>
+  </div>
+</form>
+    </div>
+  </div>
+</div>
+{% endblock %}

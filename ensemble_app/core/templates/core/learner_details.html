@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Learner Details{% endblock %}
+{% block content %}
+
+    <div class="card">
+        <h2>Learner Details</h2>
+        <div class="detail-container">
+            <p><strong>Name:</strong> {{ object.FirstName }} {{ object.Surname }}</p>
+            <p><strong>ID Number:</strong> {{ object.IDNumber }}</p>
+            <p><strong>Gender:</strong> {{ object.Gender }}</p>
+            <p><strong>Equity:</strong> {{ object.Equity }}</p>
+            <p><strong>Email:</strong> {{ object.EmailAddress|default:"N/A" }}</p>
+            <p><strong>User ID:</strong> {{ object.UserID|default:"N/A" }}</p>
+            <p><strong>Qualifications:</strong>
+                {% for qual in object.learnerqualification_set.all %}
+                    {{ qual.sla_qualification.service.name }} ({{ qual.sla_qualification.sla.sla_reference }}) - {{ qual.status }}<br>
+                {% empty %}
+                    None
+                {% endfor %}
+            </p>
+        </div>
+        <a href="{% url 'learner_list' %}" class="btn btn-secondary">Back to Learners</a>
+    </div>
+
+{% endblock %}

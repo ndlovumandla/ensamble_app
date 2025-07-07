@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% block title %}Manage Qualification Times{% endblock %}
+{% block content %}
+
+    <h2>Manage Qualification Times</h2>
+    {% if messages %}
+        {% for message in messages %}
+            <p class="{{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+    <div class="filter-panel">
+        <form method="get" id="filter-form" class="filter-form">
+            <div class="form-group filter-group">
+                <label for="sla_id" class="form-label">Filter by SLA:</label>
+                <select id="sla_id" name="sla_id" class="form-control" onchange="this.form.submit()">
+                    <option value="">All SLAs</option>
+                    {% for sla in slas %}
+                        <option value="{{ sla.id }}" {% if filters.sla_id == sla.id|stringformat:"s" %}selected{% endif %}>{{ sla.sla_reference }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group filter-group">
+                <label for="qualification_name" class="form-label">Qualification Name:</label>
+                <input type="text" id="qualification_name" name="qualification_name" value="{{ filters.qualification_name|default:'' }}" placeholder="Enter qualification name" class="form-control">
+            </div>
+            <div class="form-group filter-group">
+                <label for="status" class="form-label">Status:</label>
+                <select id="status" name="status" class="form-control" onchange="this.form.submit()">
+                    <option value="">All Statuses</option>
+                    <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button type="button" class="btn btn-secondary" onclick="this.form.reset(); this.form.submit();">Clear Filters</button>
+            </div>
+        </form>
+    </div>
+
+    {% if qualification_count > 0 %}
+        <p>Found {{ qualification_count }} qualification{{ qualification_count|pluralize }}.</p>
+        <table class="attendance-table">
+            <thead>
+                <tr>
+                    <th>SLA</th>
+                    <th>Qualification</th>
+                    <th>Expected Clock In</th>
+                    <th>Expected Clock Out</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for qual in page_obj %}
+                    <tr>
+                        <td>{{ qual.sla.sla_reference }}</td>
+                        <td>{{ qual.service.name }}</td>
+                        <td>{{ qual.expected_clock_in|default:"08:00" }}</td>
+                        <td>{{ qual.expected_clock_out|default:"16:25" }}</td>
+                        <td>
+                            <a href="{% url 'edit_qualification_times' qual_id=qual.id %}" class="btn btn-primary">Edit Times</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if is_paginated %}
+        <nav aria-label="Qualification pagination">
+          <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                  <span aria-hidden="true">&laquo;</span>
+                </a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+              {% if page_obj.number == num %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+              {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+              {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                  <span aria-hidden="true">&raquo;</span>
+                </a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+            {% endif %}
+          </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <p class="no-records">No qualifications found for the selected filter.</p>
+    {% endif %}
+    <a href="{% url 'sla_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+
+<script>
+    // Debounce function to limit how often the form is submitted
+    function debounce(func, delay) {
+        let timeoutId;
+        return function (...args) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
+
+    // Submit the form after a short delay
+    const submitForm = debounce(() => {
+        document.getElementById('filter-form').submit();
+    }, 300);
+
+    // Attach the debounced submit to the text input
+    document.getElementById('qualification_name').addEventListener('input', submitForm);
+</script>
+{% endblock %}

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Billing → Mark Paid{% endblock %}
+
+{% block content %}
+
+  <h1 class="mb-4">Billing → Mark Paid</h1>
+
+  <form method="get" class="row g-2 align-items-end mb-4">
+    <div class="col-auto">
+      <label for="month" class="col-form-label">Select month:</label>
+    </div>
+    <div class="col-auto">
+      <input
+        type="month"
+        id="month"
+        name="month"
+        value="{{ selected_month }}"
+        class="form-control"
+      >
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary">Filter</button>
+    </div>
+  </form>
+
+  {% if unpaid %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="selected_month" value="{{ selected_month }}">
+
+      <div class="table-responsive">
+        <table
+          id="paymentsTable"
+          class="table table-striped table-bordered"
+          style="width:100%"
+        >
+          <thead class="table-success">
+            <tr>
+              <th>SLA</th>
+              <th>Client</th>
+              <th>Invoice #</th>
+              <th>Date</th>
+              <th class="text-end">Amount</th>
+              <th>Paid on</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inv in unpaid %}
+              <tr>
+                <td>{{ inv.sla.sla_reference }}</td>
+                <td>{{ inv.sla.customer.name }}</td>
+                <td>{{ inv.invoice_number }}</td>
+                <!-- raw ISO date for sorting -->
+                <td data-order="{{ inv.invoice_date|date:'Y-m-d' }}">
+                  {{ inv.invoice_date }}
+                </td>
+                <td class="text-end">R {{ inv.amount|floatformat:2 }}</td>
+                <td>
+                  <input
+                    type="date"
+                    name="payment_date_{{ inv.pk }}"
+                    class="form-control form-control-sm"
+                    value="{{ inv.payment_date|default_if_none:'' }}"
+                  >
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <button class="btn btn-success mt-3">Save payments</button>
+    </form>
+  {% else %}
+    <div class="alert alert-info">
+      No outstanding invoices for {{ selected_month }}.
+    </div>
+  {% endif %}
+
+  {% if missed %}
+    <h2 class="mt-5">2. Due for billing</h2>
+    <div class="table-responsive">
+      <table
+        id="missedTable"
+        class="table table-striped table-bordered"
+        style="width:100%"
+      >
+        <thead class="table-warning">
+          <tr>
+            <th>SLA</th>
+            <th>Client</th>
+            <th>Due date</th>
+            <th class="text-end">Amount</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in missed %}
+            <tr>
+              <td>{{ inv.sla.sla_reference }}</td>
+              <td>{{ inv.sla.customer.name }}</td>
+              <td data-order="{{ inv.due_date|date:'Y-m-d' }}">
+                {{ inv.due_date }}
+              </td>
+              <td class="text-end">R {{ inv.amount|floatformat:2 }}</td>
+              <td><!-- link to invoice creation --></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
+  <div class="mt-4">
+    <a
+      href="{% url 'finance_dashboard' %}"
+      class="btn btn-secondary"
+    >
+      ← Finance Dashboard
+    </a>
+  </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    $('#paymentsTable').DataTable({
+      pageLength: 100,
+      order: [[ 3, 'asc' ]],         // sort by Date ascending
+      columnDefs: [
+        { type: 'date-iso', targets: 3 }
+      ],
+      language: { search: "Filter:" }
+    });
+    $('#missedTable').DataTable({
+      pageLength: 100,
+      ordering: false,
+      language: { search: "Filter:" }
+    });
+  });
+</script>
+{% endblock %}

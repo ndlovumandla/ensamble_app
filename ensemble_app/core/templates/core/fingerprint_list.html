@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_tags %}
+{% block title %}Fingerprint Records{% endblock %}
+{% block content %}
+<div class="dashboard-bg"></div>
+<div class="fingerprint-dashboard glassy">
+    <h1 class="dashboard-title">Fingerprint Records Dashboard</h1>
+    <div class="filter-panel card-hover glassy">
+        <form method="get" id="filter-form" class="filter-form flex flex-wrap gap-20">
+            <div class="form-group filter-group">
+                <label for="search" class="form-label">Search Learner:</label>
+                <input type="text" id="search" name="search" value="{{ filters.search }}" placeholder="Name, ID Number, User ID" class="form-control">
+            </div>
+            <div class="form-group filter-group">
+                <label for="sla_id" class="form-label">Select SLA:</label>
+                <select id="sla_id" name="sla_id" class="form-control" onchange="this.form.submit()">
+                    <option value="">All SLAs</option>
+                    {% for sla in slas %}
+                        <option value="{{ sla.id }}" {% if filters.sla_id == sla.id|stringformat:"s" %}selected{% endif %}>{{ sla.sla_reference }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group filter-group">
+                <label for="qualification_search" class="form-label">Qualification:</label>
+                <input type="text" id="qualification_search" name="qualification_search" value="{{ filters.qualification_search }}" placeholder="Qualification Name" class="form-control">
+            </div>
+            <div class="form-group filter-group">
+                <label for="date" class="form-label">Specific Date:</label>
+                <input type="date" id="date" name="date" value="{{ filters.date }}" class="form-control" onchange="this.form.submit()">
+            </div>
+            <div class="form-group filter-group date-range">
+                <label class="form-label">Date Range:</label>
+                <input type="date" name="start_date" value="{{ filters.start_date }}" placeholder="Start Date" class="form-control" onchange="this.form.submit()">
+                <input type="date" name="end_date" value="{{ filters.end_date }}" placeholder="End Date" class="form-control" onchange="this.form.submit()">
+            </div>
+            <div class="filter-actions">
+                <button type="button" class="btn btn-secondary" onclick="this.form.reset(); this.form.submit();">Clear Filters</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="summary-panel">
+        <h2 class="summary-title">Attendance Summary</h2>
+        <div class="summary-cards flex gap-20">
+            <div class="summary-card glassy card-hover">
+                <h3>Clock In</h3>
+                <p><span class="badge badge-early">Early: {{ summary.clock_in.early }}</span></p>
+                <p><span class="badge badge-on_time">On Time: {{ summary.clock_in.on_time }}</span></p>
+                <p><span class="badge badge-late">Late: {{ summary.clock_in.late }}</span></p>
+                <p><span class="badge badge-missing">Missing: {{ summary.clock_in.missing }}</span></p>
+            </div>
+            <div class="summary-card glassy card-hover">
+                <h3>Clock Out</h3>
+                <p><span class="badge badge-early_leave">Early Leave: {{ summary.clock_out.early_leave }}</span></p>
+                <p><span class="badge badge-on_time">On Time: {{ summary.clock_out.on_time }}</span></p>
+                <p><span class="badge badge-overtime">Overtime: {{ summary.clock_out.overtime }}</span></p>
+                <p><span class="badge badge-missing">Missing: {{ summary.clock_out.missing }}</span></p>
+            </div>
+        </div>
+    </div>
+
+    {% if fingerprint_data %}
+        <div class="table-container glassy card-hover">
+            <h2 class="table-title">Attendance Records</h2>
+            {% regroup fingerprint_data by date as date_list %}
+            {% for date_group in date_list %}
+                <div class="date-group">
+                    <h3 class="date-header">{{ date_group.grouper|date:"l, Y-m-d" }}</h3>
+                    <table class="attendance-table">
+                        <thead>
+                            <tr>
+                                <th>User ID</th>
+                                <th>Learner</th>
+                                <th>Qualification</th>
+                                <th>SLA</th>
+                                <th>Expected Clock In</th>
+                                <th>Clock In</th>
+                                <th>Clock In Status</th>
+                                <th>Expected Clock Out</th>
+                                <th>Clock Out</th>
+                                <th>Clock Out Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in date_group.list %}
+                                <tr>
+                                    <td>{{ record.user_id }}</td>
+                                    <td>{{ record.learner_name }}</td>
+                                    <td>{{ record.qualification }}</td>
+                                    <td>{{ record.sla_group }}</td>
+                                    <td><span class="badge badge-time">{{ record.expected_clock_in|default:"N/A" }}</span></td>
+                                    <td><span class="badge badge-time">{{ record.clock_in_time|default:"N/A" }}</span></td>
+                                    <td><span class="badge badge-{{ record.clock_in_category }}">{{ record.clock_in_category|title }}</span></td>
+                                    <td><span class="badge badge-time">{{ record.expected_clock_out|default:"N/A" }}</span></td>
+                                    <td><span class="badge badge-time">{{ record.clock_out_time|default:"N/A" }}</span></td>
+                                    <td><span class="badge badge-{{ record.clock_out_category }}">{{ record.clock_out_category|title }}</span></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endfor %}
+            {% if is_paginated %}
+                <div class="pagination">
+                    <span class="step-links">
+                        {% if page_obj.has_previous %}
+                            <a href="?{% url_replace request 'page' page_obj.previous_page_number %}" class="btn btn-secondary">« Previous</a>
+                        {% endif %}
+                        <span class="current-page">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                        {% if page_obj.has_next %}
+                            <a href="?{% url_replace request 'page' page_obj.next_page_number %}" class="btn btn-secondary">Next »</a>
+                        {% endif %}
+                    </span>
+                </div>
+            {% endif %}
+        </div>
+    {% else %}
+        <p class="no-records">No fingerprint records found.</p>
+    {% endif %}
+</div>
+<script>
+    // Debounce function to limit how often the form is submitted
+    function debounce(func, delay) {
+        let timeoutId;
+        return function (...args) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
+    // Submit the form after a short delay
+    const submitForm = debounce(() => {
+        document.getElementById('filter-form').submit();
+    }, 300);
+    // Attach the debounced submit to text inputs
+    document.querySelectorAll('#search, #qualification_search').forEach(input => {
+        input.addEventListener('input', submitForm);
+    });
+</script>
+{% endblock %}

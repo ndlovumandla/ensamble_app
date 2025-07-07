@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Facilitator POEs</h2>
+  <ul>
+    {% for poe in poes %}
+      <li>
+        {{ poe.learner }} - {{ poe.module }}
+        <a href="{% url 'facilitator_poe_feedback' poe_id=poe.id %}">Provide Feedback</a>
+      </li>
+    {% endfor %}
+  </ul>
+{% endblock %}

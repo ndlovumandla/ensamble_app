@@ -1,0 +1,15 @@
+<p>Dear {{ learner.FirstName }} {{ learner.Surname }},</p>
+<p>Your POE submission for <strong>{{ module.name }}</strong> has been assessed.</p>
+<p>
+    <strong>Status:</strong>
+    {% if status == 'Competent' %}
+        <span style="color:green;">{{ status }}</span>
+    {% else %}
+        <span style="color:red;">{{ status }}</span>
+    {% endif %}
+</p>
+{% if feedback %}
+<p><strong>Feedback:</strong> {{ feedback }}</p>
+{% endif %}
+<p>Assessed on: {{ review_date|date:"Y-m-d H:i" }}</p>
+<p>Thank you,<br>The Assessment Team</p>

@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% load json_extras %}
+{% block title %}Cognito LIF Entries{% endblock %}
+{% block content %}
+<div class="container glass mb-4 p-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="dashboard-title ensemble-glow mb-0" style="font-weight:700; letter-spacing:1px;">Cognito LIF Entries</h2>
+    <form method="post" action="{% url 'export_cognito_to_lif' %}" class="ms-3">
+      {% csrf_token %}
+      <input type="hidden" name="file" value="{{ selected_file }}">
+      <button type="submit" class="btn btn-warning btn-lg shadow-sm" style="font-weight:600;">
+        <i class="fa fa-download"></i> Export All to LIF Table
+      </button>
+    </form>
+  </div>
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <form method="post" class="mb-4">
+        {% csrf_token %}
+        <div class="row g-2 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Form ID</label>
+            <input type="text" name="form_id" class="form-control" placeholder="Form ID" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Single Entry ID</label>
+            <input type="text" name="entry_id" class="form-control" placeholder="Single Entry ID">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Max Entry ID</label>
+            <input type="number" name="max_entry_id" class="form-control" placeholder="Max Entry ID">
+          </div>
+          <div class="col-md-3">
+            <button type="submit" class="btn btn-primary btn-glow w-100">
+              <i class="fa fa-search"></i> Retrieve Entries
+            </button>
+          </div>
+        </div>
+        <small class="text-muted">Fill either Entry ID (single) or Max Entry ID (range).</small>
+      </form>
+      <form method="get" class="mb-3">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-2">
+            <label for="file" class="form-label fw-semibold">Saved JSON file:</label>
+            <select name="file" id="file" class="form-select" onchange="this.form.submit()">
+              <option value="">-- Choose file --</option>
+              {% for file in files %}
+                <option value="{{ file }}" {% if file == selected_file %}selected{% endif %}>{{ file }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label for="filter_id" class="form-label fw-semibold">National ID:</label>
+            <input type="text" name="filter_id" id="filter_id" value="{{ request.GET.filter_id }}" class="form-control" placeholder="Search ID">
+          </div>
+          <div class="col-md-2">
+            <label for="filter_name" class="form-label fw-semibold">Name:</label>
+            <input type="text" name="filter_name" id="filter_name" value="{{ request.GET.filter_name }}" class="form-control" placeholder="Search Name">
+          </div>
+          <div class="col-md-2">
+            <label for="sort_entry" class="form-label fw-semibold">Sort by Entry #:</label>
+            <select name="sort_entry" id="sort_entry" class="form-select">
+              <option value="">Default</option>
+              <option value="asc" {% if request.GET.sort_entry == "asc" %}selected{% endif %}>Ascending</option>
+              <option value="desc" {% if request.GET.sort_entry == "desc" %}selected{% endif %}>Descending</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-success w-100 fw-semibold"><i class="fa fa-filter"></i> Apply Filters</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% if entries %}
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover table-bordered align-middle shadow-sm lif-table" style="background: #fff;">
+            <thead class="table-primary text-uppercase sticky-top" style="z-index:2;">
+              <tr>
+                <th style="width: 40px;">#</th>
+                <th>
+                  <a href="?{% if selected_file %}file={{ selected_file }}&{% endif %}sort_entry={% if request.GET.sort_entry == 'asc' %}desc{% else %}asc{% endif %}{% if request.GET.filter_id %}&filter_id={{ request.GET.filter_id }}{% endif %}{% if request.GET.filter_name %}&filter_name={{ request.GET.filter_name }}{% endif %}" class="text-decoration-none text-dark">
+                    Entry #
+                    {% if request.GET.sort_entry == "asc" %}
+                      <i class="fa fa-sort-numeric-asc"></i>
+                    {% elif request.GET.sort_entry == "desc" %}
+                      <i class="fa fa-sort-numeric-desc"></i>
+                    {% endif %}
+                  </a>
+                </th>
+                <th>Name</th>
+                <th>National ID</th>
+                <th>Gender</th>
+                <th>Equity</th>
+                <th>Nationality</th>
+                <th>Province</th>
+                <th>Occupation</th>
+                <th>Employer</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Address</th>
+                <th>Date of Birth</th>
+                <th>Status</th>
+                <th>Submitted</th>
+                <th>View</th>
+                <th>PDF 1</th>
+                <th>PDF 2</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for entry in entries %}
+                <tr class="{% cycle 'table-light' 'table-white' %}">
+                  <td class="text-center fw-bold">{{ forloop.counter0|add:entries.start_index }}</td>
+                  <td>
+                    {% if entry.Entry.Number %}
+                      <span class="badge bg-secondary">{{ entry.Entry.Number }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="fw-semibold">{{ entry.LearnerTitle }} {{ entry.LearnerFirstName }} {{ entry.LearnerMiddleName }} {{ entry.LearnerLastName }}</span>
+                  </td>
+                  <td><span class="text-monospace">{{ entry.NationalID }}</span></td>
+                  <td>{{ entry.GenderCode }}</td>
+                  <td>{{ entry.EquityCode }}</td>
+                  <td>{{ entry.NationalityCode }}</td>
+                  <td>{{ entry.ProvinceCode }}</td>
+                  <td>{{ entry.LearnerCurrentOccupation }}</td>
+                  <td>{{ entry.Employer }}</td>
+                  <td>
+                    <a href="mailto:{{ entry.LearnerEmailAddress }}" class="text-decoration-none">{{ entry.LearnerEmailAddress }}</a>
+                  </td>
+                  <td>{{ entry.LearnerPhoneNumber }}</td>
+                  <td>
+                    {% if entry.LearnerHomeAddress %}
+                      <div>
+                        <span>{{ entry.LearnerHomeAddress.FullAddress }}</span><br>
+                        <small class="text-muted">{{ entry.LearnerHomeAddress.City }}, {{ entry.LearnerHomeAddress.State }} {{ entry.LearnerHomeAddress.PostalCode }}</small>
+                      </div>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if entry.LearnerBirthDate %}
+                      <span class="badge bg-light text-dark">{{ entry.LearnerBirthDate|date:"Y-m-d" }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if entry.Entry.Status %}
+                      <span class="badge bg-success">{{ entry.Entry.Status }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if entry.Entry.DateSubmitted %}
+                      <span class="text-nowrap">{{ entry.Entry.DateSubmitted|date:"Y-m-d H:i" }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if entry.Entry.ViewLink %}
+                      <a href="{{ entry.Entry.ViewLink }}" target="_blank" class="btn btn-sm btn-primary" title="View Entry"><i class="fa fa-eye"></i></a>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if entry.Entry.Document1 %}
+                      <a href="{{ entry.Entry.Document1 }}" target="_blank" class="btn btn-sm btn-danger" title="PDF 1"><i class="fa fa-file-pdf"></i></a>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if entry.Entry.Document2 %}
+                      <a href="{{ entry.Entry.Document2 }}" target="_blank" class="btn btn-sm btn-danger" title="PDF 2"><i class="fa fa-file-pdf"></i></a>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination controls -->
+        {% if is_paginated %}
+          <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+              {% if page_obj.has_previous %}
+                <li class="page-item">
+                  <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}page=1" title="First">&laquo;</a>
+                </li>
+                <li class="page-item">
+                  <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}" title="Previous">&lsaquo;</a>
+                </li>
+              {% else %}
+                <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                <li class="page-item disabled"><span class="page-link">&lsaquo;</span></li>
+              {% endif %}
+              <li class="page-item disabled">
+                <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+              </li>
+              {% if page_obj.has_next %}
+                <li class="page-item">
+                  <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}" title="Next">&rsaquo;</a>
+                </li>
+                <li class="page-item">
+                  <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}" title="Last">&raquo;</a>
+                </li>
+              {% else %}
+                <li class="page-item disabled"><span class="page-link">&rsaquo;</span></li>
+                <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+              {% endif %}
+            </ul>
+          </nav>
+        {% endif %}
+        <div class="text-muted mt-2">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries.</div>
+      </div>
+    </div>
+  {% elif selected_file %}
+    <div class="alert alert-warning">No entries found in this file.</div>
+  {% endif %}
+</div>
+{% endblock %}
+
+<style>
+.lif-table th, .lif-table td {
+  vertical-align: middle !important;
+  font-size: 0.97rem;
+}
+.lif-table thead th {
+  position: sticky;
+  top: 0;
+  background: #e3f2fd;
+  z-index: 2;
+}
+.lif-table tbody tr:hover {
+  background-color: #f1f8ff !important;
+}
+.lif-table .badge {
+  font-size: 0.95em;
+  padding: 0.4em 0.7em;
+}
+.lif-table .btn-primary {
+  background-color: #1976d2;
+  border-color: #1976d2;
+  color: #fff;
+}
+.lif-table .btn-primary:hover {
+  background-color: #125ea2;
+  border-color: #125ea2;
+}
+.lif-table .btn-danger {
+  background-color: #d32f2f;
+  border-color: #d32f2f;
+  color: #fff;
+}
+.lif-table .btn-danger:hover {
+  background-color: #a31515;
+  border-color: #a31515;
+}
+.lif-table .btn {
+  padding: 0.2em 0.6em;
+  font-size: 0.95em;
+}
+.dashboard-title {
+  font-size: 2rem;
+  color: #1976d2;
+  letter-spacing: 1px;
+}
+.card {
+  border-radius: 0.7rem;
+}
+.card-body {
+  background: #f8fafc;
+}
+</style>

@@ -1,0 +1,123 @@
+<style>
+#venueBookingModalForm {
+    background: #fff;
+    border-radius: 16px;
+    padding: 18px 18px 10px 18px;
+    box-shadow: 0 8px 32px rgba(2,3,129,0.10);
+    max-width: 900px;
+    margin: 0 auto;
+}
+#venueBookingModalForm .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 24px;
+}
+#venueBookingModalForm .col-12,
+#venueBookingModalForm .col-md-6 {
+    width: 100%;
+    min-width: 0;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+}
+#venueBookingModalForm .form-label {
+    font-weight: 700;
+    color: #1a237e;
+    margin-bottom: 4px;
+    font-size: 1em;
+}
+#venueBookingModalForm .form-control,
+#venueBookingModalForm select {
+    border-radius: 8px;
+    border: 1.5px solid #34C759;
+    background: #f8fcff;
+    font-size: 1em;
+    padding: 6px 10px;
+    box-shadow: 0 1px 4px #34C75911;
+    margin-bottom: 0;
+    width: 100%;
+    min-height: 34px;
+}
+#venueBookingModalForm .form-control:focus,
+#venueBookingModalForm select:focus {
+    border: 2px solid #020381;
+    box-shadow: 0 0 8px #34C75955;
+    background: #fff;
+}
+#venueBookingModalForm .form-text {
+    color: #666;
+    font-size: 0.93em;
+    margin-top: 1px;
+}
+#venueBookingModalForm .text-danger {
+    font-size: 0.93em;
+    margin-top: 1px;
+}
+@media (max-width: 900px) {
+    #venueBookingModalForm {
+        max-width: 99vw;
+        padding: 8px 2vw;
+    }
+}
+@media (max-width: 700px) {
+    #venueBookingModalForm .row {
+        grid-template-columns: 1fr;
+        gap: 6px 0;
+    }
+}
+</style>
+
+<form id="venueBookingModalForm" method="post">
+    {% csrf_token %}
+    <div class="row g-3">
+        {% if multi_booking_mode %}
+            <div class="col-12" style="order:-1;">
+                <label class="form-label"><b>Select Sessions to Book</b></label>
+                <div class="alert alert-info" style="margin-bottom:8px;">
+                    <div>
+                        {% for session in form.fields.session_dates.queryset %}
+                            <div class="form-check" style="margin-bottom:4px;">
+                                <input class="form-check-input" type="checkbox" name="session_dates" id="session_{{ session.id }}" value="{{ session.id }}"
+                                    {% if session.id|stringformat:"s" in selected_session_ids %}checked{% endif %}>
+                                <label class="form-check-label" for="session_{{ session.id }}">
+                                    {{ session }}
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        {% for field in form.visible_fields %}
+            {% if not multi_booking_mode %}
+                <div class="col-12 col-md-6">
+                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <small class="form-text text-muted">{{ field.help_text }}</small>
+                    {% endif %}
+                    {% for error in field.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if multi_booking_mode and field.name != "session_dates" and field.name != "session_date" %}
+                <div class="col-12 col-md-6">
+                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <small class="form-text text-muted">{{ field.help_text }}</small>
+                    {% endif %}
+                    {% for error in field.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% if form.non_field_errors %}
+        <div class="alert alert-danger mt-3">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+</form>

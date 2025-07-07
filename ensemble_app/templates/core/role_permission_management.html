@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load role_permissions %}
+{% block title %}Role Permission Management{% endblock %}
+{% block content %}
+<div class="container glass p-4 mt-4">
+  <h2 class="mb-4">Role Permission Management</h2>
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label for="roleFilter" class="form-label">Filter by Role:</label>
+      <select id="roleFilter" class="form-select" onchange="filterRole(this.value)">
+        <option value="">All Roles</option>
+        {% for role in roles %}
+        <option value="role-{{ role.id }}">{{ role.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mb-3">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAll(true)">Select All</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAll(false)">Deselect All</button>
+      <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectAllVisibleRole()">Select All (Visible Role)</button>
+      <button type="button" class="btn btn-outline-danger btn-sm" onclick="deselectAllVisibleRole()">Deselect All (Visible Role)</button>
+    </div>
+    {% for group_name, urls in url_groups %}
+      <div class="card mb-3">
+        <div class="card-header bg-primary text-white">
+          {{ group_name }}
+        </div>
+        <div class="card-body p-2">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Webpage</th>
+                  {% for role in roles %}
+                  <th class="text-center role-col role-{{ role.id }}">{{ role.name }}</th>
+                  {% endfor %}
+                </tr>
+                <tr>
+                  <th></th>
+                  {% for role in roles %}
+                  <th class="text-center role-col role-{{ role.id }}">
+                    <button type="button" class="btn btn-link btn-sm p-0" onclick="toggleRole('{{ role.id }}', true)" title="Select all for {{ role.name }}"><i class="fa fa-check-square text-success"></i></button>
+                    <button type="button" class="btn btn-link btn-sm p-0" onclick="toggleRole('{{ role.id }}', false)" title="Deselect all for {{ role.name }}"><i class="fa fa-square text-danger"></i></button>
+                  </th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for url_name, url_label in urls %}
+                <tr>
+                  <td><span class="fw-semibold">{{ url_label }}</span> <span class="text-muted small">({{ url_name }})</span></td>
+                  {% for role in roles %}
+                  <td class="text-center role-col role-{{ role.id }}">
+                    <input type="checkbox" name="permissions_{{ role.id }}" value="{{ url_name }}"
+                      {% if url_name in role_permissions|get_item:role.id %}checked{% endif %}>
+                  </td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary btn-glow mt-3">Save Permissions</button>
+  </form>
+</div>
+<script>
+function filterRole(roleClass) {
+  document.querySelectorAll('.role-col').forEach(function(td) {
+    td.style.display = '';
+  });
+  if (roleClass) {
+    document.querySelectorAll('.role-col').forEach(function(td) {
+      if (!td.classList.contains(roleClass)) {
+        td.style.display = 'none';
+      }
+    });
+  }
+}
+
+// Select/Deselect all checkboxes in the table
+function toggleAll(state) {
+  document.querySelectorAll('input[type="checkbox"][name^="permissions_"]').forEach(function(cb) {
+    cb.checked = state;
+  });
+}
+
+// Select/Deselect all checkboxes for a specific role (column)
+function toggleRole(roleId, state) {
+  document.querySelectorAll('.role-col.role-' + roleId + ' input[type="checkbox"]').forEach(function(cb) {
+    cb.checked = state;
+  });
+}
+
+// Select/Deselect all checkboxes for the currently visible role (filtered)
+function selectAllVisibleRole() {
+  document.querySelectorAll('.role-col').forEach(function(td) {
+    if (td.style.display !== 'none') {
+      var cb = td.querySelector('input[type="checkbox"]');
+      if (cb) cb.checked = true;
+    }
+  });
+}
+function deselectAllVisibleRole() {
+  document.querySelectorAll('.role-col').forEach(function(td) {
+    if (td.style.display !== 'none') {
+      var cb = td.querySelector('input[type="checkbox"]');
+      if (cb) cb.checked = false;
+    }
+  });
+}
+</script>
+{% endblock %}

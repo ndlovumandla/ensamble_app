@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Session Date{% endblock %}
+{% block content %}
+
+    <h2>{% if form.instance.pk %}Edit{% else %}Add{% endif %} Session Date</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">{% if form.instance.pk %}Update{% else %}Create{% endif %}</button>
+    </form>
+    <a href="{% url 'sessiondate_list' %}">Back to Session Dates</a>
+
+{% endblock %}

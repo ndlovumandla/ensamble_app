@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Venues{% endblock %}
+{% block content %}
+<div class="dropdown mb-3" style="position:relative;z-index:100;">
+  <button class="btn btn-primary dropdown-toggle" type="button" id="gotoDropdownVenueList" data-bs-toggle="dropdown" aria-expanded="false">
+    <i class="fa fa-compass"></i> Go To
+  </button>
+  <ul class="dropdown-menu" aria-labelledby="gotoDropdownVenueList" style="z-index:9999;">
+    <li><a class="dropdown-item" href="{% url 'venuebooking_calendar' %}"><i class="fa fa-calendar"></i> Venue Booking Calendar</a></li>
+    <li><a class="dropdown-item" href="{% url 'venuebooking_list' %}"><i class="fa fa-list"></i> Venue Bookings List</a></li>
+    <li><a class="dropdown-item" href="{% url 'venue_list' %}"><i class="fa fa-building"></i> Venues</a></li>
+    <li><a class="dropdown-item" href="{% url 'venuebooking_add' %}"><i class="fa fa-plus-circle"></i> Book a Venue</a></li>
+  </ul>
+</div>
+<style>
+    nav .nav-link,
+    .sidebar-nav,
+    .sidebar-nav ul,
+    .sidebar-nav .nav-link {
+        display: none !important;
+    }
+    nav .brand,
+    nav .calendar-link {
+        display: inline-block !important;
+    }
+</style>
+    <h2>Venues</h2>
+    <a href="{% url 'venue_add' %}" class="btn btn-success">Add Venue</a>
+    <a href="{% url 'venuebooking_calendar' %}" class="btn btn-secondary">
+        <i class="fa fa-calendar"></i> Back to Calendar
+    </a>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Address</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for venue in venues %}
+            <tr>
+                <td>{{ venue.name }}</td>
+                <td>{{ venue.address }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2">No venues found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

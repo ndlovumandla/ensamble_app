@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+.lif-template-container {
+  max-width: 900px;
+  margin: 2.5rem auto 0 auto;
+  padding: 2.5rem 1.5rem 2.5rem 1.5rem;
+  background: rgba(255,255,255,0.97);
+  border-radius: 22px;
+  box-shadow: 0 8px 36px 0 rgba(64,162,227,0.18), 0 2px 12px 0 rgba(0,69,139,0.13);
+  border: 1.5px solid #e6edf3;
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.table {
+  background: rgba(255,255,255,0.98);
+  border-radius: 14px;
+  box-shadow: 0 2px 12px #40A2E344;
+  margin-top: 1.5em;
+  font-size: 1.07em;
+}
+.table th {
+  background: linear-gradient(90deg, #00458B 0%, #40A2E3 100%);
+  color: #fff;
+  font-weight: 700;
+  border: none;
+}
+.table td {
+  background: #f8fbff;
+  border: none;
+  color: #00458B;
+}
+.btn, .btn-success, .btn-info, .btn-primary {
+  border-radius: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  box-shadow: 0 1px 8px #40A2E322;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+}
+.btn-success {
+  background: linear-gradient(90deg, #1cb34b 0%, #40A2E3 100%);
+  color: #fff;
+  border: none;
+}
+.btn-success:hover {
+  background: linear-gradient(90deg, #40A2E3 0%, #1cb34b 100%);
+  color: #fff;
+}
+.btn-info {
+  background: linear-gradient(90deg, #40A2E3 0%, #00458B 100%);
+  color: #fff;
+  border: none;
+}
+.btn-info:hover {
+  background: linear-gradient(90deg, #00458B 0%, #40A2E3 100%);
+  color: #fff;
+}
+.btn-primary {
+  background: linear-gradient(90deg, #00458B 0%, #40A2E3 100%);
+  color: #fff;
+  border: none;
+}
+.btn-primary:hover {
+  background: linear-gradient(90deg, #40A2E3 0%, #00458B 100%);
+  color: #fff;
+}
+.btn-danger {
+  background: linear-gradient(90deg, #e74c3c 0%, #c0392b 100%);
+  color: #fff;
+  border: none;
+}
+.btn-danger:hover {
+  background: linear-gradient(90deg, #c0392b 0%, #e74c3c 100%);
+  color: #fff;
+}
+@media (max-width: 900px) {
+  .lif-template-container { padding: 1.2rem 0.5rem; }
+  .table { font-size: 0.98em; }
+}
+@media (max-width: 600px) {
+  .lif-template-container { padding: 0.7rem 0.1rem; }
+  .table { font-size: 0.93em; }
+}
+</style>
+<div class="lif-template-container">
+  <h2 style="font-weight:900;color:#00458B;text-align:center;margin-bottom:1.2em;">LIF Templates</h2>
+  <a href="{% url 'upload_lif_template' %}" class="btn btn-primary mb-3">Upload New Template</a>
+  <table class="table w-100">
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Map Fields</th>
+      <th>Delete</th>
+    </tr>
+    {% for t in templates %}
+      <tr>
+        <td>{{ t.name }}</td>
+        <td>{{ t.description }}</td>
+        <td>
+          <a href="{% url 'map_lif_template_fields' t.id %}" class="btn btn-sm btn-info">Map Fields</a>
+        </td>
+        <td>
+          <form method="post" action="{% url 'lif_template_delete' t.id %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this template?');">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+  <a href="{% url 'generate_lif_word' %}" class="btn btn-success mt-4">Generate LIF Document</a>
+</div>
+{% endblock %}

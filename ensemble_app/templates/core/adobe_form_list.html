@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Adobe Forms</h2>
+<a href="{% url 'adobe_form_upload' %}" class="btn btn-primary">Upload New Form</a>
+<table class="table">
+  <tr><th>Name</th><th>Download</th><th>Submit Filled</th></tr>
+  {% for form in forms %}
+    <tr>
+      <td>{{ form.name }}</td>
+      <td><a href="{% url 'adobe_form_download' form.pk %}">Download</a></td>
+      <td><a href="{% url 'adobe_form_submit' form.pk %}">Submit Filled Form</a></td>
+    </tr>
+  {% endfor %}
+</table>
+{% endblock %}

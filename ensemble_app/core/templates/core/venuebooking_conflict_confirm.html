@@ -1,0 +1,12 @@
+<div class="alert alert-warning">
+    <strong>Venue already booked!</strong><br>
+    This venue is already booked by <b>{{ existing_booking.user }}</b> for this session.<br>
+    Do you want to override and book it anyway? The previous booking will be removed and the user will be notified.
+</div>
+<form id="venueBookingOverrideForm" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="hidden" name="confirm_override" value="yes">
+    <button type="submit" class="btn btn-danger">Yes, override booking</button>
+    <button type="button" class="btn btn-secondary" onclick="window.history.back();">No, cancel</button>
+</form>

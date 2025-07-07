@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Cancel Venue Booking{% endblock %}
+{% block content %}
+<div class="container glass shadow p-30 fade-in" style="max-width: 600px;">
+    <h2 class="ensemble-glow dashboard-title mb-20">
+        <i class="fa fa-times-circle text-danger"></i> Cancel Venue Booking
+    </h2>
+    <p>Are you sure you want to <strong>cancel</strong> this venue booking?</p>
+    <ul>
+        <li><strong>Venue:</strong> {{ object.venue }}</li>
+        <li><strong>Session:</strong> {{ object.session_date }}</li>
+        <li><strong>Start:</strong> {{ object.start_datetime }}</li>
+        <li><strong>End:</strong> {{ object.end_datetime }}</li>
+        <li><strong>Purpose:</strong> {{ object.booking_purpose }}</li>
+    </ul>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger btn-glow">
+            <i class="fa fa-trash"></i> Yes, Cancel Booking
+        </button>
+        <a href="{% url 'venuebooking_list' %}" class="btn btn-secondary ms-2">
+            <i class="fa fa-arrow-left"></i> No, Go Back
+        </a>
+    </form>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var formUrl = "{% url 'venuebooking_cancel' object.pk %}";
+        var eventModal = new bootstrap.Modal(document.getElementById('eventModal'));
+        var eventModalBody = document.getElementById('eventModalBody');
+
+        fetch(formUrl, {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                eventModal.hide();
+                calendar.refetchEvents();
+            } else if (data.conflict) {
+                // Show the confirmation HTML
+                eventModalBody.innerHTML = data.html;
+                // Attach submit handler for override
+                document.getElementById('venueBookingOverrideForm').onsubmit = function(e) {
+                    e.preventDefault();
+                    var overrideFormData = new FormData(this);
+                    fetch(formUrl, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": "{{ csrf_token }}"
+                        },
+                        body: overrideFormData
+                    })
+                    .then(r => r.json())
+                    .then(data2 => {
+                        if (data2.success) {
+                            eventModal.hide();
+                            calendar.refetchEvents();
+                        } else if (data2.html) {
+                            eventModalBody.innerHTML = data2.html;
+                        }
+                    });
+                };
+            } else if (data.html) {
+                eventModalBody.innerHTML = data.html;
+            }
+        });
+    });
+</script>
+{% endblock %}

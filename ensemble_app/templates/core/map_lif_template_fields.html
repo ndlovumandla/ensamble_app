@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+.map-lif-container {
+  max-width: 800px;
+  margin: 2.5rem auto 0 auto;
+  padding: 2.5rem 1.5rem 2.5rem 1.5rem;
+  background: rgba(255,255,255,0.97);
+  border-radius: 22px;
+  box-shadow: 0 8px 36px 0 rgba(64,162,227,0.18), 0 2px 12px 0 rgba(0,69,139,0.13);
+  border: 1.5px solid #e6edf3;
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.table {
+  background: rgba(255,255,255,0.98);
+  border-radius: 14px;
+  box-shadow: 0 2px 12px #40A2E344;
+  margin-top: 1.5em;
+  font-size: 1.07em;
+  width: 100%;
+}
+.table th {
+  background: linear-gradient(90deg, #00458B 0%, #40A2E3 100%);
+  color: #fff;
+  font-weight: 700;
+  border: none;
+}
+.table td {
+  background: #f8fbff;
+  border: none;
+  color: #00458B;
+}
+.btn, .btn-success {
+  border-radius: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  box-shadow: 0 1px 8px #40A2E322;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+}
+.btn-success {
+  background: linear-gradient(90deg, #1cb34b 0%, #40A2E3 100%);
+  color: #fff;
+  border: none;
+}
+.btn-success:hover {
+  background: linear-gradient(90deg, #40A2E3 0%, #1cb34b 100%);
+  color: #fff;
+}
+.alert-success {
+  background: #e6f9ec;
+  color: #1cb34b;
+  border-radius: 8px;
+  padding: 0.8em 1.2em;
+  margin-bottom: 1em;
+  border: 1.5px solid #b6e7c9;
+  font-weight: 600;
+  text-align: center;
+}
+.alert-danger, .alert-error {
+  background: #ffeaea;
+  color: #FF3B30;
+  border-radius: 8px;
+  padding: 0.8em 1.2em;
+  margin-bottom: 1em;
+  border: 1.5px solid #ffbdbd;
+  font-weight: 600;
+  text-align: center;
+}
+@media (max-width: 900px) {
+  .map-lif-container { padding: 1.2rem 0.5rem; }
+  .table { font-size: 0.98em; }
+}
+@media (max-width: 600px) {
+  .map-lif-container { padding: 0.7rem 0.1rem; }
+  .table { font-size: 0.93em; }
+}
+</style>
+<div class="map-lif-container">
+  <h2 style="font-weight:900;color:#00458B;text-align:center;margin-bottom:1.2em;">
+    Map Template Placeholders for {{ template.name }}
+  </h2>
+  {% if messages %}
+    {% for message in messages %}
+      {% if 'lif' in message.tags %}
+        <div class="alert alert-{{ message.level_tag }}">{{ message }}</div>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    {{ formset.management_form }}
+    <table class="table">
+      <tr>
+        <th>Placeholder</th>
+        <th>LIF Field</th>
+        <th>Delete?</th>
+      </tr>
+      {% for form in formset %}
+        <tr>
+          <td>
+            {{ form.placeholder.errors.as_ul }}
+            {{ form.placeholder }}
+          </td>
+          <td>
+            {{ form.lif_field.errors.as_ul }}
+            {{ form.lif_field }}
+          </td>
+          <td>
+            {% if form.instance.pk %}{{ form.DELETE }}{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+    <button type="submit" class="btn btn-success mt-4">Save Mappings</button>
+    <a href="?extra={{ formset.total_form_count|add:'1' }}" class="btn btn-primary mt-4" style="margin-left:1em;">Add More Mappings</a>
+  </form>
+</div>
+{% endblock %}

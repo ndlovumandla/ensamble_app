@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Learner Dashboard</h2>
+{% for group in groups %}
+  <h4>Group: {{ group.name }}</h4>
+  <ul>
+    {% for module in modules %}
+      <li>
+        {{ module.name }}
+        <a href="{% url 'learner_submit_poe' module.id %}" class="btn btn-sm btn-primary">Submit POE</a>
+        {% if module_annextures.module.id %}
+          <ul>
+            {% for ann in module_annextures.module.id %}
+              <li>{{ ann }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% endfor %}
+{% endblock %}

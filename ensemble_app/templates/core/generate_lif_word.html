@@ -1,0 +1,446 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+.generate-lif-container {
+  max-width: 1100px;
+  margin: 2.5rem auto 0 auto;
+  padding: 2.5rem 1.5rem 2.5rem 1.5rem;
+  background: rgba(255,255,255,0.97);
+  border-radius: 22px;
+  box-shadow: 0 8px 36px 0 rgba(64,162,227,0.18), 0 2px 12px 0 rgba(0,69,139,0.13);
+  border: 1.5px solid #e6edf3;
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.generate-lif-container h2 {
+  font-weight: 900;
+  color: #00458B;
+  text-align: center;
+  margin-bottom: 1.2em;
+}
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5em;
+  margin-bottom: 1.5em;
+  width: 100%;
+  justify-content: flex-start;
+}
+.filter-row .form-group {
+  min-width: 180px;
+  flex: 1 1 180px;
+}
+.form-label {
+  font-weight: 700;
+  color: #00458B;
+  margin-bottom: 0.3em;
+}
+.form-select, .form-control {
+  border-radius: 10px;
+  border: 2px solid #40A2E3;
+  background: #f8fbff;
+  padding: 0.7em 1em;
+  font-size: 1.08em;
+  color: #22223B;
+  margin-bottom: 0.7em;
+  transition: border 0.2s, box-shadow 0.2s, background 0.2s;
+  box-shadow: 0 2px 8px rgba(64,162,227,0.10);
+  outline: none;
+}
+.form-select:focus, .form-control:focus {
+  border: 2px solid #00458B;
+  box-shadow: 0 0 0 2.5px #40A2E344;
+  background: #fff;
+}
+.btn-primary {
+  background: linear-gradient(90deg, #00458B 0%, #40A2E3 100%);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 1em 2.5em;
+  font-size: 1.13em;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin-top: 2em;
+  box-shadow: 0 2px 16px #40A2E344;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.18s, box-shadow 0.18s;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+.btn-primary:hover, .btn-primary:focus {
+  background: linear-gradient(90deg, #40A2E3 0%, #00458B 100%);
+  color: #fff;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 4px 24px #40A2E355;
+}
+.lif-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5em 0;
+  background: #f8fbff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px #40A2E311;
+}
+.lif-table th, .lif-table td {
+  padding: 0.7em 1em;
+  text-align: left;
+}
+.lif-table th {
+  background: #e6edf3;
+  color: #00458B;
+  font-weight: 800;
+  border-bottom: 2px solid #40A2E3;
+}
+.lif-table tr:nth-child(even) {
+  background: #f2f7fa;
+}
+.lif-table tr.selected {
+  background: #d0eaff !important;
+}
+.lif-table td {
+  vertical-align: middle;
+}
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 0.5em;
+  margin-top: 1em;
+}
+.pagination .page-link {
+  color: #00458B;
+  background: #f8fbff;
+  border: 1px solid #40A2E3;
+  border-radius: 6px;
+  padding: 0.4em 1em;
+  font-weight: 700;
+  transition: background 0.18s, color 0.18s;
+  cursor: pointer;
+  text-decoration: none;
+}
+.pagination .page-link.active, .pagination .page-link:hover {
+  background: #40A2E3;
+  color: #fff;
+}
+@media (max-width: 900px) {
+  .generate-lif-container { padding: 1.2rem 0.5rem; }
+  .filter-row { flex-direction: column; gap: 0.7em; }
+}
+@media (max-width: 600px) {
+  .generate-lif-container { padding: 0.7rem 0.1rem; }
+  .lif-table th, .lif-table td { padding: 0.5em 0.4em; }
+}
+</style>
+<div class="generate-lif-container">
+  <h2>Generate Learner Agreement Form Word Document</h2>
+  {% if errors %}
+    <div style="color:#b30000; background:#ffeaea; border:1px solid #ffb3b3; border-radius:8px; padding:1em 1.5em; margin-bottom:1.5em;">
+      <ul style="margin:0; padding-left:1.2em;">
+        {% for error in errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+  <!-- FILTER FORM -->
+  <form method="get" id="lif-filter-form" class="mb-3" style="width:100%;">
+    <div class="filter-row">
+      <div class="form-group">
+        <label for="search" class="form-label">Search:</label>
+        <input type="text" id="search" name="search" value="{{ filters.search|default:'' }}" class="form-control" placeholder="Name, ID, Email">
+      </div>
+      <div class="form-group">
+        <label for="template_id" class="form-label">Template:</label>
+        <select id="template_id" name="template_id" class="form-select">
+          <option value="">All Templates</option>
+          {% for t in templates %}
+            <option value="{{ t.id }}" {% if filters.template_id == t.id|stringformat:"i" %}selected{% endif %}>{{ t.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="gender" class="form-label">Gender:</label>
+        <select id="gender" name="gender" class="form-select">
+          <option value="">All</option>
+          <option value="M" {% if filters.gender == "M" %}selected{% endif %}>Male</option>
+          <option value="F" {% if filters.gender == "F" %}selected{% endif %}>Female</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="equity" class="form-label">Equity:</label>
+        <select id="equity" name="equity" class="form-select">
+          <option value="">All</option>
+          <option value="BA" {% if filters.equity == "BA" %}selected{% endif %}>Black African</option>
+          <option value="BC" {% if filters.equity == "BC" %}selected{% endif %}>Black Coloured</option>
+          <option value="BI" {% if filters.equity == "BI" %}selected{% endif %}>Black Indian</option>
+          <option value="Wh" {% if filters.equity == "Wh" %}selected{% endif %}>White</option>
+        </select>
+      </div>
+      <div class="form-group align-self-end">
+        <button type="submit" class="btn btn-primary" style="padding:0.7em 2em; margin-top:1.5em;">Filter</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- GENERATE FORM -->
+  <form method="post" id="lif-generate-form" action="">
+    {% csrf_token %}
+    <input type="hidden" name="template_id" id="selected_template_id" value="{{ filters.template_id|default:'' }}">
+    <div style="margin-bottom:1em; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+      <div id="selected-count" style="font-weight:700; color:#00458B;">
+        Selected: <span id="selected-count-num">0</span> learner(s)
+      </div>
+      <button type="submit" class="btn btn-primary" id="generate-btn" style="margin:0;">
+        Generate Document{% if allow_zip %}s (ZIP){% endif %}
+      </button>
+    </div>
+    <div id="selected-learners-list" style="margin-bottom:1em; width:100%;"></div>
+    <div style="overflow-x:auto;width:100%;">
+      <table class="lif-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="select-all"></th>
+            <th>Name</th>
+            <th>National ID</th>
+            <th>Gender</th>
+            <th>Equity</th>
+            <th>Email</th>
+            <th>Birth Date</th>
+            <th>Template</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lif in lifs %}
+          <tr>
+            <td>
+              <input type="checkbox" name="lif_ids" value="{{ lif.id }}" class="lif-checkbox">
+            </td>
+            <td>{{ lif.learner_first_name }} {{ lif.learner_last_name }}</td>
+            <td>{{ lif.national_id }}</td>
+            <td>{{ lif.get_gender_code_display }}</td>
+            <td>{{ lif.get_equity_code_display }}</td>
+            <td>{{ lif.email_address|default:"—" }}</td>
+            <td>{{ lif.learner_birth_date|date:"Y-m-d" }}</td>
+            <td>
+              {% for t in templates %}
+                {% if filters.template_id and filters.template_id|stringformat:"i" == t.id|stringformat:"i" %}
+                  {{ t.name }}
+                {% endif %}
+              {% endfor %}
+              {% if not filters.template_id %}—{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted">No LIFs found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      {% if lifs.has_previous %}
+        <a href="?{% if filters %}{{ filters|urlencode }}&{% endif %}page={{ lifs.previous_page_number }}" class="page-link">&laquo; Prev</a>
+      {% endif %}
+      {% for num in lifs.paginator.page_range %}
+        {% if lifs.number == num %}
+          <span class="page-link active">{{ num }}</span>
+        {% elif num > lifs.number|add:'-3' and num < lifs.number|add:'3' %}
+          <a href="?{% if filters %}{{ filters|urlencode }}&{% endif %}page={{ num }}" class="page-link">{{ num }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if lifs.has_next %}
+        <a href="?{% if filters %}{{ filters|urlencode }}&{% endif %}page={{ lifs.next_page_number }}" class="page-link">Next &raquo;</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  let selectedLIFs = new Set();
+  let selectedLIFData = {}; // id -> {name, ...}
+
+  function updateSelectedCount() {
+    document.getElementById('selected-count-num').textContent = selectedLIFs.size;
+  }
+
+  function updateHiddenInputs() {
+    document.querySelectorAll('input[name="lif_ids"][type="hidden"]').forEach(e => e.remove());
+    const form = document.getElementById('lif-generate-form');
+    selectedLIFs.forEach(id => {
+      if (!form.querySelector('input.lif-checkbox[value="' + id + '"]:checked')) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'lif_ids';
+        input.value = id;
+        form.appendChild(input);
+      }
+    });
+    updateSelectedCount();
+    updateSelectedLearnersList();
+  }
+
+  function updateSelectedLearnersList() {
+    const container = document.getElementById('selected-learners-list');
+    if (selectedLIFs.size === 0) {
+      container.innerHTML = '';
+      return;
+    }
+    let html = '<strong>Selected Learners:</strong> ';
+    selectedLIFs.forEach(id => {
+      const name = selectedLIFData[id] ? selectedLIFData[id].name : 'Learner #' + id;
+      html += `<span style="display:inline-block; margin:0 0.5em 0.5em 0; padding:0.2em 0.7em; background:#e6edf3; border-radius:12px;">
+        ${name}
+        <button type="button" class="unselect-learner-btn" data-id="${id}" style="margin-left:0.5em; color:#b30000; background:none; border:none; font-weight:bold; cursor:pointer;">&times;</button>
+      </span>`;
+    });
+    container.innerHTML = html;
+    // Attach event listeners
+    container.querySelectorAll('.unselect-learner-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const id = btn.getAttribute('data-id');
+        selectedLIFs.delete(id);
+        updateHiddenInputs();
+        restoreCheckedState();
+      });
+    });
+  }
+
+  function restoreCheckedState() {
+    document.querySelectorAll('.lif-checkbox').forEach(cb => {
+      cb.checked = selectedLIFs.has(cb.value);
+      cb.closest('tr').classList.toggle('selected', cb.checked);
+    });
+    const selectAll = document.getElementById('select-all');
+    if (selectAll) {
+      const checkboxes = document.querySelectorAll('.lif-checkbox');
+      selectAll.checked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+    }
+    updateSelectedCount();
+    updateSelectedLearnersList();
+  }
+
+  function attachCheckboxListeners() {
+    document.querySelectorAll('.lif-checkbox').forEach(cb => {
+      cb.addEventListener('change', function() {
+        if (cb.checked) {
+          selectedLIFs.add(cb.value);
+          // Save name for display
+          const row = cb.closest('tr');
+          if (row) {
+            const name = row.children[1].textContent.trim();
+            selectedLIFData[cb.value] = { name: name };
+          }
+        } else {
+          selectedLIFs.delete(cb.value);
+          delete selectedLIFData[cb.value];
+        }
+        cb.closest('tr').classList.toggle('selected', cb.checked);
+        updateHiddenInputs();
+        restoreCheckedState();
+      });
+    });
+  }
+
+  function attachSelectAllListener() {
+    const selectAll = document.getElementById('select-all');
+    if (selectAll) {
+      selectAll.addEventListener('change', function() {
+        document.querySelectorAll('.lif-checkbox').forEach(cb => {
+          cb.checked = selectAll.checked;
+          if (selectAll.checked) {
+            selectedLIFs.add(cb.value);
+            // Save name for display
+            const row = cb.closest('tr');
+            if (row) {
+              const name = row.children[1].textContent.trim();
+              selectedLIFData[cb.value] = { name: name };
+            }
+          } else {
+            selectedLIFs.delete(cb.value);
+            delete selectedLIFData[cb.value];
+          }
+          cb.closest('tr').classList.toggle('selected', cb.checked);
+        });
+        updateHiddenInputs();
+        restoreCheckedState();
+      });
+    }
+  }
+
+  const searchInput = document.getElementById('search');
+  const tableBody = document.querySelector('.lif-table tbody');
+
+  function renderRows(lifs) {
+    tableBody.innerHTML = '';
+    if (lifs.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No LIFs found.</td></tr>';
+      return;
+    }
+    for (const lif of lifs) {
+      // Save name for display if already selected
+      if (selectedLIFs.has(String(lif.id))) {
+        selectedLIFData[lif.id] = { name: `${lif.first_name} ${lif.last_name}` };
+      }
+      tableBody.innerHTML += `
+        <tr>
+          <td><input type="checkbox" name="lif_ids" value="${lif.id}" class="lif-checkbox"></td>
+          <td>${lif.first_name} ${lif.last_name}</td>
+          <td>${lif.national_id || ''}</td>
+          <td>${lif.gender || ''}</td>
+          <td>${lif.equity || ''}</td>
+          <td>${lif.email || '—'}</td>
+          <td>${lif.birth_date || ''}</td>
+          <td>—</td>
+        </tr>
+      `;
+    }
+    restoreCheckedState();
+    attachCheckboxListeners();
+    attachSelectAllListener();
+    updateHiddenInputs();
+  }
+
+  attachCheckboxListeners();
+  attachSelectAllListener();
+  restoreCheckedState();
+
+  searchInput.addEventListener('input', function() {
+    const filter = searchInput.value.toLowerCase();
+    fetch('{% url "lif_list_json" %}?q=' + encodeURIComponent(filter))
+      .then(resp => resp.json())
+      .then (data => {
+        renderRows(data.lifs);
+      });
+  });
+
+  window.addEventListener('beforeunload', function() {
+    localStorage.setItem('selectedLIFs', JSON.stringify(Array.from(selectedLIFs)));
+    localStorage.setItem('selectedLIFData', JSON.stringify(selectedLIFData));
+  });
+  const saved = localStorage.getItem('selectedLIFs');
+  const savedData = localStorage.getItem('selectedLIFData');
+  if (saved) {
+    selectedLIFs = new Set(JSON.parse(saved));
+    if (savedData) {
+      selectedLIFData = JSON.parse(savedData);
+    }
+    restoreCheckedState();
+    updateHiddenInputs();
+  }
+
+  // Ensure selected template is submitted with the generate form
+  document.getElementById('lif-generate-form').addEventListener('submit', function(e) {
+    var templateSelect = document.getElementById('template_id');
+    var hiddenTemplate = document.getElementById('selected_template_id');
+    if (templateSelect && hiddenTemplate) {
+      hiddenTemplate.value = templateSelect.value;
+    }
+  });
+});
+</script>
+{% endblock %}

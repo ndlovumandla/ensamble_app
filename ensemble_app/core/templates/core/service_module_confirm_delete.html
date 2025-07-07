@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Delete Service-Module Link{% endblock %}
+{% block content %}
+
+  <h1 class="dashboard-title">Delete Service-Module Link</h1>
+  <p>Are you sure you want to delete "{{ object }}"?</p>
+  <form method="post">{% csrf_token %}
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a href="{% url 'service-module-list' %}" class="btn btn-secondary">Cancel</a>
+  </form>
+
+{% endblock %}

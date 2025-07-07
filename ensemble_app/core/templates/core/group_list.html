@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Group List{% endblock %}
+{% block content %}
+    <h2>Group List</h2>
+    
+    <div class="filter-panel">
+        <form method="get" id="filter-form" class="filter-form">
+            <div class="form-group filter-group">
+                <label for="search" class="form-label">Search:</label>
+                <input type="text" id="search" name="search" value="{{ filters.search }}" placeholder="Project code, lead name" class="form-control">
+            </div>
+            <div class="filter-actions">
+                <button type="button" class="btn btn-secondary" onclick="this.form.reset(); this.form.submit();">Clear Filters</button>
+            </div>
+        </form>
+    </div>
+
+    {% if groups %}
+        <table class="attendance-table">
+            <thead>
+                <tr>
+                    <th>Project Code</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Project Lead</th>
+                    <th>ETQA Lead</th>
+                    <th>Names</th>
+                    <th>Learners</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for group in groups %}
+                    <tr>
+                        <td>{{ group.projectcode }}</td>
+                        <td>{{ group.start_date }}</td>
+                        <td>{{ group.end_date }}</td>
+                        <td>{{ group.project_lead|default:"None" }}</td>
+                        <td>{{ group.etqa_lead|default:"None" }}</td>
+                        <td>
+                            {% for name in group.names %}
+                                {{ name.name }}<br>
+                            {% empty %}
+                                None
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for lqg in group.learners %}
+                                {{ lqg.learner_qualification.learner }} ({{ lqg.learner_qualification.sla_qualification.service.name }})<br>
+                            {% empty %}
+                                None
+                            {% endfor %}
+                        </td>
+                        <td class="actions">
+                            <a href="{% url 'add_learner_qualification_group' group_id=group.projectcode %}" class="btn btn-primary">Add Learner</a>
+                            <a href="{% url 'group_name_list' group_id=group.projectcode %}" class="btn btn-secondary">Manage Names</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="no-records">No groups found.</p>
+    {% endif %}
+    <a href="{% url 'group_management' %}" class="btn btn-secondary">Manage Groups</a>
+
+
+<script>
+    // Debounce function to limit how often the form is submitted
+    function debounce(func, delay) {
+        let timeoutId;
+        return function (...args) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
+
+    // Submit the form after a short delay
+    const submitForm = debounce(() => {
+        document.getElementById('filter-form').submit();
+    }, 300);
+
+    // Attach the debounced submit to text input
+    document.getElementById('search').addEventListener('input', submitForm);
+</script>
+{% endblock %}

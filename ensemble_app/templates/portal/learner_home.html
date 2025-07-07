@@ -1,0 +1,474 @@
+{% extends 'base.html' %}
+{% block title %}Learner Dashboard{% endblock %}
+
+{% block content %}
+<style>
+:root {
+  --primary: #00458B;
+  --secondary: #40A2E3;
+  --white: #fff;
+  --background: #F6FAFD;
+  --light-gray: #E6EDF3;
+  --text: #22223B;
+  --shadow: rgba(0,69,139,0.07);
+}
+
+body, .dashboard-container {
+  background: var(--background);
+  color: var(--text);
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+
+.dashboard-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2.5rem 1rem 3rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+/* HERO */
+.learner-hero {
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  color: var(--white);
+  border-radius: 16px;
+  padding: 38px 24px 30px 24px;
+  margin-bottom: 0;
+  box-shadow: 0 4px 18px var(--shadow);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.learner-hero h2 {
+  font-size: 2.3em;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin-bottom: 0;
+  color: var(--white);
+  text-shadow: 0 2px 8px var(--secondary);
+  animation: heroFadeIn 1.2s cubic-bezier(.77,0,.18,1) both;
+}
+.learner-hero .micro-dot {
+  position: absolute;
+  top: 22px;
+  right: 38px;
+  width: 18px;
+  height: 18px;
+  background: var(--secondary);
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 var(--secondary);
+  animation: dotPulse 2.2s infinite cubic-bezier(.66,0,.34,1);
+  z-index: 2;
+}
+@keyframes dotPulse {
+  0% { box-shadow: 0 0 0 0 var(--secondary); }
+  70% { box-shadow: 0 0 0 12px rgba(0,0,0,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+}
+@keyframes heroFadeIn {
+  from { opacity: 0; transform: translateY(40px) scale(0.98);}
+  to { opacity: 1; transform: none;}
+}
+
+/* PROFILE CARD */
+.profile-card {
+  background: var(--white);
+  border-radius: 14px;
+  box-shadow: 0 2px 12px var(--shadow);
+  border-left: 6px solid var(--primary);
+  overflow: hidden;
+  margin-bottom: 0;
+  animation: cardAppear 0.7s cubic-bezier(.77,0,.18,1) both;
+}
+@keyframes cardAppear {
+  from { opacity: 0; transform: translateY(30px);}
+  to { opacity: 1; transform: none;}
+}
+.profile-header {
+  background: var(--primary);
+  color: var(--white);
+  font-weight: 700;
+  font-size: 1.15em;
+  padding: 20px 32px 12px 32px;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--secondary);
+  position: relative;
+}
+.profile-header h2 {
+  margin: 0;
+  font-size: 1.5em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.profile-body {
+  padding: 28px 32px;
+}
+.profile-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5rem 3.5rem;
+}
+.info-item {
+  min-width: 180px;
+  margin-bottom: 0.5rem;
+}
+.info-item .label {
+  font-weight: 600;
+  color: var(--primary);
+  font-size: 1em;
+  margin-bottom: 2px;
+  letter-spacing: 0.03em;
+}
+.info-item .value {
+  font-size: 1.13em;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+
+/* QUALIFICATIONS */
+.qualification-section {
+  background: var(--white);
+  border-radius: 14px;
+  box-shadow: 0 2px 12px var(--shadow);
+  border-left: 6px solid var(--secondary);
+  overflow: hidden;
+  margin-bottom: 0;
+  animation: cardAppear 0.7s 0.1s cubic-bezier(.77,0,.18,1) both;
+}
+.section-header {
+  background: var(--secondary);
+  color: var(--white);
+  font-weight: 700;
+  font-size: 1.15em;
+  padding: 18px 32px;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--primary);
+  position: relative;
+}
+.section-header h2 {
+  margin: 0;
+  font-size: 1.2em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.qualification-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  padding: 28px 32px;
+}
+.qual-card {
+  background: var(--background);
+  border-radius: 10px;
+  box-shadow: 0 1px 6px var(--shadow);
+  padding: 1.2rem 1.5rem;
+  min-width: 260px;
+  flex: 1 1 260px;
+  border-left: 4px solid var(--secondary);
+  transition: box-shadow 0.2s, border 0.2s;
+}
+.qual-card h3 {
+  color: var(--primary);
+  font-size: 1.1em;
+  margin-bottom: 0.7em;
+  font-weight: 700;
+}
+.qual-details p {
+  color: var(--text);
+  font-size: 1em;
+  margin: 0.2em 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+/* DASHBOARD GRID */
+.dashboard-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5rem;
+  margin-top: 0;
+}
+.dashboard-card {
+  background: var(--white);
+  border-radius: 14px;
+  box-shadow: 0 2px 12px var(--shadow);
+  border-left: 6px solid var(--primary);
+  flex: 1 1 420px;
+  min-width: 340px;
+  max-width: 600px;
+  overflow: hidden;
+  animation: cardAppear 0.7s 0.2s cubic-bezier(.77,0,.18,1) both;
+  display: flex;
+  flex-direction: column;
+}
+.card-header {
+  background: var(--primary);
+  color: var(--white);
+  font-weight: 700;
+  font-size: 1.1em;
+  padding: 18px 32px;
+  border-bottom: 1px solid var(--secondary);
+}
+.card-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.card-body {
+  padding: 28px 32px;
+  flex: 1 1 auto;
+}
+
+/* ACTIVITY & SESSION LISTS */
+.activity-list, .session-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.activity-item, .session-item {
+  padding: 1.1em 0.5em;
+  border-bottom: 1px solid var(--light-gray);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.2s;
+}
+.activity-item:last-child, .session-item:last-child {
+  border-bottom: none;
+}
+.activity-content h4, .session-content h4 {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 0 0 0.2em 0;
+}
+.activity-date, .session-date {
+  font-size: 0.98em;
+  color: var(--secondary);
+}
+.session-group {
+  font-size: 0.98em;
+  color: var(--primary);
+  font-weight: 600;
+  margin-bottom: 0.2em;
+}
+.methodology-badge {
+  background: var(--secondary);
+  color: var(--white);
+  border-radius: 10px;
+  padding: 0.4em 1em;
+  font-size: 0.95em;
+  font-weight: 600;
+  margin-left: 1em;
+  letter-spacing: 0.03em;
+}
+
+/* STATUS BADGES */
+.status-badge {
+  border-radius: 12px;
+  padding: 6px 18px;
+  font-size: 0.98em;
+  font-weight: 700;
+  background: var(--light-gray);
+  color: var(--primary);
+  margin-left: 1em;
+  display: inline-block;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+  cursor: pointer;
+}
+.status-badge.competent { background: #34C759; color: #fff; }
+.status-badge.not_competent { background: #FF3B30; color: #fff; }
+.status-badge.pending { background: #FFB347; color: #fff; }
+
+/* ACTION BUTTON */
+.action-button {
+  background: var(--secondary);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 28px;
+  font-weight: 700;
+  font-size: 1em;
+  letter-spacing: 0.04em;
+  margin-top: 1.5em;
+  box-shadow: 0 2px 8px var(--shadow);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.action-button:hover {
+  background: var(--primary);
+  color: var(--white);
+  transform: translateY(-2px) scale(1.03);
+}
+
+/* EMPTY STATE */
+.no-data {
+  color: var(--secondary);
+  text-align: center;
+  font-style: italic;
+  padding: 2em 0;
+  background: var(--background);
+  border-radius: 8px;
+  margin-top: 1em;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .dashboard-container { padding: 1rem 0.5rem; }
+  .profile-body, .qualification-grid, .card-body { padding: 18px 10px; }
+  .dashboard-grid, .qualification-grid { flex-direction: column; gap: 1.2rem; }
+}
+@media (max-width: 600px) {
+  .profile-header, .section-header, .card-header { padding: 12px 10px; }
+  .profile-body, .qualification-grid, .card-body { padding: 12px 4px; }
+  .dashboard-container { padding: 0.5rem 0.2rem; }
+}
+</style>
+ <!-- ALERT: LIF Missing -->
+  {% if lif_missing %}
+  <div class="alert alert-warning mt-3" style="font-size:1.1em;">
+    <b>Action Required:</b> You have not filled in your Learner Information Form (LIF).
+    <a href="{% url 'lif_form' %}?learner_id={{ request.user.learner_profile.id }}" class="btn btn-sm btn-primary ms-2">Click here to fill it in</a>
+  </div>
+  {% endif %}
+<div class="dashboard-container fade-in">
+  <!-- HERO -->
+  <div class="learner-hero">
+    <span class="micro-dot"></span>
+    <h2>Welcome, {{ learner_details.full_name }}</h2>
+    <div style="font-size:1.1em;opacity:0.85;margin-top:8px;">
+      Your learning journey at a glance
+    </div>
+  </div>
+
+  <!-- PROFILE CARD -->
+  <div class="profile-card">
+    <div class="profile-header">
+      <h2><i class="fas fa-user-circle"></i> Learner Profile</h2>
+    </div>
+    <div class="profile-body">
+      <div class="profile-info">
+        <div class="info-item">
+          <span class="label">Name:</span>
+          <span class="value">{{ learner_details.full_name }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Email:</span>
+          <span class="value">{{ learner_details.email }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Gender:</span>
+          <span class="value">{{ learner_details.gender }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Equity:</span>
+          <span class="value">{{ learner_details.equity }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUALIFICATIONS -->
+  <div class="qualification-section">
+    <div class="section-header">
+      <h2><i class="fas fa-graduation-cap"></i> Active Qualifications</h2>
+    </div>
+    <div class="qualification-grid">
+      {% for qual in active_qualifications %}
+      <div class="qual-card">
+        <h3>{{ qual.sla_qualification.service.name }}</h3>
+        <div class="qual-details">
+          <p><i class="fas fa-building"></i> SLA: {{ qual.sla_qualification.sla.sla_reference }}</p>
+          <p><i class="fas fa-users"></i> Group: {{ qual.group.name|default:"Not Assigned" }}</p>
+        </div>
+      </div>
+      {% empty %}
+      <p class="no-data">No active qualifications</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- DASHBOARD GRID -->
+  <div class="dashboard-grid">
+    <!-- Recent POE Submissions -->
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h2><i class="fas fa-file-upload"></i> Recent POE Submissions</h2>
+      </div>
+      <div class="card-body">
+        {% if recent_poes %}
+        <ul class="activity-list">
+          {% for poe in recent_poes %}
+          <li class="activity-item">
+            <div class="activity-content">
+              <h4>{{ poe.module.name }}</h4>
+              <p class="activity-date">{{ poe.submission_date|date:"d M Y" }}</p>
+            </div>
+            <span class="status-badge {{ poe.status }}">
+              {{ poe.get_status_display }}
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+        <div class="card-actions">
+          <a href="{% url 'poe_submission' %}" class="action-button">
+            <i class="fas fa-plus"></i> Submit New POE
+          </a>
+        </div>
+        {% else %}
+        <p class="no-data">No recent POE submissions</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Upcoming Sessions -->
+    <div class="dashboard-card">
+      <div class="card-header">
+        <h2><i class="fas fa-calendar"></i> Upcoming Sessions</h2>
+      </div>
+      <div class="card-body">
+        {% if upcoming_sessions %}
+        <ul class="session-list">
+          {% for session in upcoming_sessions %}
+          <li class="session-item">
+            <div class="session-content">
+              <h4>{{ session.project_plan.module.name }}</h4>
+              <p class="session-group">{{ session.project_plan.group.name }}</p>
+              <p class="session-date">
+                <i class="fas fa-clock"></i>
+                {{ session.start_date|date:"d M Y" }} - {{ session.end_date|date:"d M Y" }}
+              </p>
+            </div>
+            {% if session.preferred_training_methodology %}
+            <span class="methodology-badge">
+              {{ session.preferred_training_methodology }}
+            </span>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="no-data">No upcoming sessions</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+ 
+</div>
+{% endblock %}

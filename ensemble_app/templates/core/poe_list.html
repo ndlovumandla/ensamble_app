@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>My POE Submissions</h2>
+
+    {% if poes %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Module</th>
+                        <th>Qualification</th>
+                        <th>Submitted</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for poe in poes %}
+                    <tr>
+                        <td>{{ poe.module.name }}</td>
+                        <td>{{ poe.learner_qualification.sla_qualification.service.name }}</td>
+                        <td>{{ poe.submission_date|date:"d M Y" }}</td>
+                        <td>{{ poe.get_status_display }}</td>
+                        <td>
+                            <a href="{{ poe.poe_file.url }}" class="btn btn-sm btn-primary">Download POE</a>
+                            {% if poe.annextures.exists %}
+                            <div class="dropdown d-inline">
+                                <button class="btn btn-sm btn-info dropdown-toggle" data-bs-toggle="dropdown">
+                                    Annextures
+                                </button>
+                                <div class="dropdown-menu">
+                                    {% for annexture in poe.annextures.all %}
+                                    <a class="dropdown-item" href="{{ annexture.file.url }}">
+                                        {{ annexture.annexture_template.name }}
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            You haven't submitted any POEs yet.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

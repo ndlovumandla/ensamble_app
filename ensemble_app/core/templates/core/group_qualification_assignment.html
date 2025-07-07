@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Assign Qualifications to Group{% endblock %}
+
+{% block content %}
+<!-- Select2 CSS/JS dependencies -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<div class="container mt-4">
+    <h2 class="dashboard-title neon-text mb-3">Assign Qualifications to Group</h2>
+    <hr>
+
+    <!-- Assignment Form -->
+    <div class="card mb-4 p-3 glass shadow">
+        <form method="post" id="assignment-form">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+                <label for="id_group" class="form-label">Group:</label>
+                <select name="group" id="id_group" class="form-select select2" required>
+                    <option value="">Select a Group...</option>
+                    {% for group in groups %}
+                        <option value="{{ group.id }}">{{ group.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="id_service" class="form-label">Service:</label>
+                <select id="id_service" class="form-select select2">
+                    <option value="">Select a Service...</option>
+                    {% for service in services %}
+                        <option value="{{ service.id }}">{{ service.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">SLA Qualifications:</label>
+                <div id="sla-qualifications-container" class="card p-3">
+                    <div class="alert alert-info" id="sla-info" role="alert">
+                        <i class="fas fa-info-circle"></i> Select a service to see available SLA Qualifications
+                    </div>
+                    <div class="sla-checkbox-list" id="sla-checkbox-list" style="display:none;">
+                        <div class="select-all-row">
+                            <input type="checkbox" id="select-all-sla" onclick="toggleSelectAllSLA(this)">
+                            <label for="select-all-sla">Select All</label>
+                        </div>
+                        <div id="sla-qualifications-grid" class="row g-3">
+                            <!-- SLA checkboxes will be injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary mt-2 btn-glow">Assign Qualifications</button>
+        </form>
+    </div>
+
+    <!-- Current Assignments Table -->
+    <h3 class="mt-4 mb-3 neon-text">Current Group Assignments</h3>
+    <div class="table-responsive glassy card-hover">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Group</th>
+                    <th>SLA Qualifications</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for group in page_obj %}
+                    <tr>
+                        <td>{{ group.name }}</td>
+                        <td>
+                            {% for qual in group.sla_qualifications.all %}
+                                <span class="badge bg-primary">{{ qual }}</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            <form method="post" style="display:inline;" 
+                                  onsubmit="return confirm('Remove all qualifications from this group?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="group_id" value="{{ group.id }}">
+                                <input type="hidden" name="action" value="remove_all">
+                                <button type="submit" class="btn btn-danger btn-sm">Remove All</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Previous</span>
+                </li>
+            {% endif %}
+
+            {% if page_obj.paginator.num_pages > 1 %}
+                {% if page_obj.number > 5 %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1">1</a>
+                    </li>
+                    {% if page_obj.number > 6 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if num >= page_obj.number|add:"-4" and num <= page_obj.number|add:"4" %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% else %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.number < page_obj.paginator.num_pages|add:"-4" %}
+                    {% if page_obj.number < page_obj.paginator.num_pages|add:"-5" %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">{{ page_obj.paginator.num_pages }}</a>
+                    </li>
+                {% endif %}
+            {% endif %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Next</span>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+
+<script>
+function updateSLAQualifications() {
+    const serviceId = document.getElementById('id_service').value;
+    const container = document.getElementById('sla-checkbox-list');
+    const grid = document.getElementById('sla-qualifications-grid');
+    const info = document.getElementById('sla-info');
+    
+    if (!serviceId) {
+        container.style.display = 'none';
+        info.style.display = 'block';
+        return;
+    }
+
+    // Show loading state
+    info.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading SLA Qualifications...';
+    
+    fetch('/ajax/get_sla_qualifications/?service_id=' + serviceId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.results.length === 0) {
+                info.innerHTML = '<i class="fas fa-exclamation-circle"></i> No SLA Qualifications found for this service.';
+                container.style.display = 'none';
+                info.style.display = 'block';
+                return;
+            }
+
+            grid.innerHTML = ''; // Clear existing checkboxes
+            info.style.display = 'none';
+            container.style.display = 'block';
+
+            data.results.forEach(function(item) {
+                const col = document.createElement('div');
+                col.className = 'col-md-6';
+                
+                const card = document.createElement('div');
+                card.className = 'card h-100';
+                
+                const cardBody = document.createElement('div');
+                cardBody.className = 'card-body d-flex align-items-center';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.name = 'sla_qualifications';
+                checkbox.value = item.id;
+                checkbox.id = 'slaq_' + item.id;
+                checkbox.className = 'sla-checkbox form-check-input me-2';
+                
+                const label = document.createElement('label');
+                label.htmlFor = 'slaq_' + item.id;
+                label.className = 'form-check-label mb-0';
+                label.innerText = item.label;
+                
+                cardBody.appendChild(checkbox);
+                cardBody.appendChild(label);
+                card.appendChild(cardBody);
+                col.appendChild(card);
+                grid.appendChild(col);
+            });
+        })
+        .catch(error => {
+            info.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error loading SLA Qualifications';
+            console.error('Error:', error);
+        });
+}
+
+function toggleSelectAllSLA(checkbox) {
+    const checkboxes = document.querySelectorAll('.sla-checkbox');
+    checkboxes.forEach(box => box.checked = checkbox.checked);
+}
+
+document.getElementById('id_service').addEventListener('change', updateSLAQualifications);
+</script>
+
+<script>
+$(document).ready(function() {
+    $('.select2').select2({
+        width: '100%',
+        placeholder: 'Select an option',
+        allowClear: true,
+        minimumResultsForSearch: 0 // Always show search box
+    });
+});
+</script>
+{% endblock %}

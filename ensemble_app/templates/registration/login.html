@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Please Sign In{% endblock %}
+
+{% block content %}
+  <h2 class="mb-4 text-center dashboard-title ensemble-glow">Sign In</h2>
+  {% if form.errors %}
+    <div class="alert alert-danger text-center">
+      Invalid credentials, please try again.
+    </div>
+  {% endif %}
+  <form method="post" class="card card-body glass shadow">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label for="id_username" class="form-label text-primary">Username</label>
+      <input
+        type="text"
+        name="username"
+        id="id_username"
+        class="form-control input-field"
+        required
+        autofocus
+      >
+    </div>
+    <div class="mb-3">
+      <label for="id_password" class="form-label text-primary">Password</label>
+      <input
+        type="password"
+        name="password"
+        id="id_password"
+        class="form-control input-field"
+      >
+    </div>
+    <button type="submit" class="btn btn-primary btn-glow login-btn">
+      Log In
+    </button>
+  </form>
+{% endblock %}

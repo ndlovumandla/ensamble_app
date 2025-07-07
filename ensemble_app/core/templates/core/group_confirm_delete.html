@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Delete Group{% endblock %}
+{% block content %}
+<div class="container glass mt-4 fade-in">
+  <h2 class="dashboard-title ensemble-glow mb-4">Delete Group</h2>
+  <div class="alert alert-danger p-3 mb-4">
+    <i class="fa fa-exclamation-triangle"></i>
+    Are you sure you want to delete the group <strong>{{ object }}</strong>?<br>
+    This action cannot be undone.
+  </div>
+  <form method="post" class="d-flex gap-10">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger btn-glow"><i class="fa fa-trash"></i> Yes, Delete</button>
+    <a href="{% url 'group_management' %}" class="btn btn-secondary"><i class="fa fa-times"></i> Cancel</a>
+  </form>
+</div>
+{% endblock %}

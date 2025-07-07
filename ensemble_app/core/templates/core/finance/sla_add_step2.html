@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Add Qualifications{% endblock %}
+
+{% block content %}
+<div class="main-content">
+  <h2 class="mb-4 text-center">
+    Step 2: Add Qualifications to SLA {{ sla.sla_reference }}
+  </h2>
+
+  <form method="post" class="card shadow-sm p-4 bg-white border rounded">
+    {% csrf_token %}
+    {{ formset.management_form }}
+
+    <div id="formset-container">
+      {% for form in formset %}
+        <div class="qualification-form border-bottom pb-3 mb-3">
+          {% for field in form.visible_fields %}
+            <div class="row mb-2 align-items-center">
+              <label for="{{ field.id_for_label }}"
+                     class="col-sm-4 col-form-label fw-bold text-end">
+                {{ field.label }}
+              </label>
+              <div class="col-sm-7">
+                {{ field }}
+                {% if field.errors %}
+                  <div class="text-danger small">{{ field.errors }}</div>
+                {% endif %}
+              </div>
+              <div class="col-sm-1">
+                {% if field.name == "DELETE" %}
+                  <div class="form-check">
+                    {{ field }} <label class="form-check-label">Del</label>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <button type="button" id="add-qual-btn"
+            class="btn btn-outline-secondary mb-4">
+      + Add another qualification
+    </button>
+
+    <div class="d-grid gap-2">
+      <button type="submit" class="btn btn-primary">
+        Next: {% if sla.num_tranches == 99 %}Skip Billing{% else %}Add Billing{% endif %}
+      </button>
+      <a href="{% url 'finance_dashboard' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+
+    {# Hidden empty form template #}
+    <div id="empty-form" style="display:none;">
+      <div class="qualification-form border-bottom pb-3 mb-3">
+        {% with form=formset.empty_form %}
+          {% for field in form.visible_fields %}
+            <div class="row mb-2 align-items-center">
+              <label for="{{ field.id_for_label }}"
+                     class="col-sm-4 col-form-label fw-bold text-end">
+                {{ field.label }}
+              </label>
+              <div class="col-sm-7">
+                {{ field }}
+              </div>
+              <div class="col-sm-1">
+                {% if field.name == "DELETE" %}
+                  <div class="form-check">
+                    {{ field }} <label class="form-check-label">Del</label>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        {% endwith %}
+      </div>
+    </div>
+
+  </form>
+</div>
+
+<script>
+  (function() {
+    const addBtn = document.getElementById('add-qual-btn');
+    const container = document.getElementById('formset-container');
+    const totalForms = document.getElementById('id_form-TOTAL_FORMS');
+    addBtn.addEventListener('click', () => {
+      const formCount = parseInt(totalForms.value, 10);
+      // clone the hidden empty form, replace __prefix__
+      let tpl = document.getElementById('empty-form').innerHTML
+        .replace(/__prefix__/g, formCount);
+      container.insertAdjacentHTML('beforeend', tpl);
+      totalForms.value = formCount + 1;
+    });
+  })();
+</script>
+{% endblock %}

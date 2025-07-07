@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+{% block title %}Assign Learner Roles{% endblock %}
+{% block content %}
+
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-3">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h4 class="card-title mb-3">Assign Role to All Learners</h4>
+                        <form method="post" id="assign-all-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="assign_role_to_all">
+                            <div class="mb-3">
+                                <label for="all_role_id" class="form-label">Select Role:</label>
+                                <select id="all_role_id" name="role_id" class="form-select" required>
+                                    <option value="" disabled selected>Select Role</option>
+                                    {% for role in roles %}
+                                        <option value="{{ role.id }}">{{ role.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">Assign to All Learners</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h4 class="card-title mb-3">Assign Role to Selected Learners</h4>
+                        <form method="post" id="learner-selection-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="assign_role_to_selected">
+                            <div class="mb-3">
+                                <label for="bulk_role_id" class="form-label">Select Role:</label>
+                                <select id="bulk_role_id" name="role_id" class="form-select" required>
+                                    <option value="" disabled selected>Select Role</option>
+                                    {% for role in roles %}
+                                        <option value="{{ role.id }}">{{ role.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <span class="fw-bold">Selected Learners:</span> <span id="learner-count">0</span>
+                            </div>
+                            <button type="submit" id="assign-button" class="btn btn-primary w-100" disabled>Assign to Selected Learners</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Panel -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <form method="get" id="search-form" class="mb-0" action="{% url 'learner_role_assignment' %}">
+                            <label for="search" class="form-label">Search:</label>
+                            <input type="text" id="search" name="search" value="{{ filters.search|default:'' }}" placeholder="Name, ID number, User ID" class="form-control" onchange="submitSearch()">
+                        </form>
+                    </div>
+                    <div class="col-md-3">
+                        <form method="get" id="qualification-form" class="mb-0" action="{% url 'learner_role_assignment' %}">
+                            <label for="qualification_search" class="form-label">Qualification:</label>
+                            <select id="qualification_search" name="qualification_search" class="form-select" onchange="this.form.submit()">
+                                <option value="" {% if not filters.qualification_search %}selected{% endif %}>All Qualifications</option>
+                                {% for qual in available_qualifications %}
+                                    <option value="{{ qual }}" {% if filters.qualification_search == qual %}selected{% endif %}>{{ qual }}</option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </div>
+                    <div class="col-md-2">
+                        <form method="get" id="status-role-form" class="mb-0" action="{% url 'learner_role_assignment' %}">
+                            <label for="status" class="form-label">Status:</label>
+                            <select id="status" name="status" class="form-select" onchange="this.form.submit()">
+                                <option value="" {% if not filters.status %}selected{% endif %}>All Statuses</option>
+                                <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+                                <option value="removed" {% if filters.status == 'removed' %}selected{% endif %}>Removed</option>
+                            </select>
+                        </form>
+                    </div>
+                    <div class="col-md-2">
+                        <form method="get" id="role-form" class="mb-0" action="{% url 'learner_role_assignment' %}">
+                            <label for="role" class="form-label">Role:</label>
+                            <select id="role" name="role" class="form-select" onchange="this.form.submit()">
+                                <option value="" {% if not filters.role %}selected{% endif %}>All Roles</option>
+                                {% for role in roles %}
+                                    <option value="{{ role.name }}" {% if filters.role == role.name %}selected{% endif %}>{{ role.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <button type="button" class="btn btn-secondary mt-2" onclick="clearFilters()">Clear Filters</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Learner Table -->
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="attendance-table table table-striped mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:40px;"><input type="checkbox" id="select_all"></th>
+                                <th>ID</th>
+                                <th>First Name</th>
+                                <th>Surname</th>
+                                <th>ID Number</th>
+                                <th>Current Roles</th>
+                                <th>Qualifications</th>
+                                <th>Assign Role</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for learner in page_obj %}
+                            <tr class="learner-row">
+                                <td><input type="checkbox" name="learner_ids" value="{{ learner.id }}" class="learner-checkbox"></td>
+                                <td>{{ learner.id }}</td>
+                                <td>{{ learner.FirstName }}</td>
+                                <td>{{ learner.Surname }}</td>
+                                <td>{{ learner.IDNumber }}</td>
+                                <td>
+                                    {% for learner_role in learner.roles %}
+                                        <span class="badge bg-info text-dark">{{ learner_role.role.name }}</span>
+                                        <form method="post" style="display:inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="learner_id" value="{{ learner.id }}">
+                                            <input type="hidden" name="role_id" value="{{ learner_role.role.id }}">
+                                            <input type="hidden" name="action" value="remove_role">
+                                            <button type="submit" class="btn btn-danger btn-sm ms-1">Remove</button>
+                                        </form>
+                                        <br>
+                                    {% empty %}
+                                        <span class="text-muted">No roles</span>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    {% for qual in learner.qualifications %}
+                                        <span class="badge bg-secondary">{{ qual.sla_qualification.service.name }} ({{ qual.sla_qualification.sla.sla_reference }})</span><br>
+                                    {% empty %}
+                                        <span class="text-muted">None</span>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    <form method="post" class="action-form" onsubmit="return validateRoleSelection(this);">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="learner_id" value="{{ learner.id }}">
+                                        <input type="hidden" name="action" value="add_role">
+                                        <div class="input-group">
+                                            <select name="role_id" class="form-select" required>
+                                                <option value="" disabled selected>Select Role</option>
+                                                {% for role in roles %}
+                                                    <option value="{{ role.id }}">{{ role.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            <button type="submit" class="btn btn-primary">Add</button>
+                                        </div>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center">No learners found.{% if no_results %} Try adjusting your search or filters.{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagination Controls -->
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in filters.items %}{% if value %}&{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}">Previous</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Previous</span>
+                    </li>
+                {% endif %}
+
+                {% if page_obj.paginator.num_pages > 1 %}
+                    {% if page_obj.number > 5 %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% for key, value in filters.items %}{% if value %}&{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}">1</a>
+                        </li>
+                        {% if page_obj.number > 6 %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if num >= page_obj.number|add:"-4" and num <= page_obj.number|add:"4" %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% else %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% for key, value in filters.items %}{% if value %}&{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.number < page_obj.paginator.num_pages|add:"-4" %}
+                        {% if page_obj.number < page_obj.paginator.num_pages|add:"-5" %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in filters.items %}{% if value %}&{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}">{{ page_obj.paginator.num_pages }}</a>
+                        </li>
+                    {% endif %}
+                {% endif %}
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in filters.items %}{% if value %}&{{ key }}={{ value|urlencode }}{% endif %}{% endfor %}">Next</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Next</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+
+<!-- JavaScript for Select All, Debounced Filtering, Form Validation, Button State, and Dynamic Qualification Dropdown -->
+<script>
+    function debounce(func, delay) {
+        let timeoutId;
+        return function (...args) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
+
+    function submitSearch() {
+        document.getElementById('search-form').submit();
+    }
+
+    function updateAssignButtonState() {
+        const checkboxes = document.querySelectorAll('.learner-checkbox:checked');
+        const roleSelected = document.getElementById('bulk_role_id').value !== '';
+        const assignButton = document.getElementById('assign-button');
+        const learnerCount = document.getElementById('learner-count');
+
+        learnerCount.textContent = checkboxes.length;
+        assignButton.disabled = checkboxes.length === 0 || !roleSelected;
+    }
+
+    function validateRoleSelection(form) {
+        const roleSelect = form.querySelector('select[name="role_id"]');
+        if (!roleSelect.value) {
+            alert('Please select a role.');
+            return false;
+        }
+        return true;
+    }
+
+    function clearFilters() {
+        document.getElementById('search-form').reset();
+        document.getElementById('qualification-form').reset();
+        document.getElementById('status-role-form').reset();
+        document.getElementById('role-form').reset();
+        document.getElementById('select_all').checked = false;
+        document.querySelectorAll('.learner-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+            const row = checkbox.closest('.learner-row');
+            row.style.backgroundColor = '';
+        });
+        updateAssignButtonState();
+        document.getElementById('search-form').submit();
+    }
+
+    document.getElementById('select_all').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.learner-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+            const row = checkbox.closest('.learner-row');
+            row.style.backgroundColor = this.checked ? '#e6ffed' : '';
+        });
+        updateAssignButtonState();
+    });
+
+    document.querySelectorAll('.learner-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const row = this.closest('.learner-row');
+            row.style.backgroundColor = this.checked ? '#e6ffed' : '';
+            updateAssignButtonState();
+        });
+    });
+
+    document.getElementById('bulk_role_id').addEventListener('change', updateAssignButtonState);
+
+    const debouncedSearch = debounce(submitSearch, 300);
+    document.getElementById('search').addEventListener('input', debouncedSearch);
+</script>
+{% endblock %}

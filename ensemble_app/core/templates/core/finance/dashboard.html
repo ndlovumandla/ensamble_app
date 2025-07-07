@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Finance Management{% endblock %}
+
+{% block content %}
+<div class="main-content">
+  <h1 class="mb-4">Finance Management</h1>
+
+  <div class="list-group">
+    <a
+      href="{% url 'billing_payments' %}"
+      class="list-group-item list-group-item-action"
+    >
+      💰 Mark Invoice Payments
+    </a>
+    <a
+      href="{% url 'billing_export' %}"
+      class="list-group-item list-group-item-action"
+    >
+      📤 Export Billing Data
+    </a>
+	<a
+	  href="{% url 'add_sla_wizard' %}"
+	  class="list-group-item list-group-item-action"
+>
+  ➕ Add New SLA (Wizard)
+	</a>
+</div>
+{% endblock %}
+<div class="main-content"></div>

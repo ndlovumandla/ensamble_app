@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>POE Templates</h2>
+        <a href="{% url 'poe_template_add' %}" class="btn btn-primary">Upload New Template</a>
+    </div>
+
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-4">
+            <input type="text" name="search" value="{{ filters.search }}" class="form-control" placeholder="Search by module or uploader">
+        </div>
+        <div class="col-md-4">
+            <select name="module" class="form-select">
+                <option value="">All Modules</option>
+                {% for mod in modules %}
+                    <option value="{{ mod.id }}" {% if filters.module|add:""|stringformat:"s" == mod.id|stringformat:"s" %}selected{% endif %}>{{ mod.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-secondary">Filter</button>
+            <a href="{% url 'poe_template_list' %}" class="btn btn-outline-secondary">Clear</a>
+        </div>
+    </form>
+
+    {% if templates %}
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Module</th>
+                    <th>Uploaded At</th>
+                    <th>Uploaded By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for template in templates %}
+                <tr>
+                    <td>{{ template.module.name }}</td>
+                    <td>{{ template.uploaded_at|date:"d M Y H:i" }}</td>
+                    <td>{{ template.uploaded_by.username }}</td>
+                    <td>
+                        <a href="{{ template.template_file.url }}" class="btn btn-sm btn-info">Download</a>
+                        <a href="{% url 'poe_annextures' template.id %}" class="btn btn-sm btn-primary">Manage Annextures</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">No POE templates uploaded yet.</div>
+    {% endif %}
+
+    {% if is_paginated %}
+    <nav aria-label="POE template pagination">
+      <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?{% if filters.search %}search={{ filters.search }}&{% endif %}{% if filters.module %}module={{ filters.module }}&{% endif %}page={{ page_obj.previous_page_number }}" aria-label="Previous">
+              <span aria-hidden="true">&laquo;</span>
+            </a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+        {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+          {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+          {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            <li class="page-item"><a class="page-link" href="?{% if filters.search %}search={{ filters.search }}&{% endif %}{% if filters.module %}module={{ filters.module }}&{% endif %}page={{ num }}">{{ num }}</a></li>
+          {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?{% if filters.search %}search={{ filters.search }}&{% endif %}{% if filters.module %}module={{ filters.module }}&{% endif %}page={{ page_obj.next_page_number }}" aria-label="Next">
+              <span aria-hidden="true">&raquo;</span>
+            </a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% load role_permission_extras %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module">
+        <h2>{% trans "Manage Role Permissions" %}</h2>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="results">
+                <table id="result_list">
+                    <thead>
+                        <tr>
+                            <th>{% trans "Feature" %}</th>
+                            <th>{% trans "Description" %}</th>
+                            {% for role in roles %}
+                                <th>{{ role.name }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for url_name, description in url_list %}
+                            <tr>
+                                <td>{{ url_name }}</td>
+                                <td>{{ description }}</td>
+                                {% for role in roles %}
+                                    <td>
+                                        <input type="checkbox" 
+                                               name="permissions_{{ role.id }}" 
+                                               value="{{ url_name }}"
+                                               {% if url_name in role_permissions|get_item:role.id %}checked{% endif %}>
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="submit-row">
+                <input type="submit" value="{% trans 'Save Permissions' %}" class="default">
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    #result_list {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1em 0;
+    }
+    #result_list th, #result_list td {
+        padding: 8px;
+        border: 1px solid #ddd;
+    }
+    #result_list th {
+        background-color: #417690;
+        color: white;
+        font-weight: bold;
+    }
+    #result_list tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    .submit-row {
+        padding: 12px;
+        text-align: right;
+        background: #f8f8f8;
+        border: 1px solid #ddd;
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}

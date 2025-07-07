@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Billing → Export{% endblock %}
+
+{% block extra_css %}
+  <link
+    href="https://cdn.datatables.net/rowgroup/1.3.1/css/rowGroup.bootstrap5.min.css"
+    rel="stylesheet"
+  >
+  <style>
+    tr.group td {
+      background: #e9ecef !important;
+      font-weight: 600;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+
+  <h1 class="mb-4">Billing Export</h1>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="post" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <div class="col-auto">
+          <label for="billingMonth" class="form-label">Billing Month</label>
+          <select
+            name="billing_month"
+            id="billingMonth"
+            class="form-select"
+            required
+          >
+            <option value="" {% if not selected_month %}selected{% endif %}>
+              Select a month
+            </option>
+            {% for m in available_months %}
+              <option
+                value="{{ m.value }}"
+                {% if m.value == selected_month %}selected{% endif %}
+              >{{ m.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-primary">Show Invoices</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if export_rows %}
+    <div class="card">
+      <div class="card-body">
+        <h2>Invoices for {{ selected_month_label }}</h2>
+
+        <div class="table-responsive">
+          <table
+            id="invoiceTable"
+            class="table table-striped table-bordered"
+            style="width:100%"
+          >
+            <thead class="table-success">
+              <tr>
+                <th>Invoice Group</th>
+                <th>Client</th>
+                <th>Qualification</th>
+                <th class="text-center">Learners</th>
+                <th class="text-end">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in export_rows %}
+                <tr>
+                  <td>{{ row.group }}</td>
+                  <td>{{ row.client }}</td>
+                  <td>{{ row.qualification }}</td>
+                  <td class="text-center">{{ row.active_learners }}</td>
+                  <td class="text-end">R {{ row.amount|floatformat:2 }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-end gap-3 mt-3">
+          <!-- Generate CSV -->
+          <form
+            method="POST"
+            action="{% url 'billing_export' %}"
+            target="_blank"
+            class="d-flex align-items-end"
+          >
+            {% csrf_token %}
+            <input
+              type="hidden"
+              name="billing_month"
+              value="{{ selected_month }}"
+            >
+            <input type="hidden" name="generate_csv" value="true">
+            <button type="submit" class="btn btn-success">
+              Generate CSV
+            </button>
+          </form>
+
+          <!-- Complete Billing -->
+          <form
+            method="POST"
+            action="{% url 'billing_export' %}"
+            class="d-flex align-items-end"
+          >
+            {% csrf_token %}
+            <input
+              type="hidden"
+              name="billing_month"
+              value="{{ selected_month }}"
+            >
+            <input
+              type="hidden"
+              name="complete_billing"
+              value="true"
+            >
+
+            <div class="me-2">
+              <label for="first_invoice" class="form-label mb-0">
+                First Invoice #
+              </label>
+              <input
+                type="text"
+                name="first_invoice"
+                id="first_invoice"
+                class="form-control"
+                required
+              >
+            </div>
+
+            <div class="me-2">
+              <label for="billing_date" class="form-label mb-0">
+                Billing Date
+              </label>
+              <input
+                type="date"
+                name="billing_date"
+                id="billing_date"
+                class="form-control"
+                required
+              >
+            </div>
+
+            <button type="submit" class="btn btn-warning">
+              Complete Billing
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <a
+    href="{% url 'finance_dashboard' %}"
+    class="btn btn-secondary mt-3"
+  >Back to Dashboard</a>
+
+{% endblock %}
+
+{% block extra_js %}
+  <script
+    src="https://cdn.datatables.net/rowgroup/1.3.1/js/dataTables.rowGroup.min.js"
+  ></script>
+  <script>
+    $('#invoiceTable').DataTable({
+      paging: false,
+      ordering: true,
+      info: true,
+      rowGroup: {
+        dataSrc: 0,
+        startRender: function(rows, group) {
+          var sum = rows
+            .data()
+            .pluck(4)
+            .reduce((a,b) =>
+              a + parseFloat(b.replace(/[^0-9.\-]+/g, '')), 0
+            );
+          return $('<tr class="group"/>')
+            .append(
+              '<td colspan="5">' +
+                group +
+                ' – Subtotal: R ' + sum.toFixed(2) +
+              '</td>'
+            );
+        }
+      },
+      columnDefs: [{ targets: 0, visible: false }],
+      language: { search: "Filter Invoices:" },
+      infoCallback: function(settings, start, end, max, total) {
+        var api = this.api(),
+            grpCnt = new Set(api.column(0,{search:'applied'}).data().toArray()).size,
+            grand  = api.column(4,{search:'applied'}).data()
+                      .reduce((a,b) => 
+                        a + parseFloat(b.replace(/[^0-9.\-]+/g, '')), 0
+                      );
+        return 'Total Groups: ' + grpCnt + ' | Grand Total: R ' + grand.toFixed(2);
+      }
+    });
+  </script>
+{% endblock %}

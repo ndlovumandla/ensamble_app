@@ -1,0 +1,17 @@
+Ensure Docker is installes
+Make sure Redis is running on your machine.  
+If not installed, download from [https://redis.io/download](https://redis.io/download) or use [Memurai](https://www.memurai.com/) for Windows.
+Start Redis in a terminal:
+docker run -d --name redis -p 6379:6379 redis:<version>
+redis-server
+
+celery -A ensemble_app worker -l info -P solo
+
+Open another terminal and run:
+
+celery -A ensemble_app beat -l info
+
+python manage.py runserver
+1. Install the ODBC Driver on Windows
+Download and install ODBC Driver 18 for SQL Server from Microsoft:
+Download ODBC Driver 18 for SQL Server

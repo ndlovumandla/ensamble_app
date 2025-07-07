@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% load dict_extras %}
+{% block title %}Book Venue{% endblock %}
+{% block content %}
+
+<!-- Bootstrap Dropdown Navigation -->
+<div class="dropdown mb-3" style="position:relative;z-index:100;">
+  <button class="btn btn-primary dropdown-toggle" type="button" id="gotoDropdownForm" data-bs-toggle="dropdown" aria-expanded="false">
+    <i class="fa fa-compass"></i> Go To
+  </button>
+  <ul class="dropdown-menu" aria-labelledby="gotoDropdownForm">
+    <li><a class="dropdown-item" href="{% url 'venuebooking_calendar' %}"><i class="fa fa-calendar"></i> Venue Booking Calendar</a></li>
+    <li><a class="dropdown-item" href="{% url 'venuebooking_list' %}"><i class="fa fa-list"></i> Venue Bookings List</a></li>
+    <li><a class="dropdown-item" href="{% url 'venuebooking_add' %}"><i class="fa fa-plus-circle"></i> Book a Venue</a></li>
+  </ul>
+</div>
+
+<style>
+nav .nav-link,
+.sidebar-nav,
+.sidebar-nav ul,
+.sidebar-nav .nav-link {
+    display: none !important;
+}
+nav .brand,
+nav .calendar-link {
+    display: inline-block !important;
+}
+/* Custom form styling */
+.form-label {
+    font-weight: 600;
+    color: var(--primary);
+}
+.form-control, .select2-container--default .select2-selection--single {
+    border-radius: 8px !important;
+    border: 1.5px solid #34C759 !important;
+    background: #f8fcff !important;
+    font-size: 1em;
+    padding: 8px 12px;
+    box-shadow: 0 1px 4px #34C75911;
+    transition: border 0.2s, box-shadow 0.2s;
+}
+.form-control:focus {
+    border: 2px solid #020381 !important;
+    box-shadow: 0 0 8px #34C75955 !important;
+    background: #fff !important;
+}
+.select2-container .select2-selection--single .select2-selection__rendered {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.select2-results__option {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 95vw;
+}
+</style>
+<div class="container glass shadow p-30 fade-in" >
+    <h2 class="ensemble-glow dashboard-title mb-20">
+        <i class="fa fa-calendar-plus"></i>
+        {% if object %}Reschedule Venue Booking{% else %}Book a Venue{% endif %}
+    </h2>
+    <form method="post" class="p-20" style="background:rgba(255,255,255,0.96); border-radius:14px; box-shadow:0 2px 12px #34C75922;">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <label for="id_project_plan" class="form-label">Project Plan</label>
+                <select name="project_plan" id="id_project_plan" class="form-control select2-field" style="width:100%;" {% if object %}disabled{% endif %}>
+                    <option value="">---------</option>
+                    {% for id, name in project_plans.items %}
+                        <option value="{{ id }}"
+                            {% if form.initial.project_plan|stringformat:"s" == id|stringformat:"s" %}
+                                selected
+                            {% elif form.data.project_plan|stringformat:"s" == id|stringformat:"s" %}
+                                selected
+                            {% endif %}
+                        >{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-6">
+                <label for="id_session_date" class="form-label">Session Date</label>
+                <select name="session_date" id="id_session_date" class="form-control select2-field" style="width:100%;" {% if object %}disabled{% endif %}>
+                    <option value="">
+                        {% if form.initial.project_plan %}
+                            {{ project_plans|get:form.initial.project_plan }}
+                        {% else %}
+                            ---------
+                        {% endif %}
+                    </option>
+                    {% for sd in session_dates %}
+                        <option value="{{ sd.id }}"
+                            data-start="{{ sd.start_date }}{% if sd.start_time %}T{{ sd.start_time|time:'H:i' }}{% endif %}"
+                            data-end="{{ sd.end_date }}{% if sd.end_time %}T{{ sd.end_time|time:'H:i' }}{% endif %}"
+                            {% if form.initial.session_date|stringformat:"s" == sd.id|stringformat:"s" %}
+                                selected
+                            {% elif form.data.session_date|stringformat:"s" == sd.id|stringformat:"s" %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ sd.project_plan }} - {{ sd.start_date }} to {{ sd.end_date }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% for field in form.visible_fields %}
+                {% if field.name == "facilitator" %}
+                    <div class="col-12 col-md-6">
+                        <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                        {{ field|add_class:"form-control select2-field" }}
+                    </div>
+                {% elif field.name == "num_learners" %}
+                    <div class="col-12 col-md-6">
+                        <label for="{{ field.id_for_label }}" class="form-label">Number of Learners</label>
+                        {{ field|add_class:"form-control" }}
+                        <small class="form-text text-muted">Default is calculated from group SLA qualifications, but you can edit.</small>
+                    </div>
+                {% elif field.name == "num_learners_lunch" %}
+                    <div class="col-12 col-md-6">
+                        <label for="{{ field.id_for_label }}" class="form-label">Number of Learners Getting Lunch</label>
+                        {{ field|add_class:"form-control" }}
+                        <small class="form-text text-muted">Set the number of learners who will get lunch.</small>
+                    </div>
+                {% elif field.name != "session_date" and field.name != "project_plan" %}
+                    <div class="col-12 col-md-6">
+                        <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                        {{ field|add_class:"form-control" }}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-success btn-glow mt-4 w-100" style="font-size:1.2em;">
+            <i class="fa fa-check-circle"></i>
+            {% if object %}Reschedule{% else %}Book Venue{% endif %}
+        </button>
+    </form>
+    {% if form.non_field_errors %}
+        <div class="alert alert-danger mt-3">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+    <div class="mt-4 text-center">
+        <a href="{% url 'venuebooking_list' %}" class="btn btn-secondary">
+            <i class="fa fa-arrow-left"></i> Back to Venue Bookings
+        </a>
+    </div>
+</div>
+
+<!-- Enhanced Filtering UI -->
+<div class="container glass shadow p-20 mt-4" style="max-width: 700px;">
+    <h4 class="ensemble-glow mb-3"><i class="fa fa-filter"></i> Find Session Date or Project Plan</h4>
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-12 col-md-6">
+            <label for="session_date_filter" class="form-label">Session Date</label>
+            <input type="date" id="session_date_filter" name="session_date_filter" class="form-control styled-input" value="{{ request.GET.session_date_filter|default:'' }}">
+        </div>
+        <div class="col-12 col-md-6">
+            <label for="project_plan_filter" class="form-label">Project Plan</label>
+            <input type="text" id="project_plan_filter" name="project_plan_filter" class="form-control styled-input" placeholder="Type project plan name or code..." value="{{ request.GET.project_plan_filter|default:'' }}">
+        </div>
+        <div class="col-12 col-md-6">
+            <label for="venue" class="form-label">Venue</label>
+            <input type="text" id="venue" name="venue" class="form-control styled-input" placeholder="Type venue name..." value="{{ request.GET.venue|default:'' }}">
+        </div>
+        <div class="col-12 col-md-6">
+            <button type="submit" class="btn btn-primary btn-glow w-100">
+                <i class="fa fa-search"></i> Filter
+            </button>
+        </div>
+    </form>
+    {% if session_dates %}
+        <div class="mt-4">
+            <h5 class="text-primary">Matching Sessions:</h5>
+            <ul class="list-group">
+                {% for sd in session_dates %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            <strong>{{ sd.project_plan }}</strong> | {{ sd.start_date }} - {{ sd.end_date }}
+                        </span>
+                        <a href="?session={{ sd.id }}&project={{ sd.project_plan.id }}&date={{ sd.start_date }}" class="btn btn-sm btn-success">
+                            <i class="fa fa-plus"></i> Select
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% elif request.GET.session_date_filter or request.GET.project_plan_filter or request.GET.venue %}
+        <div class="alert alert-warning mt-3">
+            No matching session dates found.
+        </div>
+    {% endif %}
+</div>
+
+<!-- Add Select2 CSS and JS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Activate Select2 with search on dropdowns
+        $('#id_project_plan').select2({
+            width: '100%',
+            placeholder: 'Select a project plan',
+            allowClear: true
+        });
+        $('#id_session_date').select2({
+            width: '100%',
+            placeholder: 'Select a session date',
+            allowClear: true
+        });
+        $('#id_facilitator').select2({
+            width: '100%',
+            placeholder: 'Select a facilitator',
+            allowClear: true
+        });
+        // Auto-fill start/end datetime when session date changes
+        $('#id_session_date').on('change', function() {
+            var selected = this.options[this.selectedIndex];
+            var start = selected.getAttribute('data-start');
+            var end = selected.getAttribute('data-end');
+            if (start && document.getElementById('id_start_datetime')) {
+                document.getElementById('id_start_datetime').value = start.replace('T', ' ');
+            }
+            if (end && document.getElementById('id_end_datetime')) {
+                document.getElementById('id_end_datetime').value = end.replace('T', ' ');
+            }
+        });
+    });
+</script>
+{% endblock %}

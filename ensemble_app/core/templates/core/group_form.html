@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Edit Group{% endblock %}
+{% block content %}
+<div class="container glass mt-4 fade-in">
+  <h2 class="dashboard-title ensemble-glow mb-4">Edit Group</h2>
+  <form method="post" class="p-3">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="row g-3">
+      {% for field in form %}
+        <div class="col-md-6">
+          <label class="form-label fw-bold">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}
+            <div class="form-text">{{ field.help_text }}</div>
+          {% endif %}
+          {% for error in field.errors %}
+            <div class="text-danger small">{{ error }}</div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+    <div class="mt-4 d-flex gap-10">
+      <button type="submit" class="btn btn-success btn-glow"><i class="fa fa-save"></i> Save</button>
+      <a href="{% url 'group_management' %}" class="btn btn-secondary"><i class="fa fa-arrow-left"></i> Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

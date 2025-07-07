@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}Create Group{% endblock %}
+{% block content %}
+    <h2>Create New Group</h2>
+    <form method="post" id="group-form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div class="form-group">
+            <label for="id_name">Group Name:</label>
+            {{ form.name }}
+        </div>
+        <div class="form-group">
+            <label for="id_projectcode">Project Code (optional):</label>
+            {{ form.projectcode }}
+        </div>
+        <div class="form-group">
+            <label for="id_service">Service:</label>
+            {{ form.service }}
+        </div>
+        <div class="form-group">
+            <label>Learner Qualifications:</label>
+            <div id="learner-qualifications-list">
+                {{ form.learner_qualifications }}
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="id_seta">SETA:</label>
+            {{ form.seta }}
+            <button type="button" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#addSetaModal">Add SETA</button>
+        </div>
+        <div class="form-group">
+            <label for="id_start_date">Start Date:</label>
+            {{ form.start_date }}
+        </div>
+        <div class="form-group">
+            <label for="id_end_date">End Date:</label>
+            {{ form.end_date }}
+        </div>
+        <button type="submit" class="btn btn-primary">Create Group</button>
+    </form>
+
+    <!-- Modal for adding SETA -->
+    <div class="modal fade" id="addSetaModal" tabindex="-1" aria-labelledby="addSetaModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <form method="post" id="seta-form">
+            {% csrf_token %}
+            <input type="hidden" name="add_seta" value="1">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="addSetaModalLabel">Add SETA</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                {{ seta_form.as_p }}
+              </div>
+              <div class="modal-footer">
+                <button type="submit" class="btn btn-success">Add</button>
+              </div>
+            </div>
+        </form>
+      </div>
+    </div>
+
+
+<script>
+document.getElementById('id_service').addEventListener('change', function() {
+    const serviceId = this.value;
+    fetch("{% url 'get_learner_qualifications' %}?service_id=" + serviceId)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('learner-qualifications-list');
+            container.innerHTML = '';
+            data.results.forEach(function(item) {
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.name = 'learner_qualifications';
+                checkbox.value = item.id;
+                checkbox.id = 'lq_' + item.id;
+                const label = document.createElement('label');
+                label.htmlFor = checkbox.id;
+                label.innerText = item.label;
+                container.appendChild(checkbox);
+                container.appendChild(label);
+                container.appendChild(document.createElement('br'));
+            });
+        });
+});
+</script>
+{% endblock %}

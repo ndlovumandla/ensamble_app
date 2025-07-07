@@ -1,0 +1,114 @@
+<style>
+#venueConflictPopup {
+    position: fixed !important;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 30000 !important;
+    background: rgba(0,0,0,0.45);
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+#venueConflictPopup .modal-dialog {
+    margin: 0;
+    max-width: 540px;
+    width: 98vw;
+}
+#venueConflictPopup .modal-content {
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(2,3,129,0.18);
+    background: #fff;
+    padding: 0;
+}
+#venueConflictPopup .modal-header.bg-warning {
+    background: #ffe066 !important;
+    color: #333;
+    border-radius: 16px 16px 0 0;
+}
+#venueConflictPopup .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+@media (max-width: 600px) {
+    #venueConflictPopup .modal-dialog { max-width: 99vw; }
+}
+</style>
+<div id="venueConflictPopup" class="modal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title"><i class="fa fa-exclamation-triangle"></i> Venue already booked!</h5>
+      </div>
+      <div class="modal-body">
+        <p>
+          <b>This venue is already booked by {{ existing_booking.user }} for this session.</b>
+        </p>
+        <ul>
+          <li><strong>Venue:</strong> {{ existing_booking.venue }}</li>
+          <li><strong>Session:</strong> {{ existing_booking.session_date }}</li>
+          <li><strong>Start:</strong> {{ existing_booking.start_datetime }}</li>
+          <li><strong>End:</strong> {{ existing_booking.end_datetime }}</li>
+          <li><strong>Purpose:</strong> {{ existing_booking.booking_purpose }}</li>
+          <li><strong>Facilitator:</strong> {{ existing_booking.facilitator }}</li>
+        </ul>
+        <div class="alert alert-danger" style="margin-top:10px;">
+          Are you sure you want to override this booking? <br>
+          <b>The previous booking will be removed and the user will be notified.</b>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="venueConflictYes" class="btn btn-danger"><i class="fa fa-check"></i> Yes, override booking</button>
+        <button id="venueConflictNo" class="btn btn-secondary"><i class="fa fa-times"></i> No, cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+// Remove any existing popup
+document.querySelectorAll('#venueConflictPopup').forEach(e => e.remove());
+// Show the conflict popup
+document.body.insertAdjacentHTML('beforeend', data.html);
+
+// Trap focus and prevent background scroll
+document.body.style.overflow = 'hidden';
+const popup = document.getElementById('venueConflictPopup');
+if (popup) popup.focus();
+
+// Handle Yes/No buttons
+document.getElementById('venueConflictYes').onclick = function() {
+    // Show loading state
+    var yesBtn = document.getElementById('venueConflictYes');
+    yesBtn.disabled = true;
+    yesBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Notifying user...';
+
+    formData.append('confirm_override', 'yes');
+    fetch(formUrl, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data2 => {
+        document.getElementById('venueConflictPopup').remove();
+        document.body.style.overflow = '';
+        if (data2.success) {
+            eventModal.hide();
+            calendar.refetchEvents();
+            var notif = document.getElementById('venueSwitchNotification');
+            notif.innerHTML = '<i class="fa fa-check-circle" style="color:#34C759;font-size:1.5em;margin-right:8px;"></i> Venue booked successfully!';
+            notif.classList.add('show');
+            setTimeout(function() {
+                notif.classList.remove('show');
+            }, 2000);
+        } else if (data2.html) {
+            eventModalBody.innerHTML = data2.html;
+        }
+    });
+};
+document.getElementById('venueConflictNo').onclick = function() {
+    document.getElementById('venueConflictPopup').remove();
+    document.body.style.overflow = '';
+};
+</script>

@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+{% load dict_extras %}
+{% block title %}Group Details{% endblock %}
+{% block content %}
+<style>
+/* Main container */
+.ensemble-glow {
+    text-shadow: 0 2px 12px #00bcd4, 0 0px 2px #fff;
+    color: #007bff;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+.group-header-row {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+.group-header-table {
+    min-width: 320px;
+    max-width: 420px;
+    width: 100%;
+    background: #fafdff;
+    border-radius: 0.7rem;
+    box-shadow: 0 2px 12px 0 rgba(0,123,255,0.06);
+    border: 1px solid #e3e8ee;
+    margin-bottom: 0;
+}
+.group-header-table th, .group-header-table td {
+    padding: 0.65rem 0.9rem;
+    font-size: 1rem;
+    border: none;
+}
+.group-header-table th {
+    background: #e3f2fd;
+    color: #1976d2;
+    font-weight: 700;
+    width: 44%;
+    border-radius: 0.7rem 0 0 0.7rem;
+}
+.group-header-table td {
+    background: #fafdff;
+    color: #222;
+    font-weight: 500;
+}
+.sla-qual-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.sla-qual-list li {
+    margin-bottom: 0.2rem;
+    font-size: 1rem;
+}
+.sla-qual-list b {
+    color: #1976d2;
+}
+.section-card {
+    background: rgba(255,255,255,0.95);
+    border-radius: 1rem;
+    box-shadow: 0 2px 16px 0 rgba(0,0,0,0.08);
+    padding: 2rem 2rem 1.5rem 2rem;
+    margin-bottom: 2rem;
+    border: 1px solid #e3e8ee;
+}
+.section-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #007bff;
+    margin-bottom: 1rem;
+    letter-spacing: 0.5px;
+}
+.table thead th {
+    background: #e3f2fd;
+    color: #007bff;
+    font-weight: 600;
+    border-bottom: 2px solid #90caf9;
+    white-space: nowrap;
+    font-size: 1rem;
+    text-align: center;
+    vertical-align: middle;
+}
+.table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: #f6fbff;
+}
+.table-hover tbody tr:hover {
+    background: #e3f2fd;
+    transition: background 0.2s;
+}
+.badge.bg-success { background: #43a047 !important; }
+.badge.bg-danger { background: #e53935 !important; }
+.badge.bg-info { background: #039be5 !important; }
+.btn-success { background: #43a047; border: none; }
+.btn-success:hover { background: #388e3c; }
+.btn-primary { background: #1976d2; border: none; }
+.btn-primary:hover { background: #1565c0; }
+.btn-danger { background: #e53935; border: none; }
+.btn-danger:hover { background: #b71c1c; }
+.btn-secondary { background: #607d8b; border: none; }
+.btn-secondary:hover { background: #455a64; }
+.form-select, .form-control {
+    border-radius: 0.4rem;
+    border: 1px solid #b0bec5;
+}
+input[type="checkbox"] {
+    width: 1.2em;
+    height: 1.2em;
+    accent-color: #1976d2;
+}
+.table-responsive {
+    overflow-x: unset !important;
+}
+.table {
+    width: 100% !important;
+    table-layout: fixed;
+    word-break: break-word;
+}
+.table th, .table td {
+    white-space: normal !important;
+    word-break: break-word !important;
+    vertical-align: middle;
+    font-size: 0.98rem;
+    padding: 0.5rem 0.7rem;
+    line-height: 1.3;
+    max-width: 180px;
+}
+.table td {
+    text-align: left;
+    vertical-align: middle;
+}
+@media (max-width: 900px) {
+    .section-card, .container.glass {
+        padding: 1rem !important;
+    }
+    .table-responsive {
+        font-size: 0.95rem;
+    }
+    .table th, .table td {
+        font-size: 0.92rem;
+        padding: 0.35rem 0.4rem;
+        max-width: 110px;
+    }
+}
+</style>
+
+<div class="container glass mb-20 p-4 rounded shadow">
+    <h2 class="dashboard-title ensemble-glow mb-4 text-center">Group: {{ group.name }}</h2>
+    <div class="group-header-row">
+        <table class="table table-bordered table-sm group-header-table">
+            <tr><th>Project Code</th><td>{{ group.projectcode }}</td></tr>
+            <tr><th>Service</th><td>{{ group.service.name }}</td></tr>
+            <tr><th>SETA</th><td>{{ group.seta.name }}</td></tr>
+            <tr><th>Start Date</th><td>{{ group.start_date|date:"Y-m-d" }}</td></tr>
+            <tr><th>End Date</th><td>{{ group.end_date|date:"Y-m-d" }}</td></tr>
+        </table>
+        <table class="table table-bordered table-sm group-header-table">
+            <tr><th>Project Lead</th><td>{{ group.project_lead|default:"—" }}</td></tr>
+            <tr><th>ETQA Lead</th><td>{{ group.etqa_lead|default:"—" }}</td></tr>
+            <tr>
+                <th>SLA Qualifications</th>
+                <td>
+                    <ul class="sla-qual-list">
+                    {% for qual in sla_qualifications %}
+                        <li>
+                            <b>{{ qual.service.name }}</b>
+                            ({{ qual.sla.sla_reference }}) - {{ qual.learner_count }} learner{{ qual.learner_count|pluralize }}
+                        </li>
+                    {% empty %}
+                        <li><span class="text-muted">None</span></li>
+                    {% endfor %}
+                    </ul>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section-card">
+        <div class="section-title"><i class="fa fa-users"></i> Select Learners to Generate LIF</div>
+        <form method="post" action="{% url 'generate_bulk_lif_zip' %}" target="_blank" id="bulk-lif-form">
+            {% csrf_token %}
+            <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+                <label class="fw-bold me-2">LIF Template:</label>
+                <select name="template_id" class="form-select form-select-sm w-auto" required>
+                    {% for t in lif_templates %}
+                        <option value="{{ t.id }}">{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-success btn-sm"><i class="fa fa-file-archive"></i> Generate ZIP for Selected</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width:32px;"><input type="checkbox" id="select-all-learners"></th>
+                            <th style="width:13%;">Name</th>
+                            <th style="width:12%;">ID Number</th>
+                            <th style="width:15%;">Email</th>
+                            <th style="width:10%;">Status</th>
+                            <th style="width:18%;">Qualifications</th>
+                            <th style="width:8%;">LIF Signed</th>
+                            <th style="width:12%;">Generate LIF</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for learner in group_learners %}
+                        <tr>
+                            <td class="text-center">
+                                {% if lif_map|get_item:learner.id %}
+                                    <input type="checkbox" name="learner_ids" value="{{ learner.id }}" class="learner-checkbox">
+                                {% endif %}
+                            </td>
+                            <td>{{ learner.FirstName }} {{ learner.Surname }}</td>
+                            <td>{{ learner.IDNumber }}</td>
+                            <td>{{ learner.EmailAddress }}</td>
+                            <td>
+                                {% for lq in learner.learnerqualification_set.all %}
+                                    {% if lq.sla_qualification in sla_qualifications %}
+                                        <span class="badge bg-{{ lq.status|yesno:'success,secondary' }}">{{ lq.status|capfirst }}</span>
+                                    {% endif %}
+                                {% empty %}
+                                    <span class="text-muted">No qualifications</span>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% for lq in learner.learnerqualification_set.all %}
+                                    {% if lq.sla_qualification in sla_qualifications %}
+                                        <div>
+                                            {{ lq.sla_qualification.service.name }} ({{ lq.sla_qualification.sla.sla_reference }})
+                                        </div>
+                                    {% endif %}
+                                {% empty %}
+                                    <span class="text-muted">None</span>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% if lif_map|get_item:learner.id %}
+                                    <span class="badge bg-success">Yes</span>
+                                {% else %}
+                                    <span class="badge bg-danger">No</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if lif_map|get_item:learner.id %}
+                                <form method="get" action="{% url 'generate_lif_word' %}" target="_blank" style="display:inline;">
+                                    <input type="hidden" name="learner_id" value="{{ learner.id }}">
+                                    <select name="template_id" class="form-select form-select-sm d-inline w-auto" required>
+                                        {% for t in lif_templates %}
+                                            <option value="{{ t.id }}">{{ t.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-primary">Generate</button>
+                                </form>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="8" class="text-center text-muted">No learners linked to this group.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </form>
+        <script>
+        document.getElementById('select-all-learners').addEventListener('change', function() {
+            const checked = this.checked;
+            document.querySelectorAll('.learner-checkbox').forEach(cb => cb.checked = checked);
+        });
+        </script>
+    </div>
+
+    <div class="section-card">
+        <div class="section-title"><i class="fa fa-calendar"></i> Session Dates</div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Module</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Facilitator</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in session_dates %}
+                    <tr>
+                        <td>{{ session.project_plan.module.name }}</td>
+                        <td>{{ session.start_date|date:"Y-m-d" }}</td>
+                        <td>{{ session.end_date|date:"Y-m-d" }}</td>
+                        <td>
+                            {% if session.facilitator %}
+                                {{ session.facilitator }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ session.status|default:"Scheduled" }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted">No session dates for this group.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-4 justify-content-end">
+        <a href="{% url 'group-edit' group.id %}" class="btn btn-primary"><i class="fa fa-edit"></i> Edit</a>
+        <a href="{% url 'group-delete' group.id %}" class="btn btn-danger"><i class="fa fa-trash"></i> Delete</a>
+        <a href="{% url 'group_management' %}" class="btn btn-secondary"><i class="fa fa-arrow-left"></i> Back to List</a>
+    </div>
+</div>
+{% endblock %}
+
+{% comment %}
+Add this filter to your templatetags if not present:
+@register.filter
+def get_item(dictionary, key):
+    return dictionary.get(key)
+{% endcomment %}

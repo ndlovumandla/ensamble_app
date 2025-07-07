@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Upload Fingerprint Data{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'styles2.css' %}">
+<div>
+    <h2>Upload Fingerprint Data</h2>
+    <div class="card">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="excel_file" class="form-label">Select Excel or CSV Files (Multiple Allowed):</label>
+                <input type="file" id="excel_file" name="excel_file" accept=".xlsx,.xls,.csv" multiple class="form-control">
+                <small class="form-text text-muted">Hold Ctrl (Windows) or Cmd (Mac) to select multiple files. Supported formats: .xlsx, .xls, .csv</small>
+            </div>
+            <button type="submit" class="btn btn-primary">Upload Files</button>
+            <a href="{% url 'fingerprint_list' %}" class="btn btn-secondary">Back to Fingerprint Records</a>
+        </form>
+    </div>
+
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="alert {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    {% if error_log %}
+        <div class="alert alert-warning">
+            <h5>Failed Rows:</h5>
+            <pre>{{ error_log }}</pre>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

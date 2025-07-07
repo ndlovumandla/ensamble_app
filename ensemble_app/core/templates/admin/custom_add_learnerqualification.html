@@ -1,0 +1,151 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% load custom_filters %}
+
+{% block content %}
+
+    <h2>
+      Add Learners to Qualifications
+      {% if selected_sla %}
+        – 
+        {% for sla in slas %}
+          {% if sla.id == selected_sla %}
+            {{ sla.sla_reference }}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    </h2>
+
+    {% if success %}
+      <p style="color: green;">✅ {{ success }}</p>
+    {% endif %}
+    {% if error %}
+      <p style="color: red;">❌ {{ error }}</p>
+    {% endif %}
+
+    <form method="get" action="">
+      <label for="sla">Select SLA:</label>
+      <select name="sla" id="sla" onchange="this.form.submit()">
+        <option value="">-- Choose SLA --</option>
+        {% for sla in slas %}
+          <option value="{{ sla.id }}" {% if selected_sla == sla.id %}selected{% endif %}>
+            {{ sla.sla_reference }}
+          </option>
+        {% endfor %}
+      </select>
+    </form>
+
+    {% if selected_sla %}
+      <hr>
+      <h3>
+        Qualifications for
+        {% for sla in slas %}
+          {% if sla.id == selected_sla %}
+            {{ sla.sla_reference }}
+          {% endif %}
+        {% endfor %}
+      </h3>
+
+      {% for qual in sla_qualifications %}
+        <div style="margin-bottom: 40px; border: 1px solid #ccc; padding: 10px; border-radius: 5px;">
+          <h4>{{ qual.service.name }}</h4>
+
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="sla" value="{{ selected_sla }}">
+            <input type="hidden" name="sla_qualification" value="{{ qual.id }}">
+            <label for="learner_search_{{ qual.id }}">Add Learner:</label>
+            <input
+              type="text"
+              name="learner_search"
+              id="learner_search_{{ qual.id }}"
+              placeholder="Type name or ID..."
+              required
+            >
+            <button type="submit">Add</button>
+          </form>
+
+          {% if learners_by_qualification|get_item:qual.id %}
+            <h5>Assigned Learners:</h5>
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>ID Number</th>
+                  <th>Status</th>
+                  <th>Exit Reason</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for learner in learners_by_qualification|get_item:qual.id %}
+                  <tr>
+                    <td>{{ learner.id }}</td>
+                    <td>{{ learner.FirstName }} {{ learner.Surname }}</td>
+                    <td>{{ learner.IDNumber }}</td>
+                    <td>{{ learner.status|capfirst }}</td>
+                    <td>
+                      {% if learner.status == "removed" %}
+                        {{ learner.exit_reason }}
+                      {% else %}
+                        –
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if learner.status == "active" %}
+                        <form method="post" style="display:inline;">
+                          {% csrf_token %}
+                          <input type="hidden" name="sla" value="{{ selected_sla }}">
+                          <input type="hidden" name="action" value="remove">
+                          <input
+                            type="hidden"
+                            name="learner_qualification_id"
+                            value="{{ learner.learnerqualification_id }}"
+                          >
+                          <select name="exit_reason" style="margin-right: 5px;">
+                            <option value="">Reason…</option>
+                            <option value="Resigned">Resigned</option>
+                            <option value="Replaced">Replaced</option>
+                            <option value="Did not start">Did not start</option>
+                            <option value="Moved to another qualification">Moved to another qualification</option>
+                          </select>
+                          <button
+                            type="submit"
+                            onclick="
+                              const reason = this.form.querySelector('select[name=exit_reason]').value;
+                              return reason
+                                ? confirm('Are you sure you want to make the learner inactive?')
+                                : confirm('No reason selected. This will permanently delete the learner. Continue?');
+                            "
+                          >🗑️ Remove</button>
+                        </form>
+                      {% else %}
+                        <form method="post" style="display:inline;">
+                          {% csrf_token %}
+                          <input type="hidden" name="sla" value="{{ selected_sla }}">
+                          <input type="hidden" name="action" value="reactivate">
+                          <input
+                            type="hidden"
+                            name="learner_qualification_id"
+                            value="{{ learner.learnerqualification_id }}"
+                          >
+                          <button
+                            type="submit"
+                            onclick="return confirm('Reactivate this learner?');"
+                          >♻️ Reactivate</button>
+                        </form>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p><em>No learners assigned yet.</em></p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% endif %}
+ 
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Learner Schedules{% endblock %}
+{% block content %}
+
+    <h2>Learner Schedules</h2>
+    <form method="get" class="filter-form">
+        <div class="form-group">
+            <label for="learner_id">Filter by Learner ID:</label>
+            <input type="number" name="learner_id" id="learner_id" value="{{ filters.learner_id }}" placeholder="Enter Learner ID">
+        </div>
+        <button type="submit" class="btn btn-primary">Filter</button>
+    </form>
+
+    {% if learners %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Learner</th>
+                    <th>Qualifications</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for learner in learners %}
+                    <tr>
+                        <td>{{ learner.FirstName }} {{ learner.Surname }}</td>
+                        <td>
+                            {% for lq in learner.qualifications %}
+                                {{ lq.sla_qualification.service.name }} (SLA: {{ lq.sla_qualification.sla.sla_reference }})<br>
+                            {% empty %}
+                                No qualifications
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for lq in learner.qualifications %}
+                                <a href="{% url 'edit_learner_times' learner_qualification_id=lq.id %}" class="btn btn-sm btn-primary">Set Times</a>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No learners found. Please add learners via the admin panel.</p>
+    {% endif %}
+
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Modules{% endblock %}
+{% block content %}
+
+  <h1 class="dashboard-title">Modules</h1>
+  <div class="filter-panel glassy mb-3">
+    <form method="get" id="filter-form" class="filter-form">
+      <div class="row">
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="search">Search:</label>
+            <input type="text" id="search" name="search" value="{{ request.GET.search|default:'' }}" 
+                   placeholder="Search by name or code" class="form-control">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="service">Service:</label>
+            <select name="service" id="service" class="form-control">
+              <option value="">All Services</option>
+              {% for service in services %}
+                <option value="{{ service.id }}" {% if request.GET.service == service.id|stringformat:"i" %}selected{% endif %}>
+                  {{ service.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <button type="button" class="btn btn-secondary mt-4" onclick="clearFilters()">Clear Filters</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <a href="{% url 'module-add' %}" class="btn btn-primary btn-glow mb-3">Add Module</a>
+  <div class="table-container glassy">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Code</th>
+          <th>Services</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for module in page_obj %}
+        <tr>
+          <td>{{ module.name }}</td>
+          <td>{{ module.code }}</td>
+          <td>
+            {% for service in module.services.all %}
+              {{ service.name }}{% if not forloop.last %}, {% endif %}
+            {% empty %}
+              No services assigned
+            {% endfor %}
+          </td>
+          <td>
+            <a href="{% url 'module-edit' module.pk %}" class="btn btn-secondary btn-sm">Edit</a>
+            <a href="{% url 'module-delete' module.pk %}" class="btn btn-danger btn-sm">Delete</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">No modules found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% include "core/includes/pagination.html" %}
+
+  <script>
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    const submitForm = debounce(() => document.getElementById('filter-form').submit(), 500);
+
+    document.getElementById('search').addEventListener('input', submitForm);
+    document.getElementById('service').addEventListener('change', submitForm);
+
+    function clearFilters() {
+      document.getElementById('search').value = '';
+      document.getElementById('service').value = '';
+      document.getElementById('filter-form').submit();
+    }
+  </script>
+{% endblock %}

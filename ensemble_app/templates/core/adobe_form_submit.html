@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Submit Filled Form: {{ adobe_form.name }}</h2>
+
+<style>
+  .custom-alert {
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border: none;
+    font-size: 1.05rem;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.2rem;
+    background: linear-gradient(90deg, #f8d7da 0%, #fff3cd 100%);
+    color: #721c24;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    display: flex;
+    align-items: center;
+    gap: 0.7em;
+  }
+  .custom-alert-success {
+    background: linear-gradient(90deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+  }
+  .custom-alert-info {
+    background: linear-gradient(90deg, #d1ecf1 0%, #bee5eb 100%);
+    color: #0c5460;
+  }
+  .custom-alert-danger {
+    background: linear-gradient(90deg, #f8d7da 0%, #f5c6cb 100%);
+    color: #721c24;
+  }
+  .custom-alert .fa {
+    font-size: 1.3em;
+    margin-right: 0.5em;
+  }
+</style>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="custom-alert custom-alert-{{ message.tags }}">
+      {% if message.tags == "success" %}
+        <i class="fa fa-check-circle"></i>
+      {% elif message.tags == "error" or message.tags == "danger" %}
+        <i class="fa fa-exclamation-triangle"></i>
+      {% elif message.tags == "info" %}
+        <i class="fa fa-info-circle"></i>
+      {% endif %}
+      {{ message }}
+    </div>
+  {% endfor %}
+{% endif %}
+
+{% if form.errors %}
+  <div class="custom-alert custom-alert-danger">
+    <i class="fa fa-exclamation-triangle"></i>
+    {{ form.errors }}
+  </div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit" class="btn btn-primary">Send</button>
+</form>
+{% endblock %}
