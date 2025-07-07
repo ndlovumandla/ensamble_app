@@ -45,6 +45,7 @@ class CustomerAdmin(admin.ModelAdmin):
 class ServiceAdmin(admin.ModelAdmin):
     list_display = ("shorthand", "name", "gl_code", "saqa_id", "unit_price")
     search_fields = ("name", "shorthand", "saqa_id", "gl_code")
+    fields = ("shorthand", "name", "gl_code", "saqa_id", "unit_price", "requires_summative_exam", "admin_pack_document")
 
 @admin.register(SETA)
 class SETAAdmin(admin.ModelAdmin):

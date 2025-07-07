@@ -17,7 +17,7 @@ from .models import ModulePOETemplate, ModulePOEAnnexture
 class ServiceForm(forms.ModelForm):
     class Meta:
         model = Service
-        fields = ['name', 'gl_code', 'saqa_id', 'shorthand', 'unit_price', 'requires_summative_exam']
+        fields = ['name', 'gl_code', 'saqa_id', 'shorthand', 'unit_price', 'requires_summative_exam', 'admin_pack_document']
 
 class ModuleForm(forms.ModelForm):
     class Meta:
@@ -484,6 +484,92 @@ class LIFForm(forms.ModelForm):
         label="I hereby consent to The Learning Organisation collecting, storing and processing my information for the purpose of registering me with the relevant SETA",
         required=True,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'id': 'id_consent_to_process'}),
+    )
+    highest_secondary_education = forms.ChoiceField(
+        choices=[
+            ('', '---------'),
+            ('Grade 8', 'Grade 8'),
+            ('Grade 9', 'Grade 9'),
+            ('Grade 10', 'Grade 10'),
+            ('Grade 11', 'Grade 11'),
+            ('Grade 12', 'Grade 12'),
+        ],
+        required=False,
+        widget=forms.Select(attrs={'class': 'lif-form-select'}),
+        label="Highest Secondary Education"
+    )
+    nationality_code = forms.ChoiceField(
+        choices=[
+            ('', '---------'),
+            ('SA', 'South African'),
+            ('SDC', 'SADC except SA'),
+            ('ANG', 'Angola'),
+            ('BOT', 'Botswana'),
+            ('LES', 'Lesotho'),
+            ('MAL', 'Malawi'),
+            ('MAU', 'Mauritius'),
+            ('MOZ', 'Mozambique'),
+            ('NAM', 'Namibia'),
+            ('SEY', 'Seychelles'),
+            ('SWA', 'Swaziland'),
+            ('TAN', 'Tanzania'),
+            ('ZAI', 'Zaire'),
+            ('ZAM', 'Zambia'),
+            ('ZIM', 'Zimbabwe'),
+            ('AIS', 'Asian Countries'),
+            ('AUS', 'Australia Oceania'),
+            ('EUR', 'European Countries'),
+            ('NOR', 'North American Countries'),
+            ('SOU', 'South/Central American'),
+            ('ROA', 'Rest of Africa'),
+            ('OOC', 'Other & Rest of Oceania'),
+            ('U', 'Unspecified'),
+            ('NOT', 'N/A: Institution'),
+        ],
+        required=False,
+        widget=forms.Select(attrs={'class': 'lif-form-select'}),
+        label="Nationality"
+    )
+    home_language_code = forms.ChoiceField(
+        choices=[
+            ('', '---------'),
+            ('Afr', 'Afrikaans'), ('Eng', 'English'), ('Nde', 'isiNdebele'), ('Sep', 'sePedi'),
+            ('Ses', 'seSotho'), ('Set', 'seTswana'), ('Swa', 'siSwati'), ('Tsh', 'tshiVenda'),
+            ('Xho', 'isiXhosa'), ('Xit', 'xiTsonga'), ('Zul', 'isiZulu'), ('SASL', 'South African Sign Language'),
+            ('Oth', 'Other'), ('U', 'Unknown')
+        ],
+        required=False,
+        widget=forms.Select(attrs={'class': 'lif-form-select'}),
+        label="Home Language"
+    )
+
+    gender_code = forms.ChoiceField(
+        choices=[
+            ('', '---------'),
+            ('M', 'Male'),
+            ('F', 'Female'),
+        ],
+        required=False,
+        widget=forms.Select(attrs={'class': 'lif-form-select'}),
+        label="Gender"
+    )
+
+    disability_status_code = forms.ChoiceField(
+        choices=[
+            ('', '---------'),
+            ('01', 'Sight (Even with Glasses)'),
+            ('02', 'Hearing (Even with Hearing Aid)'),
+            ('03', 'Communication (Talk/Listen)'),
+            ('04', 'Physical (Move/Stand, etc.)'),
+            ('05', 'Intellectual (Learn etc.)'),
+            ('06', 'Emotional (Behaviour/Psychological)'),
+            ('07', 'Multiple'),
+            ('09', 'Disabled but unspecified'),
+            ('N', 'None'),
+        ],
+        required=False,
+        widget=forms.Select(attrs={'class': 'lif-form-select'}),
+        label="Disability Status"
     )
 
     class Meta:

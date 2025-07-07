@@ -5020,6 +5020,8 @@ def map_lif_template_fields(request, template_id):
 def lif_template_list(request):
     templates = LIFTemplate.objects.all()
     return render(request, 'core/lif_template_list.html', {'templates': templates})
+
+
 def generate_lif_word(request):
     import io
     import zipfile
@@ -5173,6 +5175,35 @@ def generate_lif_word(request):
             '{{tertiary_post_grad_b_degree}}',
             '{{tertiary_post_diploma_diploma}}',
             '{{tertiary_post_basic_diploma}}',
+            '{{secondary_grade_8}}',
+            '{{secondary_grade_9}}',
+            '{{secondary_grade_10}}',
+            '{{secondary_grade_11}}',
+            '{{secondary_grade_12}}',
+            '{{nationality_sa}}',
+            '{{nationality_sdc}}',
+            '{{nationality_ang}}',
+            '{{nationality_bot}}',
+            '{{nationality_les}}',
+            '{{nationality_mal}}',
+            '{{nationality_mau}}',
+            '{{nationality_moz}}',
+            '{{nationality_nam}}',
+            '{{nationality_sey}}',
+            '{{nationality_swa}}',
+            '{{nationality_tan}}',
+            '{{nationality_zai}}',
+            '{{nationality_zam}}',
+            '{{nationality_zim}}',
+            '{{nationality_ais}}',
+            '{{nationality_aus}}',
+            '{{nationality_eur}}',
+            '{{nationality_nor}}',
+            '{{nationality_sou}}',
+            '{{nationality_roa}}',
+            '{{nationality_ooc}}',
+            '{{nationality_u}}',
+            '{{nationality_not}}',
         ]
 
         def build_context(lif):
@@ -5375,6 +5406,35 @@ def generate_lif_word(request):
                 '{{tertiary_post_grad_b_degree}}': 'X' if lif.highest_tertiary_education == 'Post Grad B Degree' else '',
                 '{{tertiary_post_diploma_diploma}}': 'X' if lif.highest_tertiary_education == 'Post Diploma Diploma' else '',
                 '{{tertiary_post_basic_diploma}}': 'X' if lif.highest_tertiary_education == 'Post-basic Diploma' else '',
+                '{{secondary_grade_8}}':  'X' if lif.highest_secondary_education == 'Grade 8' else '',
+                '{{secondary_grade_9}}':  'X' if lif.highest_secondary_education == 'Grade 9' else '',
+                '{{secondary_grade_10}}': 'X' if lif.highest_secondary_education == 'Grade 10' else '',
+                '{{secondary_grade_11}}': 'X' if lif.highest_secondary_education == 'Grade 11' else '',
+                '{{secondary_grade_12}}': 'X' if lif.highest_secondary_education == 'Grade 12' else '',
+                '{{nationality_sa}}':   'X' if lif.nationality_code == 'SA' else '',
+                '{{nationality_sdc}}':  'X' if lif.nationality_code == 'SDC' else '',
+                '{{nationality_ang}}':  'X' if lif.nationality_code == 'ANG' else '',
+                '{{nationality_bot}}':  'X' if lif.nationality_code == 'BOT' else '',
+                '{{nationality_les}}':  'X' if lif.nationality_code == 'LES' else '',
+                '{{nationality_mal}}':  'X' if lif.nationality_code == 'MAL' else '',
+                '{{nationality_mau}}':  'X' if lif.nationality_code == 'MAU' else '',
+                '{{nationality_moz}}':  'X' if lif.nationality_code == 'MOZ' else '',
+                '{{nationality_nam}}':  'X' if lif.nationality_code == 'NAM' else '',
+                '{{nationality_sey}}':  'X' if lif.nationality_code == 'SEY' else '',
+                '{{nationality_swa}}':  'X' if lif.nationality_code == 'SWA' else '',
+                '{{nationality_tan}}':  'X' if lif.nationality_code == 'TAN' else '',
+                '{{nationality_zai}}':  'X' if lif.nationality_code == 'ZAI' else '',
+                '{{nationality_zam}}':  'X' if lif.nationality_code == 'ZAM' else '',
+                '{{nationality_zim}}':  'X' if lif.nationality_code == 'ZIM' else '',
+                '{{nationality_ais}}':  'X' if lif.nationality_code == 'AIS' else '',
+                '{{nationality_aus}}':  'X' if lif.nationality_code == 'AUS' else '',
+                '{{nationality_eur}}':  'X' if lif.nationality_code == 'EUR' else '',
+                '{{nationality_nor}}':  'X' if lif.nationality_code == 'NOR' else '',
+                '{{nationality_sou}}':  'X' if lif.nationality_code == 'SOU' else '',
+                '{{nationality_roa}}':  'X' if lif.nationality_code == 'ROA' else '',
+                '{{nationality_ooc}}':  'X' if lif.nationality_code == 'OOC' else '',
+                '{{nationality_u}}':    'X' if lif.nationality_code == 'U' else '',
+                '{{nationality_not}}':  'X' if lif.nationality_code == 'NOT' else '',
             })
             # Mapped fields
             for mapping in mappings:
@@ -5430,7 +5490,6 @@ def generate_lif_word(request):
                         for i in range(len(value), 20):
                             context[f"{{{{{base}_{i}}}}}"] = ''
             return context
-
         def replace_placeholders_in_paragraph(paragraph, context):
             full_text = ''.join(run.text for run in paragraph.runs)
             replaced = False
@@ -5443,6 +5502,15 @@ def generate_lif_word(request):
                 for run in paragraph.runs[1:]:
                     run.text = ''
 
+        def replace_placeholders_in_table(table, context):
+            for row in table.rows:
+                for cell in row.cells:
+                    for p in cell.paragraphs:
+                        replace_placeholders_in_paragraph(p, context)
+                    # Recursively process nested tables
+                    for nested_table in cell.tables:
+                        replace_placeholders_in_table(nested_table, context)
+
         # --- Single or Bulk ---
         if len(lif_ids) == 1:
             lif = get_object_or_404(LIF, id=lif_ids[0])
@@ -5451,11 +5519,7 @@ def generate_lif_word(request):
             for p in doc.paragraphs:
                 replace_placeholders_in_paragraph(p, context)
             for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        for p in cell.paragraphs:
-                            replace_placeholders_in_paragraph(p, context)
-            # --- Filename: <TemplateName>_<FirstName>_<LastName>.docx ---
+                replace_placeholders_in_table(table, context)
             safe_template = "".join(x for x in template.name if x.isalnum() or x in (' ', '_', '-')).rstrip()
             safe_first = "".join(x for x in (lif.learner_first_name or "") if x.isalnum() or x in (' ', '_', '-')).rstrip()
             safe_last = "".join(x for x in (lif.learner_last_name or "") if x.isalnum() or x in (' ', '_', '-')).rstrip()
@@ -5475,10 +5539,7 @@ def generate_lif_word(request):
                     for p in doc.paragraphs:
                         replace_placeholders_in_paragraph(p, context)
                     for table in doc.tables:
-                        for row in table.rows:
-                            for cell in row.cells:
-                                for p in cell.paragraphs:
-                                    replace_placeholders_in_paragraph(p, context)
+                        replace_placeholders_in_table(table, context)
                     doc_io = io.BytesIO()
                     doc.save(doc_io)
                     doc_io.seek(0)
@@ -6199,7 +6260,35 @@ def generate_bulk_lif_zip(request):
                     '{{tertiary_post_grad_b_degree}}': 'X' if lif.highest_tertiary_education == 'Post Grad B Degree' else '',
                     '{{tertiary_post_diploma_diploma}}': 'X' if lif.highest_tertiary_education == 'Post Diploma Diploma' else '',
                     '{{tertiary_post_basic_diploma}}': 'X' if lif.highest_tertiary_education == 'Post-basic Diploma' else '',
-                    
+                    '{{secondary_grade_8}}':  'X' if lif.highest_secondary_education == 'Grade 8' else '',
+                    '{{secondary_grade_9}}':  'X' if lif.highest_secondary_education == 'Grade 9' else '',
+                    '{{secondary_grade_10}}': 'X' if lif.highest_secondary_education == 'Grade 10' else '',
+                    '{{secondary_grade_11}}': 'X' if lif.highest_secondary_education == 'Grade 11' else '',
+                    '{{secondary_grade_12}}': 'X' if lif.highest_secondary_education == 'Grade 12' else '',
+                    '{{nationality_sa}}':   'X' if lif.nationality_code == 'SA' else '',
+                    '{{nationality_sdc}}':  'X' if lif.nationality_code == 'SDC' else '',
+                    '{{nationality_ang}}':  'X' if lif.nationality_code == 'ANG' else '',
+                    '{{nationality_bot}}':  'X' if lif.nationality_code == 'BOT' else '',
+                    '{{nationality_les}}':  'X' if lif.nationality_code == 'LES' else '',
+                    '{{nationality_mal}}':  'X' if lif.nationality_code == 'MAL' else '',
+                    '{{nationality_mau}}':  'X' if lif.nationality_code == 'MAU' else '',
+                    '{{nationality_moz}}':  'X' if lif.nationality_code == 'MOZ' else '',
+                    '{{nationality_nam}}':  'X' if lif.nationality_code == 'NAM' else '',
+                    '{{nationality_sey}}':  'X' if lif.nationality_code == 'SEY' else '',
+                    '{{nationality_swa}}':  'X' if lif.nationality_code == 'SWA' else '',
+                    '{{nationality_tan}}':  'X' if lif.nationality_code == 'TAN' else '',
+                    '{{nationality_zai}}':  'X' if lif.nationality_code == 'ZAI' else '',
+                    '{{nationality_zam}}':  'X' if lif.nationality_code == 'ZAM' else '',
+                    '{{nationality_zim}}':  'X' if lif.nationality_code == 'ZIM' else '',
+                    '{{nationality_ais}}':  'X' if lif.nationality_code == 'AIS' else '',
+                    '{{nationality_aus}}':  'X' if lif.nationality_code == 'AUS' else '',
+                    '{{nationality_eur}}':  'X' if lif.nationality_code == 'EUR' else '',
+                    '{{nationality_nor}}':  'X' if lif.nationality_code == 'NOR' else '',
+                    '{{nationality_sou}}':  'X' if lif.nationality_code == 'SOU' else '',
+                    '{{nationality_roa}}':  'X' if lif.nationality_code == 'ROA' else '',
+                    '{{nationality_ooc}}':  'X' if lif.nationality_code == 'OOC' else '',
+                    '{{nationality_u}}':    'X' if lif.nationality_code == 'U' else '',
+                    '{{nationality_not}}':  'X' if lif.nationality_code == 'NOT' else '',
                 })
 
                 table_placeholders = [
@@ -6311,6 +6400,35 @@ def generate_bulk_lif_zip(request):
                     '{{tertiary_post_grad_b_degree}}',
                     '{{tertiary_post_diploma_diploma}}',
                     '{{tertiary_post_basic_diploma}}',
+                    '{{secondary_grade_8}}',
+                    '{{secondary_grade_9}}',
+                    '{{secondary_grade_10}}',
+                    '{{secondary_grade_11}}',
+                    '{{secondary_grade_12}}',
+                    '{{nationality_sa}}',
+                    '{{nationality_sdc}}',
+                    '{{nationality_ang}}',
+                    '{{nationality_bot}}',
+                    '{{nationality_les}}',
+                    '{{nationality_mal}}',
+                    '{{nationality_mau}}',
+                    '{{nationality_moz}}',
+                    '{{nationality_nam}}',
+                    '{{nationality_sey}}',
+                    '{{nationality_swa}}',
+                    '{{nationality_tan}}',
+                    '{{nationality_zai}}',
+                    '{{nationality_zam}}',
+                    '{{nationality_zim}}',
+                    '{{nationality_ais}}',
+                    '{{nationality_aus}}',
+                    '{{nationality_eur}}',
+                    '{{nationality_nor}}',
+                    '{{nationality_sou}}',
+                    '{{nationality_roa}}',
+                    '{{nationality_ooc}}',
+                    '{{nationality_u}}',
+                    '{{nationality_not}}',
                 ]
 
                 for mapping in mappings:
@@ -6378,13 +6496,18 @@ def generate_bulk_lif_zip(request):
                         for run in paragraph.runs[1:]:
                             run.text = ''
 
-                for p in doc.paragraphs:
-                    replace_placeholders_in_paragraph(p, context)
-                for table in doc.tables:
+                def replace_placeholders_in_table(table, context):
                     for row in table.rows:
                         for cell in row.cells:
                             for p in cell.paragraphs:
                                 replace_placeholders_in_paragraph(p, context)
+                            for nested_table in cell.tables:
+                                replace_placeholders_in_table(nested_table, context)
+
+                for p in doc.paragraphs:
+                    replace_placeholders_in_paragraph(p, context)
+                for table in doc.tables:
+                    replace_placeholders_in_table(table, context)
 
                 # --- Filename: <TemplateName>_<FirstName>_<LastName>.docx ---
                 safe_template = "".join(x for x in template.name if x.isalnum() or x in (' ', '_', '-')).rstrip()

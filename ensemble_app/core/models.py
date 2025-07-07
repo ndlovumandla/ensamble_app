@@ -16,7 +16,13 @@ class Service(models.Model):
     saqa_id = models.CharField(max_length=20)
     shorthand = models.CharField(max_length=10, unique=True)
     unit_price = models.FloatField(default=0.0)
-    requires_summative_exam = models.BooleanField(default=False,help_text="Any QCTO qualification (service) requiring a summative exam")
+    requires_summative_exam = models.BooleanField(default=False, help_text="Any QCTO qualification (service) requiring a summative exam")
+    admin_pack_document = models.FileField(
+        upload_to='service_admin_packs/',
+        blank=True,
+        null=True,
+        help_text="Upload a Word document for this service's Admin Pack"
+    )
 
     def __str__(self):
         return f"{self.shorthand} - {self.name}"
@@ -536,35 +542,66 @@ class LIF(models.Model):
     equity_code = models.CharField("Equity Code", max_length=2, choices=EQUITY_CHOICES)
 
     NATIONALITY_CHOICES = [
+        ('SA', 'South African'),
+        ('SDC', 'SADC except SA'),
+        ('ANG', 'Angola'),
+        ('BOT', 'Botswana'),
+        ('LES', 'Lesotho'),
+        ('MAL', 'Malawi'),
+        ('MAU', 'Mauritius'),
+        ('MOZ', 'Mozambique'),
+        ('NAM', 'Namibia'),
+        ('SEY', 'Seychelles'),
+        ('SWA', 'Swaziland'),
+        ('TAN', 'Tanzania'),
+        ('ZAI', 'Zaire'),
+        ('ZAM', 'Zambia'),
+        ('ZIM', 'Zimbabwe'),
+        ('AIS', 'Asian Countries'),
+        ('AUS', 'Australia Oceania'),
+        ('EUR', 'European Countries'),
+        ('NOR', 'North American Countries'),
+        ('SOU', 'South/Central American'),
+        ('ROA', 'Rest of Africa'),
+        ('OOC', 'Other & Rest of Oceania'),
+        ('U', 'Unspecified'),
+        ('NOT', 'N/A: Institution'),
+    ]
+    nationality_code = models.CharField("Nationality Code", max_length=5, choices=NATIONALITY_CHOICES)
+
+    HOME_LANGUAGE_CHOICES = [
         ('Afr', 'Afrikaans'), ('Eng', 'English'), ('Nde', 'isiNdebele'), ('Sep', 'sePedi'),
         ('Ses', 'seSotho'), ('Set', 'seTswana'), ('Swa', 'siSwati'), ('Tsh', 'tshiVenda'),
         ('Xho', 'isiXhosa'), ('Xit', 'xiTsonga'), ('Zul', 'isiZulu'), ('SASL', 'South African Sign Language'),
         ('Oth', 'Other'), ('U', 'Unknown')
     ]
-    nationality_code = models.CharField("Nationality Code", max_length=5, choices=NATIONALITY_CHOICES)
-    gender_code = models.CharField("Gender Code", max_length=1, choices=[('F', 'Female'), ('M', 'Male')])
+    home_language_code = models.CharField("Home Language Code", max_length=5, choices=HOME_LANGUAGE_CHOICES)
+
+    GENDER_CHOICES = [
+        ('M', 'Male'),
+        ('F', 'Female'),
+    ]
+    gender_code = models.CharField("Gender", max_length=1, choices=GENDER_CHOICES, blank=True, null=True)
 
     CITIZEN_STATUS_CHOICES = [
         ('SA', 'South Africa'), ('D', 'Dual (SA plus other)'), ('O', 'Other'),
         ('PR', 'Permanent Resident'), ('U', 'Unknown')
     ]
-    citizen_resident_status_code = models.CharField("Citizen Resident Status Code", max_length=2, choices=CITIZEN_STATUS_CHOICES)
-
-    home_language_code = models.CharField("Home Language Code", max_length=5, choices=NATIONALITY_CHOICES)
+    citizen_resident_status_code = models.CharField("Citizen Resident Status Code", max_length=2, choices=CITIZEN_STATUS_CHOICES, blank=True, null=True)
 
     PROVINCE_CHOICES = [
         ('1', 'Western Cape'), ('2', 'Eastern Cape'), ('3', 'Northern Cape'), ('4', 'Free State'),
         ('5', 'KwaZulu/Natal'), ('6', 'North West'), ('7', 'Gauteng/JHB'), ('7b', 'Gauteng/PTA'),
         ('8', 'Mpumalanga'), ('9', 'Limpopo'), ('X', 'Outside South Africa'), ('N', 'South African National')
     ]
-    province_code = models.CharField("Province Code", max_length=2, choices=PROVINCE_CHOICES)
+    province_code = models.CharField("Province Code", max_length=2, choices=PROVINCE_CHOICES, blank=True, null=True)
 
     DISABILITY_CHOICES = [
         ('01', 'Sight (Even with Glasses)'), ('02', 'Hearing (Even with Hearing Aid)'), ('03', 'Communication (Talk/Listen)'),
         ('04', 'Physical (Move/Stand, etc.)'), ('05', 'Intellectual (Learn etc.)'), ('06', 'Emotional (Behaviour/Psychological)'),
         ('07', 'Multiple'), ('09', 'Disabled but unspecified'), ('N', 'None')
     ]
-    disability_status_code = models.CharField("Disability Status Code", max_length=2, choices=DISABILITY_CHOICES)
+    disability_status_code = models.CharField("Disability Status Code", max_length=2, choices=DISABILITY_CHOICES,blank=True, null=True)
 
     SOCIO_ECONOMIC_CHOICES = [
         ('01', 'Employed'), ('02', 'Unemployed, seeking work'), ('03', 'Not working, not looking'),
@@ -572,7 +609,7 @@ class LIF(models.Model):
         ('08', 'Not working, disabled'), ('09', 'Not working, no wish to work'), ('10', 'Not working, N.E.C.'),
         ('97', 'N/A: Aged <15'), ('98', 'N/A: Institution'), ('U', 'Unspecified')
     ]
-    socio_economic_status_code = models.CharField("Socio-economic Status Code", max_length=2, choices=SOCIO_ECONOMIC_CHOICES)
+    socio_economic_status_code = models.CharField("Socio-economic Status Code", max_length=2, choices=SOCIO_ECONOMIC_CHOICES, blank=True, null=True)
 
     # Personal
     learner_title = models.CharField("Learner Title", max_length=255, blank=True, null=True)
@@ -586,7 +623,20 @@ class LIF(models.Model):
     employer = models.CharField("Employer", max_length=255, blank=True, null=True)
 
     # Secondary Education
-    highest_secondary_education = models.CharField("Highest Secondary Education", max_length=255, blank=True, null=True)
+    HIGHEST_SECONDARY_EDUCATION_CHOICES = [
+        ('Grade 8', 'Grade 8'),
+        ('Grade 9', 'Grade 9'),
+        ('Grade 10', 'Grade 10'),
+        ('Grade 11', 'Grade 11'),
+        ('Grade 12', 'Grade 12'),
+    ]
+    highest_secondary_education = models.CharField(
+        "Highest Secondary Education",
+        max_length=20,
+        choices=HIGHEST_SECONDARY_EDUCATION_CHOICES,
+        blank=True,
+        null=True
+    )
     secondary_school_name = models.CharField("School Name", max_length=255, blank=True, null=True)
     secondary_year_completed = models.PositiveIntegerField("Year Completed (Secondary)", blank=True, null=True)
     percentage_maths = models.DecimalField("Percentage - Maths", max_digits=5, decimal_places=2, blank=True, null=True)
@@ -647,8 +697,8 @@ class LIF(models.Model):
     def __str__(self):
         if self.learner:
             return f"LIF for {self.learner}"
-        first = self.learner_first_name or ""
-        last = self.learner_last_name or ""
+        first = getattr(self, 'learner_first_name', '') or ""
+        last = getattr(self, 'learner_last_name', '') or ""
         name = (first + " " + last).strip()
         return f"LIF for {name or self.national_id or 'Unknown'}"
     
