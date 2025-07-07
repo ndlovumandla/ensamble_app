@@ -350,7 +350,7 @@ urlpatterns += [
 
 from . import views
 
-urlpatterns = [
+urlpatterns += [
     # ...existing urls...
     path('groups/generate-admin-pack/', views.generate_bulk_admin_pack_zip, name='generate_bulk_admin_pack_zip'),
 ]
