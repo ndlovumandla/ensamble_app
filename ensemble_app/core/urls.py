@@ -348,3 +348,10 @@ urlpatterns += [
     path('lif_template/<int:pk>/delete/', LIFTemplateDeleteView.as_view(), name='lif_template_delete'),
 ]
 
+from . import views
+
+urlpatterns = [
+    # ...existing urls...
+    path('groups/generate-admin-pack/', views.generate_bulk_admin_pack_zip, name='generate_bulk_admin_pack_zip'),
+]
+
