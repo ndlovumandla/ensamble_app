@@ -6770,7 +6770,7 @@ class LIFTemplateDeleteView(DeleteView):
     model = LIFTemplate
     template_name = 'core/lif_template_confirm_delete.html'
     success_url = reverse_lazy('lif_template_list')
-
+    
 import io
 import zipfile
 import re
@@ -6779,31 +6779,64 @@ from datetime import date
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
-from .models import Group, Learner, LIF, LIFTemplate, LIFTemplateFieldMap
+from .models import Group, Learner, LIF, LIFTemplate, LIFTemplateFieldMap, LearnerQualification, Service
+from copy import deepcopy
+import logging
+
+logger = logging.getLogger(__name__)
+
+def insert_lif_content_after_first_section(doc, lif_doc):
+    """
+    Inserts the content of lif_doc into doc after the first section break (cover page).
+    If no section break is found, inserts after the first paragraph.
+    This version is robust for most real-world DOCX files.
+    """
+    from copy import deepcopy
+
+    body = doc.element.body
+    # Find the first <w:p> (paragraph) that contains a <w:sectPr>
+    paragraphs = body.findall('.//w:p', namespaces=body.nsmap)
+    insert_idx = None
+    for idx, p in enumerate(body):
+        # Only look at paragraphs
+        if p.tag.endswith('}p'):
+            # Check if this paragraph has a sectPr
+            if p.findall('.//w:sectPr', namespaces=body.nsmap):
+                insert_idx = idx + 1
+                break
+    if insert_idx is None:
+        # Fallback: insert after first paragraph
+        insert_idx = 1
+
+    # Insert each element from lif_doc at the calculated position (preserving order)
+    for i, element in enumerate(list(lif_doc.element.body)):
+        body.insert(insert_idx + i, deepcopy(element))
 
 @csrf_exempt
 def generate_bulk_admin_pack_zip(request):
     if request.method != "POST":
-        return HttpResponse("Invalid request", status=405)
+        return HttpResponse("Invalid request method", status=405)
 
     group_id = request.POST.get("group_id")
     learner_ids = request.POST.getlist("learner_ids")
     template_id = request.POST.get("template_id")
-    if not group_id or not learner_ids or not template_id:
-        return HttpResponse("Missing group, learners, or template.", status=400)
+    admin_pack_id = request.POST.get("admin_pack_id")
 
-    group = get_object_or_404(Group, id=group_id)
-    admin_pack_template = group.service.admin_pack_document
-    if not admin_pack_template:
-        return HttpResponse("No admin pack template uploaded for this service.", status=400)
+    if not all([group_id, learner_ids, template_id, admin_pack_id]):
+        return HttpResponse("Missing required parameters: group_id, learner_ids, template_id, or admin_pack_id", status=400)
 
-    lif_template = get_object_or_404(LIFTemplate, id=template_id)
-    mappings = LIFTemplateFieldMap.objects.filter(template=lif_template)
+    try:
+        group = get_object_or_404(Group, id=group_id)
+        lif_template = get_object_or_404(LIFTemplate, id=template_id)
+        service = get_object_or_404(Service, id=admin_pack_id)
+        mappings = LIFTemplateFieldMap.objects.filter(template=lif_template)
+    except Exception as e:
+        logger.error(f"Error fetching group, template, or service: {str(e)}")
+        return HttpResponse("Error fetching group, template, or service", status=400)
 
     def get_choice_display(choices, code):
         return dict(choices).get(code, '')
 
-    # Table placeholders (checkboxes, etc.)
     table_placeholders = [
         '{{gender_male}}', '{{gender_female}}', '{{below_35_yes}}', '{{below_35_no}}',
         '{{equity_african}}', '{{equity_coloured}}', '{{equity_indian}}', '{{equity_white}}',
@@ -6901,8 +6934,64 @@ def generate_bulk_admin_pack_zip(request):
             '{{disability_status_name}}': get_choice_display(lif.DISABILITY_CHOICES, lif.disability_status_code) or '',
             '{{socio_economic_status_code}}': lif.socio_economic_status_code or '',
             '{{socio_economic_status_name}}': get_choice_display(lif.SOCIO_ECONOMIC_CHOICES, lif.socio_economic_status_code) or '',
+            '{{national_id_checkbox}}': 'X' if (lif.alternative_id_type == '' or lif.alternative_id_type is None) else '',
+            '{{alt_id_saqa}}': 'X' if lif.alternative_id_type == '521' else '',
+            '{{alt_id_passport}}': 'X' if lif.alternative_id_type == '527' else '',
+            '{{alt_id_driver}}': 'X' if lif.alternative_id_type == '529' else '',
+            '{{alt_id_temp_id}}': 'X' if lif.alternative_id_type == '531' else '',
+            '{{alt_id_none}}': 'X' if lif.alternative_id_type == '533' else '',
+            '{{alt_id_unknown}}': 'X' if lif.alternative_id_type == '535' else '',
+            '{{alt_id_student}}': 'X' if lif.alternative_id_type == '537' else '',
+            '{{alt_id_work_permit}}': 'X' if lif.alternative_id_type == '538' else '',
+            '{{alt_id_employee}}': 'X' if lif.alternative_id_type == '539' else '',
+            '{{alt_id_birth_cert}}': 'X' if lif.alternative_id_type == '540' else '',
+            '{{alt_id_hsrc}}': 'X' if lif.alternative_id_type == '541' else '',
+            '{{alt_id_etqa}}': 'X' if lif.alternative_id_type == '561' else '',
+            '{{alt_id_refugee}}': 'X' if lif.alternative_id_type == '565' else '',
+            '{{home_language_afrikaans}}': 'X' if lif.home_language_code == 'Afr' else '',
+            '{{home_language_english}}': 'X' if lif.home_language_code == 'Eng' else '',
+            '{{home_language_ndebele}}': 'X' if lif.home_language_code == 'Nde' else '',
+            '{{home_language_sepedi}}': 'X' if lif.home_language_code == 'Sep' else '',
+            '{{home_language_sesotho}}': 'X' if lif.home_language_code == 'Ses' else '',
+            '{{home_language_setswana}}': 'X' if lif.home_language_code == 'Set' else '',
+            '{{home_language_siswati}}': 'X' if lif.home_language_code == 'Swa' else '',
+            '{{home_language_tshivenda}}': 'X' if lif.home_language_code == 'Tsh' else '',
+            '{{home_language_isixhosa}}': 'X' if lif.home_language_code == 'Xho' else '',
+            '{{home_language_xitsonga}}': 'X' if lif.home_language_code == 'Xit' else '',
+            '{{home_language_isizulu}}': 'X' if lif.home_language_code == 'Zul' else '',
+            '{{home_language_sasl}}': 'X' if lif.home_language_code == 'SASL' else '',
+            '{{home_language_other}}': 'X' if lif.home_language_code == 'Oth' else '',
+            '{{home_language_unknown}}': 'X' if lif.home_language_code == 'U' else '',
+            '{{secondary_grade_8}}': 'X' if lif.highest_secondary_education == 'Grade 8' else '',
+            '{{secondary_grade_9}}': 'X' if lif.highest_secondary_education == 'Grade 9' else '',
+            '{{secondary_grade_10}}': 'X' if lif.highest_secondary_education == 'Grade 10' else '',
+            '{{secondary_grade_11}}': 'X' if lif.highest_secondary_education == 'Grade 11' else '',
+            '{{secondary_grade_12}}': 'X' if lif.highest_secondary_education == 'Grade 12' else '',
+            '{{nationality_sa}}': 'X' if lif.nationality_code == 'SA' else '',
+            '{{nationality_sdc}}': 'X' if lif.nationality_code == 'SDC' else '',
+            '{{nationality_ang}}': 'X' if lif.nationality_code == 'ANG' else '',
+            '{{nationality_bot}}': 'X' if lif.nationality_code == 'BOT' else '',
+            '{{nationality_les}}': 'X' if lif.nationality_code == 'LES' else '',
+            '{{nationality_mal}}': 'X' if lif.nationality_code == 'MAL' else '',
+            '{{nationality_mau}}': 'X' if lif.nationality_code == 'MAU' else '',
+            '{{nationality_moz}}': 'X' if lif.nationality_code == 'MOZ' else '',
+            '{{nationality_nam}}': 'X' if lif.nationality_code == 'NAM' else '',
+            '{{nationality_sey}}': 'X' if lif.nationality_code == 'SEY' else '',
+            '{{nationality_swa}}': 'X' if lif.nationality_code == 'SWA' else '',
+            '{{nationality_tan}}': 'X' if lif.nationality_code == 'TAN' else '',
+            '{{nationality_zai}}': 'X' if lif.nationality_code == 'ZAI' else '',
+            '{{nationality_zam}}': 'X' if lif.nationality_code == 'ZAM' else '',
+            '{{nationality_zim}}': 'X' if lif.nationality_code == 'ZIM' else '',
+            '{{nationality_ais}}': 'X' if lif.nationality_code == 'AIS' else '',
+            '{{nationality_aus}}': 'X' if lif.nationality_code == 'AUS' else '',
+            '{{nationality_eur}}': 'X' if lif.nationality_code == 'EUR' else '',
+            '{{nationality_nor}}': 'X' if lif.nationality_code == 'NOR' else '',
+            '{{nationality_sou}}': 'X' if lif.nationality_code == 'SOU' else '',
+            '{{nationality_roa}}': 'X' if lif.nationality_code == 'ROA' else '',
+            '{{nationality_ooc}}': 'X' if lif.nationality_code == 'OOC' else '',
+            '{{nationality_u}}': 'X' if lif.nationality_code == 'U' else '',
+            '{{nationality_not}}': 'X' if lif.nationality_code == 'NOT' else '',
         }
-        # Add split fields
         if lif.learner_birth_date:
             birth_str = lif.learner_birth_date.strftime('%Y%m%d')
             for i in range(8):
@@ -6930,175 +7019,48 @@ def generate_bulk_admin_pack_zip(request):
         else:
             for i in range(8):
                 context[f'{{{{termination_date_{i}}}}}'] = ''
-        # Table-based "checkbox" fields (X for selected)
-        context.update({
-            '{{gender_male}}': 'X' if lif.gender_code == 'M' else '',
-            '{{gender_female}}': 'X' if lif.gender_code == 'F' else '',
-            '{{below_35_yes}}': 'X' if lif.learner_birth_date and (date.today().year - lif.learner_birth_date.year < 35) else '',
-            '{{below_35_no}}': 'X' if lif.learner_birth_date and (date.today().year - lif.learner_birth_date.year >= 35) else '',
-            '{{equity_african}}': 'X' if lif.equity_code == 'BA' else '',
-            '{{equity_coloured}}': 'X' if lif.equity_code == 'BC' else '',
-            '{{equity_indian}}': 'X' if lif.equity_code == 'BI' else '',
-            '{{equity_white}}': 'X' if lif.equity_code == 'Wh' else '',
-            '{{disability_sight}}': 'X' if lif.disability_status_code == '01' else '',
-            '{{disability_hearing}}': 'X' if lif.disability_status_code == '02' else '',
-            '{{disability_communication}}': 'X' if lif.disability_status_code == '03' else '',
-            '{{disability_physical}}': 'X' if lif.disability_status_code == '04' else '',
-            '{{disability_intellectual}}': 'X' if lif.disability_status_code == '05' else '',
-            '{{disability_emotional}}': 'X' if lif.disability_status_code == '06' else '',
-            '{{disability_multiple}}': 'X' if lif.disability_status_code == '07' else '',
-            '{{disability_unspecified}}': 'X' if lif.disability_status_code == '09' else '',
-            '{{disability_none}}': 'X' if lif.disability_status_code == 'N' else '',
-            '{{citizen_sa}}': 'X' if lif.citizen_resident_status_code == 'SA' else '',
-            '{{citizen_dual}}': 'X' if lif.citizen_resident_status_code == 'D' else '',
-            '{{citizen_other}}': 'X' if lif.citizen_resident_status_code == 'O' else '',
-            '{{citizen_permanent}}': 'X' if lif.citizen_resident_status_code == 'PR' else '',
-            '{{citizen_unknown}}': 'X' if lif.citizen_resident_status_code == 'U' else '',
-            '{{socio_employed}}': 'X' if lif.socio_economic_status_code == '01' else '',
-            '{{socio_unemployed_seeking}}': 'X' if lif.socio_economic_status_code == '02' else '',
-            '{{socio_not_working_not_looking}}': 'X' if lif.socio_economic_status_code == '03' else '',
-            '{{socio_homemaker}}': 'X' if lif.socio_economic_status_code == '04' else '',
-            '{{socio_student}}': 'X' if lif.socio_economic_status_code == '06' else '',
-            '{{socio_pensioner}}': 'X' if lif.socio_economic_status_code == '07' else '',
-            '{{socio_disabled}}': 'X' if lif.socio_economic_status_code == '08' else '',
-            '{{socio_no_wish_to_work}}': 'X' if lif.socio_economic_status_code == '09' else '',
-            '{{socio_not_working_nec}}': 'X' if lif.socio_economic_status_code == '10' else '',
-            '{{socio_aged_under_15}}': 'X' if lif.socio_economic_status_code == '97' else '',
-            '{{socio_institution}}': 'X' if lif.socio_economic_status_code == '98' else '',
-            '{{socio_unspecified}}': 'X' if lif.socio_economic_status_code == 'U' else '',
-            '{{tertiary_national_certificate}}': 'X' if lif.highest_tertiary_education == 'National Certificate' else '',
-            '{{tertiary_national_diploma}}': 'X' if lif.highest_tertiary_education == 'National Diploma' else '',
-            '{{tertiary_first_degree}}': 'X' if lif.highest_tertiary_education == 'National First Degree' else '',
-            '{{tertiary_post_doctoral}}': 'X' if lif.highest_tertiary_education == 'Post-doctoral Degree' else '',
-            '{{tertiary_doctoral}}': 'X' if lif.highest_tertiary_education == 'Doctoral Degree' else '',
-            '{{tertiary_professional}}': 'X' if lif.highest_tertiary_education == 'Professional Qualification' else '',
-            '{{tertiary_honours}}': 'X' if lif.highest_tertiary_education == 'Honours Degree' else '',
-            '{{tertiary_higher_diploma}}': 'X' if lif.highest_tertiary_education == 'National Higher Diploma' else '',
-            '{{tertiary_masters_diploma}}': 'X' if lif.highest_tertiary_education == 'National Masters Diploma' else '',
-            '{{tertiary_national_higher}}': 'X' if lif.highest_tertiary_education == 'National Higher' else '',
-            '{{tertiary_further_diploma}}': 'X' if lif.highest_tertiary_education == 'Further Diploma' else '',
-            '{{tertiary_post_graduate}}': 'X' if lif.highest_tertiary_education == 'Post Graduate' else '',
-            '{{tertiary_senior_certificate}}': 'X' if lif.highest_tertiary_education == 'Senior Certificate' else '',
-            '{{tertiary_qual_nat_sen_cert}}': 'X' if lif.highest_tertiary_education == 'Qual at Nat Sen Cert' else '',
-            '{{tertiary_apprenticeship}}': 'X' if lif.highest_tertiary_education == 'Apprenticeship' else '',
-            '{{tertiary_post_grad_b_degree}}': 'X' if lif.highest_tertiary_education == 'Post Grad B Degree' else '',
-            '{{tertiary_post_diploma_diploma}}': 'X' if lif.highest_tertiary_education == 'Post Diploma Diploma' else '',
-            '{{tertiary_post_basic_diploma}}': 'X' if lif.highest_tertiary_education == 'Post-basic Diploma' else '',
-            '{{province_western_cape}}': 'X' if lif.province_code == '1' else '',
-            '{{province_eastern_cape}}': 'X' if lif.province_code == '2' else '',
-            '{{province_northern_cape}}': 'X' if lif.province_code == '3' else '',
-            '{{province_free_state}}': 'X' if lif.province_code == '4' else '',
-            '{{province_kwazulu_natal}}': 'X' if lif.province_code == '5' else '',
-            '{{province_north_west}}': 'X' if lif.province_code == '6' else '',
-            '{{province_gauteng_jhb}}': 'X' if lif.province_code == '7' else '',
-            '{{province_gauteng_pta}}': 'X' if lif.province_code == '7b' else '',
-            '{{province_mpumalanga}}': 'X' if lif.province_code == '8' else '',
-            '{{province_limpopo}}': 'X' if lif.province_code == '9' else '',
-            '{{province_outside_sa}}': 'X' if lif.province_code == 'X' else '',
-            '{{province_national}}': 'X' if lif.province_code == 'N' else '',
-            '{{national_id_checkbox}}': 'X' if (lif.alternative_id_type == '' or lif.alternative_id_type is None) else '',
-            '{{alt_id_saqa}}':      'X' if lif.alternative_id_type == '521' else '',
-            '{{alt_id_passport}}':  'X' if lif.alternative_id_type == '527' else '',
-            '{{alt_id_driver}}':    'X' if lif.alternative_id_type == '529' else '',
-            '{{alt_id_temp_id}}':   'X' if lif.alternative_id_type == '531' else '',
-            '{{alt_id_none}}':      'X' if lif.alternative_id_type == '533' else '',
-            '{{alt_id_unknown}}':   'X' if lif.alternative_id_type == '535' else '',
-            '{{alt_id_student}}':   'X' if lif.alternative_id_type == '537' else '',
-            '{{alt_id_work_permit}}':'X' if lif.alternative_id_type == '538' else '',
-            '{{alt_id_employee}}':  'X' if lif.alternative_id_type == '539' else '',
-            '{{alt_id_birth_cert}}':'X' if lif.alternative_id_type == '540' else '',
-            '{{alt_id_hsrc}}':      'X' if lif.alternative_id_type == '541' else '',
-            '{{alt_id_etqa}}':      'X' if lif.alternative_id_type == '561' else '',
-            '{{alt_id_refugee}}':   'X' if lif.alternative_id_type == '565' else '',
-            '{{home_language_afrikaans}}': 'X' if lif.home_language_code == 'Afr' else '',
-            '{{home_language_english}}': 'X' if lif.home_language_code == 'Eng' else '',
-            '{{home_language_ndebele}}': 'X' if lif.home_language_code == 'Nde' else '',
-            '{{home_language_sepedi}}': 'X' if lif.home_language_code == 'Sep' else '',
-            '{{home_language_sesotho}}': 'X' if lif.home_language_code == 'Ses' else '',
-            '{{home_language_setswana}}': 'X' if lif.home_language_code == 'Set' else '',
-            '{{home_language_siswati}}': 'X' if lif.home_language_code == 'Swa' else '',
-            '{{home_language_tshivenda}}': 'X' if lif.home_language_code == 'Tsh' else '',
-            '{{home_language_isixhosa}}': 'X' if lif.home_language_code == 'Xho' else '',
-            '{{home_language_xitsonga}}': 'X' if lif.home_language_code == 'Xit' else '',
-            '{{home_language_isizulu}}': 'X' if lif.home_language_code == 'Zul' else '',
-            '{{home_language_sasl}}': 'X' if lif.home_language_code == 'SASL' else '',
-            '{{home_language_other}}': 'X' if lif.home_language_code == 'Oth' else '',
-            '{{home_language_unknown}}': 'X' if lif.home_language_code == 'U' else '',
-            '{{secondary_grade_8}}':  'X' if lif.highest_secondary_education == 'Grade 8' else '',
-            '{{secondary_grade_9}}':  'X' if lif.highest_secondary_education == 'Grade 9' else '',
-            '{{secondary_grade_10}}': 'X' if lif.highest_secondary_education == 'Grade 10' else '',
-            '{{secondary_grade_11}}': 'X' if lif.highest_secondary_education == 'Grade 11' else '',
-            '{{secondary_grade_12}}': 'X' if lif.highest_secondary_education == 'Grade 12' else '',
-            '{{nationality_sa}}':   'X' if lif.nationality_code == 'SA' else '',
-            '{{nationality_sdc}}':  'X' if lif.nationality_code == 'SDC' else '',
-            '{{nationality_ang}}':  'X' if lif.nationality_code == 'ANG' else '',
-            '{{nationality_bot}}':  'X' if lif.nationality_code == 'BOT' else '',
-            '{{nationality_les}}':  'X' if lif.nationality_code == 'LES' else '',
-            '{{nationality_mal}}':  'X' if lif.nationality_code == 'MAL' else '',
-            '{{nationality_mau}}':  'X' if lif.nationality_code == 'MAU' else '',
-            '{{nationality_moz}}':  'X' if lif.nationality_code == 'MOZ' else '',
-            '{{nationality_nam}}':  'X' if lif.nationality_code == 'NAM' else '',
-            '{{nationality_sey}}':  'X' if lif.nationality_code == 'SEY' else '',
-            '{{nationality_swa}}':  'X' if lif.nationality_code == 'SWA' else '',
-            '{{nationality_tan}}':  'X' if lif.nationality_code == 'TAN' else '',
-            '{{nationality_zai}}':  'X' if lif.nationality_code == 'ZAI' else '',
-            '{{nationality_zam}}':  'X' if lif.nationality_code == 'ZAM' else '',
-            '{{nationality_zim}}':  'X' if lif.nationality_code == 'ZIM' else '',
-            '{{nationality_ais}}':  'X' if lif.nationality_code == 'AIS' else '',
-            '{{nationality_aus}}':  'X' if lif.nationality_code == 'AUS' else '',
-            '{{nationality_eur}}':  'X' if lif.nationality_code == 'EUR' else '',
-            '{{nationality_nor}}':  'X' if lif.nationality_code == 'NOR' else '',
-            '{{nationality_sou}}':  'X' if lif.nationality_code == 'SOU' else '',
-            '{{nationality_roa}}':  'X' if lif.nationality_code == 'ROA' else '',
-            '{{nationality_ooc}}':  'X' if lif.nationality_code == 'OOC' else '',
-            '{{nationality_u}}':    'X' if lif.nationality_code == 'U' else '',
-            '{{nationality_not}}':  'X' if lif.nationality_code == 'NOT' else '',
-        })
-        # Mapped fields (skip table placeholders)
         for mapping in mappings:
             if mapping.placeholder in table_placeholders:
                 continue
-            value = getattr(lif, mapping.lif_field, '')
+            value = getattr(lif, mapping.lif_field, '') or ''
             if mapping.lif_field == 'alternative_id_type':
-                context[mapping.placeholder] = value or ''
-                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.ALTERNATIVE_ID_TYPE_CHOICES, value) or ''
+                context[mapping.placeholder] = value
+                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.ALTERNATIVE_ID_TYPE_CHOICES, value)
             elif mapping.lif_field == 'equity_code':
-                context[mapping.placeholder] = value or ''
-                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.EQUITY_CHOICES, value) or ''
+                context[mapping.placeholder] = value
+                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.EQUITY_CHOICES, value)
             elif mapping.lif_field == 'nationality_code':
-                context[mapping.placeholder] = value or ''
-                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.NATIONALITY_CHOICES, value) or ''
+                context[mapping.placeholder] = value
+                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.NATIONALITY_CHOICES, value)
             elif mapping.lif_field == 'gender_code':
-                context[mapping.placeholder] = value or ''
+                context[mapping.placeholder] = value
                 context[f'{mapping.placeholder}_name'] = dict([('F', 'Female'), ('M', 'Male')]).get(value, '')
             elif mapping.lif_field == 'citizen_resident_status_code':
-                context[mapping.placeholder] = value or ''
-                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.CITIZEN_STATUS_CHOICES, value) or ''
+                context[mapping.placeholder] = value
+                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.CITIZEN_STATUS_CHOICES, value)
             elif mapping.lif_field == 'home_language_code':
-                context[mapping.placeholder] = value or ''
-                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.NATIONALITY_CHOICES, value) or ''
+                context[mapping.placeholder] = value
+                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.NATIONALITY_CHOICES, value)
             elif mapping.lif_field == 'province_code':
-                context[mapping.placeholder] = value or ''
-                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.PROVINCE_CHOICES, value) or ''
+                context[mapping.placeholder] = value
+                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.PROVINCE_CHOICES, value)
             elif mapping.lif_field == 'disability_status_code':
-                context[mapping.placeholder] = value or ''
-                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.DISABILITY_CHOICES, value) or ''
+                context[mapping.placeholder] = value
+                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.DISABILITY_CHOICES, value)
             elif mapping.lif_field == 'socio_economic_status_code':
-                context[mapping.placeholder] = value or ''
-                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.SOCIO_ECONOMIC_CHOICES, value) or ''
+                context[mapping.placeholder] = value
+                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.SOCIO_ECONOMIC_CHOICES, value)
             elif mapping.lif_field == 'highest_tertiary_education':
-                context[mapping.placeholder] = value or ''
-                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.TERTIARY_CHOICES, value) or ''
+                context[mapping.placeholder] = value
+                context[f'{mapping.placeholder}_name'] = get_choice_display(lif.TERTIARY_CHOICES, value)
             elif mapping.lif_field in ['duration_start_date', 'duration_end_date'] and value:
                 context[mapping.placeholder] = value.strftime('%d/%m/%Y')
             elif mapping.lif_field == 'consent_to_process':
-                context[mapping.placeholder] = ' Agree' if lif.consent_to_process else ' Disagree'
-            elif mapping.lif_field in ['years_in_occupation', 'secondary_year_completed', 'tertiary_year_completed']:
-                context[mapping.placeholder] = str(value) if value else ''
-            elif mapping.lif_field in ['percentage_maths', 'percentage_first_language', 'percentage_second_language']:
+                context[mapping.placeholder] = ' Agree' if value else ' Disagree'
+            elif mapping.lif_field in ['years_in_occupation', 'secondary_year_completed', 'tertiary_year_completed', 'percentage_maths', 'percentage_first_language', 'percentage_second_language']:
                 context[mapping.placeholder] = str(value) if value else ''
             else:
-                context[mapping.placeholder] = value or ''
+                context[mapping.placeholder] = value
             if isinstance(value, str) and value and mapping.lif_field not in ['duration_start_date', 'duration_end_date'] and mapping.placeholder not in table_placeholders:
                 base_match = re.match(r"\{\{(\w+)\}\}", mapping.placeholder)
                 if base_match:
@@ -7129,44 +7091,52 @@ def generate_bulk_admin_pack_zip(request):
                 for nested_table in cell.tables:
                     replace_placeholders_in_table(nested_table, context)
 
-    # --- Generate ZIP ---
     zip_buffer = io.BytesIO()
-    admin_pack_doc = Document(admin_pack_template.path)
-    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         for learner_id in learner_ids:
-            learner = get_object_or_404(Learner, id=learner_id)
             try:
+                learner = get_object_or_404(Learner, id=learner_id)
                 lif = LIF.objects.get(learner=learner)
-            except LIF.DoesNotExist:
-                continue  # Skip learners without LIF
+                lq = LearnerQualification.objects.filter(
+                    learner=learner,
+                    sla_qualification__groups=group
+                ).select_related('sla_qualification__service').first()
 
-            # 1. Copy the admin pack template (cover page)
-            doc = Document()
-            for element in admin_pack_doc.element.body:
-                doc.element.body.append(element.clone())
+                if not lq or not lq.sla_qualification.service.admin_pack_document:
+                    logger.warning(f"Skipping learner {learner.id}: No valid learner qualification or admin pack document")
+                    continue
 
-            # 2. Insert a page break
-            doc.add_page_break()
+                admin_pack_template = lq.sla_qualification.service.admin_pack_document
+                doc = Document(admin_pack_template.path)
 
-            # 3. Insert the LIF content (using your template logic)
-            lif_doc = Document(lif_template.template_file.path)
-            context = build_context(lif)
-            for p in lif_doc.paragraphs:
-                replace_placeholders_in_paragraph(p, context)
-            for table in lif_doc.tables:
-                replace_placeholders_in_table(table, context)
-            for element in lif_doc.element.body:
-                doc.element.body.append(element.clone())
+                # Insert LIF template content after the first section break (cover page)
+                lif_doc = Document(lif_template.template_file.path)
+                insert_lif_content_after_first_section(doc, lif_doc)
 
-            # 4. Save to BytesIO and add to ZIP
-            learner_name = f"{learner.FirstName}_{learner.Surname}".replace(" ", "_")
-            file_buffer = io.BytesIO()
-            doc.save(file_buffer)
-            file_buffer.seek(0)
-            zip_file.writestr(f"{learner_name}_AdminPack.docx", file_buffer.read())
+                # Replace placeholders in the combined document
+                context = build_context(lif)
+                for paragraph in doc.paragraphs:
+                    replace_placeholders_in_paragraph(paragraph, context)
+                for table in doc.tables:
+                    replace_placeholders_in_table(table, context)
+
+                learner_name = f"{learner.FirstName}_{learner.Surname}".replace(" ", "_").replace("/", "_").replace("\\", "_")
+                file_buffer = io.BytesIO()
+                doc.save(file_buffer)
+                file_buffer.seek(0)
+                zip_file.writestr(f"{learner_name}_AdminPack.docx", file_buffer.read())
+                logger.info(f"Successfully generated document for learner {learner_id}")
+
+            except Exception as e:
+                logger.error(f"Error processing learner {learner_id}: {str(e)}")
+                continue
 
     zip_buffer.seek(0)
-    safe_template = "".join(x for x in lif_template.name if x.isalnum() or x in (' ', '_', '-')).rstrip()
-    response = HttpResponse(zip_buffer, content_type="application/zip")
-    response["Content-Disposition"] = f'attachment; filename="AdminPack_{safe_template}_Group_{group.id}.zip"'
-    return response
+    if zip_buffer.getvalue():
+        safe_template = "".join(x for x in lif_template.name if x.isalnum() or x in (' ', '_', '-')).rstrip()
+        response = HttpResponse(zip_buffer, content_type="application/zip")
+        response["Content-Disposition"] = f'attachment; filename="AdminPack_{safe_template}_Group_{group.id}.zip"'
+        return response
+    else:
+        logger.error("No documents were generated for the ZIP file")
+        return HttpResponse("No valid documents generated", status=400)
