@@ -161,6 +161,9 @@ def auto_book_virtual_sessions():
         ).exists()
         
         if not exists:
+            # Get the default number of learners for this session
+            default_num_learners = get_default_num_learners_for_session(session.id)
+            
             # Create the virtual booking only if no cancelled bookings exist
             VenueBooking.objects.create(
                 session_date=session,
@@ -169,10 +172,9 @@ def auto_book_virtual_sessions():
                 end_datetime=end_dt,
                 booking_purpose=f"Auto-booked Virtual Session - {session.project_plan.group.name if session.project_plan and session.project_plan.group else 'Unknown Group'}",
                 status='booked',
-                num_learners=0,  # Set appropriate default
-                num_learners_lunch=0
+                num_learners=default_num_learners if default_num_learners is not None else 0,  # Use calculated default
+                num_learners_lunch=default_num_learners if default_num_learners is not None else 0  # Use calculated default
             )
-
 @login_required
 def home_redirect_view(request):
     # Staff users (admin/finance) are redirected to the finance dashboard.
