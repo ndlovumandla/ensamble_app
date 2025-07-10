@@ -3,11 +3,11 @@
 {% block title %}Role Permission Management{% endblock %}
 {% block content %}
 <div class="container glass p-4 mt-4">
-  <h2 class="mb-4">Role Permission Management</h2>
+  <h2 class="mb-4" style="color: #020381; font-weight: 700;">Role Permission Management</h2>
   <form method="post">
     {% csrf_token %}
     <div class="mb-3">
-      <label for="roleFilter" class="form-label">Filter by Role:</label>
+      <label for="roleFilter" class="form-label" style="color: #020381; font-weight: 600;">Filter by Role:</label>
       <select id="roleFilter" class="form-select" onchange="filterRole(this.value)">
         <option value="">All Roles</option>
         {% for role in roles %}
@@ -27,8 +27,11 @@
           {{ group_name }}
         </div>
         <div class="card-body p-2">
+          <div class="mb-2">
+            <input type="text" class="form-control search-urls" placeholder="Search URLs in {{ group_name }}..." data-group="{{ group_name|slugify }}">
+          </div>
           <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
+            <table class="table table-sm align-middle mb-0" data-group="{{ group_name|slugify }}">
               <thead>
                 <tr>
                   <th>Webpage</th>
@@ -40,15 +43,15 @@
                   <th></th>
                   {% for role in roles %}
                   <th class="text-center role-col role-{{ role.id }}">
-                    <button type="button" class="btn btn-link btn-sm p-0" onclick="toggleRole('{{ role.id }}', true)" title="Select all for {{ role.name }}"><i class="fa fa-check-square text-success"></i></button>
-                    <button type="button" class="btn btn-link btn-sm p-0" onclick="toggleRole('{{ role.id }}', false)" title="Deselect all for {{ role.name }}"><i class="fa fa-square text-danger"></i></button>
+                    <button type="button" class="btn btn-link btn-sm p-0" onclick="toggleRole('{{ role.id }}', true, '{{ group_name|slugify }}')" title="Select all for {{ role.name }} in {{ group_name }}"><i class="fa fa-check-square text-success"></i></button>
+                    <button type="button" class="btn btn-link btn-sm p-0" onclick="toggleRole('{{ role.id }}', false, '{{ group_name|slugify }}')" title="Deselect all for {{ role.name }} in {{ group_name }}"><i class="fa fa-square text-danger"></i></button>
                   </th>
                   {% endfor %}
                 </tr>
               </thead>
               <tbody>
                 {% for url_name, url_label in urls %}
-                <tr>
+                <tr class="url-row" data-url-name="{{ url_name }}" data-url-label="{{ url_label|lower }}">
                   <td><span class="fw-semibold">{{ url_label }}</span> <span class="text-muted small">({{ url_name }})</span></td>
                   {% for role in roles %}
                   <td class="text-center role-col role-{{ role.id }}">
@@ -64,53 +67,74 @@
         </div>
       </div>
     {% endfor %}
-    <button type="submit" class="btn btn-primary btn-glow mt-3">Save Permissions</button>
+    <button type="submit" class="btn btn-primary btn-glow mt-3" style="background: linear-gradient(90deg, #34C759 0%, #38f9d7 100%); border: none;">Save Permissions</button>
   </form>
 </div>
+<style>
+.form-control.search-urls {
+    border-radius: 8px;
+    border: 2px solid #34C759;
+    background: #f0f4f8;
+    font-size: 1em;
+    padding: 8px 12px;
+    box-shadow: 0 2px 8px rgba(67,233,123,0.12);
+}
+.form-control.search-urls:focus {
+    border-color: #020381;
+    box-shadow: 0 0 10px rgba(2,3,129,0.2);
+    background: #fff;
+}
+</style>
 <script>
 function filterRole(roleClass) {
   document.querySelectorAll('.role-col').forEach(function(td) {
-    td.style.display = '';
+    td.style.display = roleClass && !td.classList.contains(roleClass) ? 'none' : '';
   });
-  if (roleClass) {
-    document.querySelectorAll('.role-col').forEach(function(td) {
-      if (!td.classList.contains(roleClass)) {
-        td.style.display = 'none';
-      }
-    });
-  }
 }
 
-// Select/Deselect all checkboxes in the table
 function toggleAll(state) {
   document.querySelectorAll('input[type="checkbox"][name^="permissions_"]').forEach(function(cb) {
     cb.checked = state;
   });
 }
 
-// Select/Deselect all checkboxes for a specific role (column)
-function toggleRole(roleId, state) {
-  document.querySelectorAll('.role-col.role-' + roleId + ' input[type="checkbox"]').forEach(function(cb) {
+function toggleRole(roleId, state, groupSlug) {
+  const selector = groupSlug
+    ? `.table[data-group="${groupSlug}"] .role-col.role-${roleId} input[type="checkbox"]`
+    : `.role-col.role-${roleId} input[type="checkbox"]`;
+  document.querySelectorAll(selector).forEach(function(cb) {
     cb.checked = state;
   });
 }
 
-// Select/Deselect all checkboxes for the currently visible role (filtered)
 function selectAllVisibleRole() {
   document.querySelectorAll('.role-col').forEach(function(td) {
     if (td.style.display !== 'none') {
-      var cb = td.querySelector('input[type="checkbox"]');
+      const cb = td.querySelector('input[type="checkbox"]');
       if (cb) cb.checked = true;
     }
   });
 }
+
 function deselectAllVisibleRole() {
   document.querySelectorAll('.role-col').forEach(function(td) {
     if (td.style.display !== 'none') {
-      var cb = td.querySelector('input[type="checkbox"]');
+      const cb = td.querySelector('input[type="checkbox"]');
       if (cb) cb.checked = false;
     }
   });
 }
+
+document.querySelectorAll('.search-urls').forEach(function(input) {
+  input.addEventListener('input', function() {
+    const filter = this.value.trim().toLowerCase();
+    const groupSlug = this.getAttribute('data-group');
+    document.querySelectorAll(`.table[data-group="${groupSlug}"] .url-row`).forEach(function(row) {
+      const urlName = row.getAttribute('data-url-name').toLowerCase();
+      const urlLabel = row.getAttribute('data-url-label').toLowerCase();
+      row.style.display = (!filter || urlName.includes(filter) || urlLabel.includes(filter)) ? '' : 'none';
+    });
+  });
+});
 </script>
 {% endblock %}

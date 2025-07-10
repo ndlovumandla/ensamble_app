@@ -1,5 +1,24 @@
 from django.conf import settings
-from django.core.mail import EmailMessage
+from django.core.mail import EmailMessage, send_mail
+from django.template.loader import render_to_string
+from django.http import HttpResponse
+from django.utils import timezone
+import uuid
+import json
+import json
+import uuid
+from datetime import datetime, date, time, timedelta
+from django.shortcuts import get_object_or_404
+from django.http import HttpResponse, JsonResponse
+from django.template.loader import render_to_string
+from django.utils import timezone
+from django.utils.timezone import make_aware
+from django.core.mail import send_mail
+from django.core.cache import cache
+from django.views import View
+from .models import VenueBooking, SessionDate, ProjectPlan, Venue
+from .forms import VenueBookingForm
+from .mixins import RolePermissionRequiredMixin
 from itertools import groupby
 from operator import attrgetter
 from datetime import datetime, date, time, timedelta
@@ -120,8 +139,19 @@ def auto_book_virtual_sessions():
         return
 
     for session in virtual_sessions:
+        # Check if this session has any cancelled bookings
+        has_cancelled_booking = VenueBooking.objects.filter(
+            session_date=session,
+            status='cancelled'
+        ).exists()
+        
+        # Skip auto-booking if there are cancelled bookings for this session
+        if has_cancelled_booking:
+            continue
+            
         start_dt = make_aware(datetime.combine(session.start_date, time(8, 0)))
         end_dt = make_aware(datetime.combine(session.end_date, time(17, 0)))
+        
         # Check for any booking with same venue and time (regardless of session)
         exists = VenueBooking.objects.filter(
             venue=virtual_venue,
@@ -129,14 +159,18 @@ def auto_book_virtual_sessions():
             end_datetime=end_dt,
             status__in=['booked', 'rescheduled']
         ).exists()
+        
         if not exists:
+            # Create the virtual booking only if no cancelled bookings exist
             VenueBooking.objects.create(
                 session_date=session,
                 venue=virtual_venue,
                 start_datetime=start_dt,
                 end_datetime=end_dt,
-                booking_purpose="Auto-booked virtual session",
-                status="booked"
+                booking_purpose=f"Auto-booked Virtual Session - {session.project_plan.group.name if session.project_plan and session.project_plan.group else 'Unknown Group'}",
+                status='booked',
+                num_learners=0,  # Set appropriate default
+                num_learners_lunch=0
             )
 
 @login_required
@@ -289,8 +323,14 @@ def venuebooking_events_api(request):
     bookings = VenueBooking.objects.select_related(
         'venue', 'session_date__project_plan__group', 'session_date__project_plan__module', 'facilitator', 'user'
     )
+    
+    # **KEY UPDATE**: Exclude cancelled bookings by default, show only when specifically requested
     if status_filter:
         bookings = bookings.filter(status=status_filter)
+    else:
+        # Default: exclude cancelled bookings
+        bookings = bookings.exclude(status='cancelled')
+    
     if venue_filter:
         if venue_filter.lower() == "virtual session":
             bookings = bookings.filter(venue__name__icontains="virtual session")
@@ -2406,6 +2446,15 @@ class VenueBookingListView(RolePermissionRequiredMixin, ListView):
             'facilitator__learner',
             'user'
         )
+        
+        # **KEY UPDATE**: Handle status filtering and exclude cancelled by default
+        status_filter = self.request.GET.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        else:
+            # Default: exclude cancelled bookings
+            queryset = queryset.exclude(status='cancelled')
+        
         date_str = self.request.GET.get('date')
         if date_str:
             try:
@@ -2424,6 +2473,8 @@ class VenueBookingListView(RolePermissionRequiredMixin, ListView):
         tomorrow = today + timedelta(days=1)
         next7 = today + timedelta(days=7)
         selected_date = self.request.GET.get('date')
+        status_filter = self.request.GET.get('status')
+        
         if selected_date:
             try:
                 from datetime import datetime
@@ -2437,6 +2488,10 @@ class VenueBookingListView(RolePermissionRequiredMixin, ListView):
         context['tomorrow'] = tomorrow
         context['next7'] = next7
         context['selected_date'] = selected_date
+        context['status_filter'] = status_filter  # Add status filter to context
+        
+        # Status choices for filtering
+        context['status_choices'] = VenueBooking.STATUS_CHOICES
 
         # Enforced venue color logic
         venue_color_map = {}
@@ -2555,9 +2610,18 @@ class VenueBookingCreateView(RolePermissionRequiredMixin, CreateView):
         if session_date_filter:
             session_dates = session_dates.filter(start_date=session_date_filter)
         if project_plan_filter:
-            session_dates = session_dates.filter(project_plan__name__icontains=project_plan_filter)
+            # Fix: Search within session data instead of project_plan__name
+            session_dates = session_dates.filter(
+                Q(project_plan__group__name__icontains=project_plan_filter) |
+                Q(project_plan__module__name__icontains=project_plan_filter) |
+                Q(project_plan__group__projectcode__icontains=project_plan_filter)
+            )
         if venue:
-            session_dates = session_dates.filter(venuebooking__venue__name__icontains=venue)
+            # Filter by venues that have bookings for these sessions
+            session_dates = session_dates.filter(
+                venuebooking__venue__name__icontains=venue
+            ).distinct()
+        
         context['session_dates'] = session_dates.distinct().order_by('-start_date')[:50]
         context['project_plans'] = {pp.id: str(pp) for pp in ProjectPlan.objects.all().order_by('id')}
         return context
@@ -2638,7 +2702,126 @@ class VenueBookingDeleteView(RolePermissionRequiredMixin, DeleteView):
         booking.save()
         messages.success(request, "Booking cancelled (status updated).")
         return redirect(self.success_url)
+
+# Add this class after the VenueBookingModalFormView class (around line 5950)
+
+class CancelVenueBookingView(RolePermissionRequiredMixin, View):
+    """
+    AJAX view to handle venue booking cancellation with email notifications
+    """
     
+    def post(self, request):
+        booking_id = request.POST.get('booking_id')
+        
+        if not booking_id:
+            return JsonResponse({'success': False, 'message': 'No booking ID provided'})
+        
+        try:
+            booking = get_object_or_404(VenueBooking, pk=booking_id)
+            
+            # Check if user has permission to cancel
+            if booking.user != request.user and not request.user.is_staff:
+                return JsonResponse({'success': False, 'message': 'You do not have permission to cancel this booking'})
+            
+            # Store original booking user for email notification
+            original_booking_user = booking.user
+            cancelled_by_user = request.user
+            
+            # Get booking details before cancellation for email
+            venue_name = booking.venue.name
+            session_info = str(booking.session_date) if booking.session_date else "N/A"
+            start_datetime = booking.start_datetime
+            end_datetime = booking.end_datetime
+            booking_purpose = booking.booking_purpose
+            
+            # Cancel the booking
+            booking.status = 'cancelled'
+            booking.save()
+            
+            # If this is a combined booking, cancel all related bookings
+            if hasattr(booking, 'combined_booking_id') and booking.combined_booking_id:
+                related_bookings = VenueBooking.objects.filter(
+                    combined_booking_id=booking.combined_booking_id
+                ).exclude(id=booking.id)
+                
+                for related_booking in related_bookings:
+                    related_booking.status = 'cancelled'
+                    related_booking.save()
+            
+            # Send email notification
+            self.send_cancellation_email(
+                venue_name=venue_name,
+                session_info=session_info,
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
+                booking_purpose=booking_purpose,
+                original_user=original_booking_user,
+                cancelled_by_user=cancelled_by_user
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Booking cancelled successfully. Notification email sent.'
+            })
+            
+        except Exception as e:
+            logger.error(f"Error cancelling booking {booking_id}: {str(e)}")
+            return JsonResponse({'success': False, 'message': f'Error cancelling booking: {str(e)}'})
+    
+    def send_cancellation_email(self, venue_name, session_info, start_datetime, end_datetime, 
+                               booking_purpose, original_user, cancelled_by_user):
+        """Send email notification about booking cancellation"""
+        try:
+            # Determine recipient email
+            recipient_email = None
+            if original_user and original_user.email:
+                recipient_email = original_user.email
+            
+            if not recipient_email:
+                logger.warning("No email address found for booking cancellation notification")
+                return
+            
+            # Prepare email content
+            subject = f"Venue Booking Cancelled - {venue_name}"
+            
+            # Email body
+            message = f"""
+Dear {original_user.get_full_name() if original_user else 'User'},
+
+Your venue booking has been cancelled.
+
+Booking Details:
+- Venue: {venue_name}
+- Session: {session_info}
+- Date: {start_datetime.strftime('%B %d, %Y')}
+- Time: {start_datetime.strftime('%I:%M %p')} - {end_datetime.strftime('%I:%M %p')}
+- Purpose: {booking_purpose}
+
+Cancelled by: {cancelled_by_user.get_full_name() if cancelled_by_user.get_full_name() else cancelled_by_user.username}
+Cancelled on: {timezone.now().strftime('%B %d, %Y at %I:%M %p')}
+
+If you have any questions about this cancellation, please contact the person who cancelled the booking or your administrator.
+
+Best regards,
+The Learning Organisation
+            """
+            
+            # Send email
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[recipient_email],
+                fail_silently=True,
+            )
+            
+            logger.info(f"Cancellation email sent to {recipient_email}")
+            
+        except Exception as e:
+            # Log the error but don't fail the cancellation
+            logger.error(f"Failed to send cancellation email: {str(e)}")
+
+
 class ProjectPlanDetailView(RolePermissionRequiredMixin, DetailView):
     model = ProjectPlan
     template_name = "core/projectplan_detail.html"
@@ -4160,20 +4343,20 @@ def learner_assessment_results(request):
     poes = LearnerModulePOE.objects.filter(learner=learner)
     return render(request, 'core/learner_assessment_results.html', {'poes': poes})
 
-# ...existing imports...
 from django.views.generic import TemplateView
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.shortcuts import redirect
+from django.contrib import messages
 from .models import Role, RolePermission
 
 class RolePermissionManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     template_name = "core/role_permission_management.html"
 
     def test_func(self):
-        # Only staff/admins allowed
         return self.request.user.is_staff
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Group URLs for display (all from urls.py, grouped logically)
         url_groups = [
             ("Dashboards", [
                 ("sla_dashboard", "SLA Dashboard"),
@@ -4199,21 +4382,25 @@ class RolePermissionManagementView(LoginRequiredMixin, UserPassesTestMixin, Temp
                 ("learner_home", "Learner Home"),
                 ("learner_groups", "Learner Groups"),
                 ("learner_project_plans", "Learner Project Plans"),
+                ("learner-autocomplete", "Learner Autocomplete"),
             ]),
             ("Groups", [
                 ("group_management", "Manage Groups"),
                 ("group_create", "Create Group"),
                 ("group-edit", "Edit Group"),
                 ("group-delete", "Delete Group"),
+                ("group_detail", "Group Details"),
                 ("upload_group_excel", "Import Groups (Excel)"),
                 ("group_qualification_assignment", "Assign Group Qualifications"),
                 ("assign_learner_qualification_to_group", "Assign Learner Qualification to Group"),
+                ("generate_bulk_admin_pack_zip", "Generate Bulk Admin Pack ZIP"),
             ]),
             ("Qualifications", [
                 ("qualification_times_list", "Qualification Times"),
                 ("edit_qualification_times", "Edit Qualification Times"),
                 ("add_learner_qualification", "Add Learner Qualification"),
                 ("get_sla_qualifications", "Get SLA Qualifications (AJAX)"),
+                ("get_learner_qualifications", "Get Learner Qualifications (AJAX)"),
             ]),
             ("Projects", [
                 ("projectplan_list", "Project Plans"),
@@ -4222,6 +4409,7 @@ class RolePermissionManagementView(LoginRequiredMixin, UserPassesTestMixin, Temp
                 ("projectplan_delete", "Delete Project Plan"),
                 ("projectplan_detail", "Project Plan Details"),
                 ("upload_project_plan_excel", "Import Project Plans (Excel)"),
+                ("external_project_list", "External Project List"),
                 ("sessiondate_list", "Session Dates"),
                 ("sessiondate_add", "Add Session Date"),
                 ("sessiondate_edit", "Edit Session Date"),
@@ -4261,7 +4449,7 @@ class RolePermissionManagementView(LoginRequiredMixin, UserPassesTestMixin, Temp
                 ("poe_list", "PoE List"),
                 ("poe_template_list", "PoE Templates"),
                 ("poe_template_add", "Add PoE Template"),
-                ("poe_annextures", "Manage PoE Annextures"),
+                ("poe_annextures", "Manage PoE Annexures"),
                 ("facilitator_poe_list", "Facilitator PoE List"),
                 ("facilitator_poe_feedback", "Facilitator PoE Feedback"),
                 ("admin_poe_dashboard", "Admin PoE Dashboard"),
@@ -4285,27 +4473,28 @@ class RolePermissionManagementView(LoginRequiredMixin, UserPassesTestMixin, Temp
             ("LIF & Templates", [
                 ("lif_form", "LIF Form"),
                 ("lif_update", "Update LIF Form"),
+                ("lif_delete", "Delete LIF Form"),
                 ("upload_lif_template", "Upload LIF Template"),
                 ("map_lif_template_fields", "Map LIF Template Fields"),
                 ("lif_template_list", "LIF Template List"),
+                ("lif_template_delete", "Delete LIF Template"),
                 ("generate_lif_word", "Generate LIF Word"),
-            ]),
-            ("External Projects", [
-                ("external_project_list", "External Project List"),
+                ("generate_bulk_lif_zip", "Generate Bulk LIF ZIP"),
+                ("cognito_lif_entries", "Cognito LIF Entries"),
+                ("export_cognito_to_lif", "Export Cognito to LIF"),
+                ("lif_list_json", "LIF List JSON"),
             ]),
             ("Other", [
+                ("home_redirect", "Home Redirect"),
                 ("view_upcoming_dates", "Upcoming Dates"),
                 ("submit_poe", "Portal Submit PoE"),
                 ("sit_summative_exam", "Sit Summative Exam"),
                 ("role_permission_management", "Role Permission Management"),
                 ("switch_role", "Switch Role"),
-                ("learner-autocomplete", "Learner Autocomplete"),
                 ("facilitator-autocomplete", "Facilitator Autocomplete"),
-                ("get_learner_qualifications", "Get Learner Qualifications (AJAX)"),
             ]),
         ]
         roles = Role.objects.all()
-        # Current permissions
         role_permissions = {
             role.id: set(RolePermission.objects.filter(role=role, has_access=True).values_list('url_name', flat=True))
             for role in roles
@@ -4321,7 +4510,6 @@ class RolePermissionManagementView(LoginRequiredMixin, UserPassesTestMixin, Temp
         roles = Role.objects.all()
         for role in roles:
             url_names = request.POST.getlist(f'permissions_{role.id}')
-            # Set all to False first
             RolePermission.objects.filter(role=role).update(has_access=False)
             for url_name in url_names:
                 RolePermission.objects.update_or_create(
@@ -4331,8 +4519,9 @@ class RolePermissionManagementView(LoginRequiredMixin, UserPassesTestMixin, Temp
                 )
         messages.success(request, "Permissions updated successfully.")
         return redirect("role_permission_management")
-    
-    from django.shortcuts import redirect
+
+
+from django.shortcuts import redirect
 from django.contrib import messages
 
 class SwitchRoleView(LoginRequiredMixin, View):
@@ -5753,16 +5942,16 @@ class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
                 bookings = VenueBooking.objects.filter(combined_booking_id=booking.combined_booking_id)
             else:
                 bookings = VenueBooking.objects.filter(
+                    venue=booking.venue,
                     start_datetime=booking.start_datetime,
                     end_datetime=booking.end_datetime,
-                    venue=booking.venue
+                    status__in=['booked', 'rescheduled']
                 )
             session_ids_list = list(bookings.values_list('session_date_id', flat=True))
             session_dates = SessionDate.objects.filter(id__in=session_ids_list).select_related('project_plan', 'project_plan__group', 'project_plan__module')
             form = VenueBookingForm(instance=booking)
             if 'session_dates' in form.fields:
                 form.fields['session_dates'].queryset = session_dates
-                form.fields['session_dates'].initial = session_ids_list
             # Pass session_ids to context so template/POST works for multi-booking
             session_ids = ",".join(str(sid) for sid in session_ids_list)
             if len(session_ids_list) > 1:
@@ -5775,25 +5964,26 @@ class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
 
             # Single session booking
             if session_id:
-                initial['session_date'] = session_id
                 try:
-                    session = SessionDate.objects.select_related('project_plan').get(pk=session_id)
-                    initial['start_datetime'] = timezone.make_aware(
-                        datetime.combine(session.start_date, time(8, 0))
-                    )
-                    initial['end_datetime'] = timezone.make_aware(
-                        datetime.combine(session.end_date, time(17, 0))
-                    )
-                    if session.project_plan:
-                        initial['project_plan'] = session.project_plan.id
-                    if getattr(session, 'preferred_training_methodology', None) and "virtual session" in session.preferred_training_methodology.lower():
-                        virtual_venue = Venue.objects.filter(name__istartswith="Virtual Session").order_by('name').first()
-                        if virtual_venue:
-                            initial['venue'] = virtual_venue.id
+                    session = SessionDate.objects.get(id=session_id)
+                    initial['session_date'] = session
+                    initial['start_datetime'] = timezone.make_aware(datetime.combine(session.start_date, time(8, 0)))
+                    initial['end_datetime'] = timezone.make_aware(datetime.combine(session.end_date, time(17, 0)))
+                    initial['booking_purpose'] = f"{session.project_plan.group.name} - {session.project_plan.module.name}"
+                    # Try to get default num_learners
+                    default_learners = get_default_num_learners_for_session(session_id)
+                    if default_learners:
+                        initial['num_learners'] = default_learners
                 except SessionDate.DoesNotExist:
                     pass
+
             if date and not initial.get('start_datetime'):
-                initial['start_datetime'] = date
+                try:
+                    date_obj = datetime.strptime(date, '%Y-%m-%d').date()
+                    initial['start_datetime'] = timezone.make_aware(datetime.combine(date_obj, time(8, 0)))
+                    initial['end_datetime'] = timezone.make_aware(datetime.combine(date_obj, time(17, 0)))
+                except ValueError:
+                    pass
 
             form = VenueBookingForm(initial=initial)
 
@@ -5803,13 +5993,6 @@ class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
                 session_dates = SessionDate.objects.filter(id__in=ids).select_related('project_plan', 'project_plan__group', 'project_plan__module')
                 if 'session_dates' in form.fields:
                     form.fields['session_dates'].queryset = session_dates
-                    form.fields['session_dates'].initial = ids
-                # Prepopulate start/end as earliest/latest of selected sessions
-                if session_dates.exists():
-                    earliest_start = min([s.start_date for s in session_dates])
-                    latest_end = max([s.end_date for s in session_dates])
-                    form.fields['start_datetime'].initial = timezone.make_aware(datetime.combine(earliest_start, time(8, 0)))
-                    form.fields['end_datetime'].initial = timezone.make_aware(datetime.combine(latest_end, time(17, 0)))
                 multi_booking_mode = True
                 selected_session_ids = [str(sid) for sid in ids]
             else:
@@ -5817,9 +6000,28 @@ class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
                     form.fields['session_dates'].queryset = session_dates
 
         project_plans = {pp.id: str(pp) for pp in ProjectPlan.objects.all().order_by('id')}
+        
+        # Convert all sessions to JSON-serializable format for search functionality
+        all_sessions_queryset = SessionDate.objects.select_related(
+            'project_plan', 'project_plan__group', 'project_plan__module'
+        ).all().order_by('-start_date')
+        
+        # Convert to JSON-serializable format for JavaScript
+        all_sessions = []
+        for session in all_sessions_queryset:
+            all_sessions.append({
+                'id': session.id,
+                'text': str(session),
+                'searchText': str(session).lower()
+            })
+        
+        # IMPORTANT: Import json to properly serialize the data
+        import json
+        
         html = render_to_string('core/venuebooking_modal_form.html', {
             'form': form,
             'session_dates': session_dates,
+            'all_sessions': json.dumps(all_sessions),  # Properly serialize for JavaScript
             'project_plans': project_plans,
             'object': obj,
             'session_ids': session_ids if booking_id else session_ids if session_ids else "",
@@ -6023,7 +6225,7 @@ class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
                 'selected_session_ids': selected_session_ids,
             }, request=request)
             return JsonResponse({'success': False, 'html': html})
-        
+
 import io
 import zipfile
 import re
@@ -6770,7 +6972,6 @@ class LIFTemplateDeleteView(DeleteView):
     model = LIFTemplate
     template_name = 'core/lif_template_confirm_delete.html'
     success_url = reverse_lazy('lif_template_list')
-    
 import io
 import zipfile
 import re
@@ -6791,24 +6992,15 @@ def insert_lif_content_after_first_section(doc, lif_doc):
     If no section break is found, inserts after the first paragraph.
     This version is robust for most real-world DOCX files.
     """
-    from copy import deepcopy
-
     body = doc.element.body
-    # Find the first <w:p> (paragraph) that contains a <w:sectPr>
-    paragraphs = body.findall('.//w:p', namespaces=body.nsmap)
     insert_idx = None
     for idx, p in enumerate(body):
-        # Only look at paragraphs
         if p.tag.endswith('}p'):
-            # Check if this paragraph has a sectPr
             if p.findall('.//w:sectPr', namespaces=body.nsmap):
                 insert_idx = idx + 1
                 break
     if insert_idx is None:
-        # Fallback: insert after first paragraph
         insert_idx = 1
-
-    # Insert each element from lif_doc at the calculated position (preserving order)
     for i, element in enumerate(list(lif_doc.element.body)):
         body.insert(insert_idx + i, deepcopy(element))
 
@@ -6934,64 +7126,8 @@ def generate_bulk_admin_pack_zip(request):
             '{{disability_status_name}}': get_choice_display(lif.DISABILITY_CHOICES, lif.disability_status_code) or '',
             '{{socio_economic_status_code}}': lif.socio_economic_status_code or '',
             '{{socio_economic_status_name}}': get_choice_display(lif.SOCIO_ECONOMIC_CHOICES, lif.socio_economic_status_code) or '',
-            '{{national_id_checkbox}}': 'X' if (lif.alternative_id_type == '' or lif.alternative_id_type is None) else '',
-            '{{alt_id_saqa}}': 'X' if lif.alternative_id_type == '521' else '',
-            '{{alt_id_passport}}': 'X' if lif.alternative_id_type == '527' else '',
-            '{{alt_id_driver}}': 'X' if lif.alternative_id_type == '529' else '',
-            '{{alt_id_temp_id}}': 'X' if lif.alternative_id_type == '531' else '',
-            '{{alt_id_none}}': 'X' if lif.alternative_id_type == '533' else '',
-            '{{alt_id_unknown}}': 'X' if lif.alternative_id_type == '535' else '',
-            '{{alt_id_student}}': 'X' if lif.alternative_id_type == '537' else '',
-            '{{alt_id_work_permit}}': 'X' if lif.alternative_id_type == '538' else '',
-            '{{alt_id_employee}}': 'X' if lif.alternative_id_type == '539' else '',
-            '{{alt_id_birth_cert}}': 'X' if lif.alternative_id_type == '540' else '',
-            '{{alt_id_hsrc}}': 'X' if lif.alternative_id_type == '541' else '',
-            '{{alt_id_etqa}}': 'X' if lif.alternative_id_type == '561' else '',
-            '{{alt_id_refugee}}': 'X' if lif.alternative_id_type == '565' else '',
-            '{{home_language_afrikaans}}': 'X' if lif.home_language_code == 'Afr' else '',
-            '{{home_language_english}}': 'X' if lif.home_language_code == 'Eng' else '',
-            '{{home_language_ndebele}}': 'X' if lif.home_language_code == 'Nde' else '',
-            '{{home_language_sepedi}}': 'X' if lif.home_language_code == 'Sep' else '',
-            '{{home_language_sesotho}}': 'X' if lif.home_language_code == 'Ses' else '',
-            '{{home_language_setswana}}': 'X' if lif.home_language_code == 'Set' else '',
-            '{{home_language_siswati}}': 'X' if lif.home_language_code == 'Swa' else '',
-            '{{home_language_tshivenda}}': 'X' if lif.home_language_code == 'Tsh' else '',
-            '{{home_language_isixhosa}}': 'X' if lif.home_language_code == 'Xho' else '',
-            '{{home_language_xitsonga}}': 'X' if lif.home_language_code == 'Xit' else '',
-            '{{home_language_isizulu}}': 'X' if lif.home_language_code == 'Zul' else '',
-            '{{home_language_sasl}}': 'X' if lif.home_language_code == 'SASL' else '',
-            '{{home_language_other}}': 'X' if lif.home_language_code == 'Oth' else '',
-            '{{home_language_unknown}}': 'X' if lif.home_language_code == 'U' else '',
-            '{{secondary_grade_8}}': 'X' if lif.highest_secondary_education == 'Grade 8' else '',
-            '{{secondary_grade_9}}': 'X' if lif.highest_secondary_education == 'Grade 9' else '',
-            '{{secondary_grade_10}}': 'X' if lif.highest_secondary_education == 'Grade 10' else '',
-            '{{secondary_grade_11}}': 'X' if lif.highest_secondary_education == 'Grade 11' else '',
-            '{{secondary_grade_12}}': 'X' if lif.highest_secondary_education == 'Grade 12' else '',
-            '{{nationality_sa}}': 'X' if lif.nationality_code == 'SA' else '',
-            '{{nationality_sdc}}': 'X' if lif.nationality_code == 'SDC' else '',
-            '{{nationality_ang}}': 'X' if lif.nationality_code == 'ANG' else '',
-            '{{nationality_bot}}': 'X' if lif.nationality_code == 'BOT' else '',
-            '{{nationality_les}}': 'X' if lif.nationality_code == 'LES' else '',
-            '{{nationality_mal}}': 'X' if lif.nationality_code == 'MAL' else '',
-            '{{nationality_mau}}': 'X' if lif.nationality_code == 'MAU' else '',
-            '{{nationality_moz}}': 'X' if lif.nationality_code == 'MOZ' else '',
-            '{{nationality_nam}}': 'X' if lif.nationality_code == 'NAM' else '',
-            '{{nationality_sey}}': 'X' if lif.nationality_code == 'SEY' else '',
-            '{{nationality_swa}}': 'X' if lif.nationality_code == 'SWA' else '',
-            '{{nationality_tan}}': 'X' if lif.nationality_code == 'TAN' else '',
-            '{{nationality_zai}}': 'X' if lif.nationality_code == 'ZAI' else '',
-            '{{nationality_zam}}': 'X' if lif.nationality_code == 'ZAM' else '',
-            '{{nationality_zim}}': 'X' if lif.nationality_code == 'ZIM' else '',
-            '{{nationality_ais}}': 'X' if lif.nationality_code == 'AIS' else '',
-            '{{nationality_aus}}': 'X' if lif.nationality_code == 'AUS' else '',
-            '{{nationality_eur}}': 'X' if lif.nationality_code == 'EUR' else '',
-            '{{nationality_nor}}': 'X' if lif.nationality_code == 'NOR' else '',
-            '{{nationality_sou}}': 'X' if lif.nationality_code == 'SOU' else '',
-            '{{nationality_roa}}': 'X' if lif.nationality_code == 'ROA' else '',
-            '{{nationality_ooc}}': 'X' if lif.nationality_code == 'OOC' else '',
-            '{{nationality_u}}': 'X' if lif.nationality_code == 'U' else '',
-            '{{nationality_not}}': 'X' if lif.nationality_code == 'NOT' else '',
         }
+        # Split fields
         if lif.learner_birth_date:
             birth_str = lif.learner_birth_date.strftime('%Y%m%d')
             for i in range(8):
@@ -7019,6 +7155,130 @@ def generate_bulk_admin_pack_zip(request):
         else:
             for i in range(8):
                 context[f'{{{{termination_date_{i}}}}}'] = ''
+        # Table-based "checkbox" fields (X for selected)
+        context.update({
+            '{{gender_male}}': 'X' if lif.gender_code == 'M' else '',
+            '{{gender_female}}': 'X' if lif.gender_code == 'F' else '',
+            '{{below_35_yes}}': 'X' if lif.learner_birth_date and (date.today().year - lif.learner_birth_date.year < 35) else '',
+            '{{below_35_no}}': 'X' if lif.learner_birth_date and (date.today().year - lif.learner_birth_date.year >= 35) else '',
+            '{{equity_african}}': 'X' if lif.equity_code == 'BA' else '',
+            '{{equity_coloured}}': 'X' if lif.equity_code == 'BC' else '',
+            '{{equity_indian}}': 'X' if lif.equity_code == 'BI' else '',
+            '{{equity_white}}': 'X' if lif.equity_code == 'Wh' else '',
+            '{{disability_sight}}': 'X' if lif.disability_status_code == '01' else '',
+            '{{disability_hearing}}': 'X' if lif.disability_status_code == '02' else '',
+            '{{disability_communication}}': 'X' if lif.disability_status_code == '03' else '',
+            '{{disability_physical}}': 'X' if lif.disability_status_code == '04' else '',
+            '{{disability_intellectual}}': 'X' if lif.disability_status_code == '05' else '',
+            '{{disability_emotional}}': 'X' if lif.disability_status_code == '06' else '',
+            '{{disability_multiple}}': 'X' if lif.disability_status_code == '07' else '',
+            '{{disability_unspecified}}': 'X' if lif.disability_status_code == '09' else '',
+            '{{disability_none}}': 'X' if lif.disability_status_code == 'N' else '',
+            '{{citizen_sa}}': 'X' if lif.citizen_resident_status_code == 'SA' else '',
+            '{{citizen_dual}}': 'X' if lif.citizen_resident_status_code == 'D' else '',
+            '{{citizen_other}}': 'X' if lif.citizen_resident_status_code == 'O' else '',
+            '{{citizen_permanent}}': 'X' if lif.citizen_resident_status_code == 'PR' else '',
+            '{{citizen_unknown}}': 'X' if lif.citizen_resident_status_code == 'U' else '',
+            '{{socio_employed}}': 'X' if lif.socio_economic_status_code == '01' else '',
+            '{{socio_unemployed_seeking}}': 'X' if lif.socio_economic_status_code == '02' else '',
+            '{{socio_not_working_not_looking}}': 'X' if lif.socio_economic_status_code == '03' else '',
+            '{{socio_homemaker}}': 'X' if lif.socio_economic_status_code == '04' else '',
+            '{{socio_student}}': 'X' if lif.socio_economic_status_code == '06' else '',
+            '{{socio_pensioner}}': 'X' if lif.socio_economic_status_code == '07' else '',
+            '{{socio_disabled}}': 'X' if lif.socio_economic_status_code == '08' else '',
+            '{{socio_no_wish_to_work}}': 'X' if lif.socio_economic_status_code == '09' else '',
+            '{{socio_not_working_nec}}': 'X' if lif.socio_economic_status_code == '10' else '',
+            '{{socio_aged_under_15}}': 'X' if lif.socio_economic_status_code == '97' else '',
+            '{{socio_institution}}': 'X' if lif.socio_economic_status_code == '98' else '',
+            '{{socio_unspecified}}': 'X' if lif.socio_economic_status_code == 'U' else '',
+            '{{tertiary_national_certificate}}': 'X' if lif.highest_tertiary_education == 'National Certificate' else '',
+            '{{tertiary_national_diploma}}': 'X' if lif.highest_tertiary_education == 'National Diploma' else '',
+            '{{tertiary_first_degree}}': 'X' if lif.highest_tertiary_education == 'National First Degree' else '',
+            '{{tertiary_post_doctoral}}': 'X' if lif.highest_tertiary_education == 'Post-doctoral Degree' else '',
+            '{{tertiary_doctoral}}': 'X' if lif.highest_tertiary_education == 'Doctoral Degree' else '',
+            '{{tertiary_professional}}': 'X' if lif.highest_tertiary_education == 'Professional Qualification' else '',
+            '{{tertiary_honours}}': 'X' if lif.highest_tertiary_education == 'Honours Degree' else '',
+            '{{tertiary_higher_diploma}}': 'X' if lif.highest_tertiary_education == 'National Higher Diploma' else '',
+            '{{tertiary_masters_diploma}}': 'X' if lif.highest_tertiary_education == 'National Masters Diploma' else '',
+            '{{tertiary_national_higher}}': 'X' if lif.highest_tertiary_education == 'National Higher' else '',
+            '{{tertiary_further_diploma}}': 'X' if lif.highest_tertiary_education == 'Further Diploma' else '',
+            '{{tertiary_post_graduate}}': 'X' if lif.highest_tertiary_education == 'Post Graduate' else '',
+            '{{tertiary_senior_certificate}}': 'X' if lif.highest_tertiary_education == 'Senior Certificate' else '',
+            '{{tertiary_qual_nat_sen_cert}}': 'X' if lif.highest_tertiary_education == 'Qual at Nat Sen Cert' else '',
+            '{{tertiary_apprenticeship}}': 'X' if lif.highest_tertiary_education == 'Apprenticeship' else '',
+            '{{tertiary_post_grad_b_degree}}': 'X' if lif.highest_tertiary_education == 'Post Grad B Degree' else '',
+            '{{tertiary_post_diploma_diploma}}': 'X' if lif.highest_tertiary_education == 'Post Diploma Diploma' else '',
+            '{{tertiary_post_basic_diploma}}': 'X' if lif.highest_tertiary_education == 'Post-basic Diploma' else '',
+            '{{province_western_cape}}': 'X' if lif.province_code == '1' else '',
+            '{{province_eastern_cape}}': 'X' if lif.province_code == '2' else '',
+            '{{province_northern_cape}}': 'X' if lif.province_code == '3' else '',
+            '{{province_free_state}}': 'X' if lif.province_code == '4' else '',
+            '{{province_kwazulu_natal}}': 'X' if lif.province_code == '5' else '',
+            '{{province_north_west}}': 'X' if lif.province_code == '6' else '',
+            '{{province_gauteng_jhb}}': 'X' if lif.province_code == '7' else '',
+            '{{province_gauteng_pta}}': 'X' if lif.province_code == '7b' else '',
+            '{{province_mpumalanga}}': 'X' if lif.province_code == '8' else '',
+            '{{province_limpopo}}': 'X' if lif.province_code == '9' else '',
+            '{{province_outside_sa}}': 'X' if lif.province_code == 'X' else '',
+            '{{province_national}}': 'X' if lif.province_code == 'N' else '',
+            '{{national_id_checkbox}}': 'X' if (lif.alternative_id_type == '' or lif.alternative_id_type is None) else '',
+            '{{alt_id_saqa}}':      'X' if lif.alternative_id_type == '521' else '',
+            '{{alt_id_passport}}':  'X' if lif.alternative_id_type == '527' else '',
+            '{{alt_id_driver}}':    'X' if lif.alternative_id_type == '529' else '',
+            '{{alt_id_temp_id}}':   'X' if lif.alternative_id_type == '531' else '',
+            '{{alt_id_none}}':      'X' if lif.alternative_id_type == '533' else '',
+            '{{alt_id_unknown}}':   'X' if lif.alternative_id_type == '535' else '',
+            '{{alt_id_student}}':   'X' if lif.alternative_id_type == '537' else '',
+            '{{alt_id_work_permit}}':'X' if lif.alternative_id_type == '538' else '',
+            '{{alt_id_employee}}':  'X' if lif.alternative_id_type == '539' else '',
+            '{{alt_id_birth_cert}}':'X' if lif.alternative_id_type == '540' else '',
+            '{{alt_id_hsrc}}':      'X' if lif.alternative_id_type == '541' else '',
+            '{{alt_id_etqa}}':      'X' if lif.alternative_id_type == '561' else '',
+            '{{alt_id_refugee}}':   'X' if lif.alternative_id_type == '565' else '',
+            '{{home_language_afrikaans}}': 'X' if lif.home_language_code == 'Afr' else '',
+            '{{home_language_english}}': 'X' if lif.home_language_code == 'Eng' else '',
+            '{{home_language_ndebele}}': 'X' if lif.home_language_code == 'Nde' else '',
+            '{{home_language_sepedi}}': 'X' if lif.home_language_code == 'Sep' else '',
+            '{{home_language_sesotho}}': 'X' if lif.home_language_code == 'Ses' else '',
+            '{{home_language_setswana}}': 'X' if lif.home_language_code == 'Set' else '',
+            '{{home_language_siswati}}': 'X' if lif.home_language_code == 'Swa' else '',
+            '{{home_language_tshivenda}}': 'X' if lif.home_language_code == 'Tsh' else '',
+            '{{home_language_isixhosa}}': 'X' if lif.home_language_code == 'Xho' else '',
+            '{{home_language_xitsonga}}': 'X' if lif.home_language_code == 'Xit' else '',
+            '{{home_language_isizulu}}': 'X' if lif.home_language_code == 'Zul' else '',
+            '{{home_language_sasl}}': 'X' if lif.home_language_code == 'SASL' else '',
+            '{{home_language_other}}': 'X' if lif.home_language_code == 'Oth' else '',
+            '{{home_language_unknown}}': 'X' if lif.home_language_code == 'U' else '',
+            '{{secondary_grade_8}}':  'X' if lif.highest_secondary_education == 'Grade 8' else '',
+            '{{secondary_grade_9}}':  'X' if lif.highest_secondary_education == 'Grade 9' else '',
+            '{{secondary_grade_10}}': 'X' if lif.highest_secondary_education == 'Grade 10' else '',
+            '{{secondary_grade_11}}': 'X' if lif.highest_secondary_education == 'Grade 11' else '',
+            '{{secondary_grade_12}}': 'X' if lif.highest_secondary_education == 'Grade 12' else '',
+            '{{nationality_sa}}':   'X' if lif.nationality_code == 'SA' else '',
+            '{{nationality_sdc}}':  'X' if lif.nationality_code == 'SDC' else '',
+            '{{nationality_ang}}':  'X' if lif.nationality_code == 'ANG' else '',
+            '{{nationality_bot}}':  'X' if lif.nationality_code == 'BOT' else '',
+            '{{nationality_les}}':  'X' if lif.nationality_code == 'LES' else '',
+            '{{nationality_mal}}':  'X' if lif.nationality_code == 'MAL' else '',
+            '{{nationality_mau}}':  'X' if lif.nationality_code == 'MAU' else '',
+            '{{nationality_moz}}':  'X' if lif.nationality_code == 'MOZ' else '',
+            '{{nationality_nam}}':  'X' if lif.nationality_code == 'NAM' else '',
+            '{{nationality_sey}}':  'X' if lif.nationality_code == 'SEY' else '',
+            '{{nationality_swa}}':  'X' if lif.nationality_code == 'SWA' else '',
+            '{{nationality_tan}}':  'X' if lif.nationality_code == 'TAN' else '',
+            '{{nationality_zai}}':  'X' if lif.nationality_code == 'ZAI' else '',
+            '{{nationality_zam}}':  'X' if lif.nationality_code == 'ZAM' else '',
+            '{{nationality_zim}}':  'X' if lif.nationality_code == 'ZIM' else '',
+            '{{nationality_ais}}':  'X' if lif.nationality_code == 'AIS' else '',
+            '{{nationality_aus}}':  'X' if lif.nationality_code == 'AUS' else '',
+            '{{nationality_eur}}':  'X' if lif.nationality_code == 'EUR' else '',
+            '{{nationality_nor}}':  'X' if lif.nationality_code == 'NOR' else '',
+            '{{nationality_sou}}':  'X' if lif.nationality_code == 'SOU' else '',
+            '{{nationality_roa}}':  'X' if lif.nationality_code == 'ROA' else '',
+            '{{nationality_ooc}}':  'X' if lif.nationality_code == 'OOC' else '',
+            '{{nationality_u}}':    'X' if lif.nationality_code == 'U' else '',
+            '{{nationality_not}}':  'X' if lif.nationality_code == 'NOT' else '',
+        })
         for mapping in mappings:
             if mapping.placeholder in table_placeholders:
                 continue
@@ -7140,3 +7400,198 @@ def generate_bulk_admin_pack_zip(request):
     else:
         logger.error("No documents were generated for the ZIP file")
         return HttpResponse("No valid documents generated", status=400)
+
+from django.views.generic.edit import DeleteView
+from django.urls import reverse_lazy
+from .models import LIF
+
+class LIFDeleteView(DeleteView):
+    model = LIF
+    template_name = 'core/lif_confirm_delete.html'
+    success_url = reverse_lazy('generate_lif_word')  # or your LIF list view name
+
+from django.views.generic.edit import UpdateView
+from django.urls import reverse_lazy
+from .models import LIF
+from .forms import LIFForm  # You may need to create this ModelForm if not present
+from django.utils.safestring import mark_safe
+
+class LIFUpdateView(UpdateView):
+    model = LIF
+    form_class = LIFForm
+    template_name = 'core/lif_update.html'  # You need to create this template
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # If not editing, make the form read-only
+        context['is_edit'] = self.request.GET.get('edit') == '1'
+        return context
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        return form
+
+    def get_success_url(self):
+        # Redirect back to the LIF list or detail page after saving
+        return reverse_lazy('generate_lif_word')
+
+
+
+class VenueBookingSwitchView(RolePermissionRequiredMixin, View):
+    """
+    AJAX view to handle venue switching for existing bookings
+    """
+    
+    def post(self, request):
+        try:
+            import json
+            data = json.loads(request.body)
+            booking_id = data.get('booking_id')
+            new_venue_id = data.get('new_venue_id')
+            
+            if not booking_id or not new_venue_id:
+                return JsonResponse({'success': False, 'message': 'Missing booking ID or venue ID'})
+            
+            booking = get_object_or_404(VenueBooking, pk=booking_id)
+            
+            # Handle virtual session group
+            if new_venue_id == "virtual-session-group":
+                # Find an available virtual session venue
+                virtual_venues = Venue.objects.filter(name__istartswith="Virtual Session").order_by('name')
+                new_venue = None
+                
+                for venue in virtual_venues:
+                    # Check if this venue is available at the same time
+                    conflict = VenueBooking.objects.filter(
+                        venue=venue,
+                        start_datetime=booking.start_datetime,
+                        end_datetime=booking.end_datetime,
+                        status__in=['booked', 'rescheduled']
+                    ).exclude(pk=booking.id).exists()
+                    
+                    if not conflict:
+                        new_venue = venue
+                        break
+                
+                if not new_venue:
+                    # Create a new virtual session venue
+                    existing_names = [v.name for v in virtual_venues]
+                    idx = 1
+                    while f"Virtual Session {idx}" in existing_names:
+                        idx += 1
+                    new_venue = Venue.objects.create(name=f"Virtual Session {idx}")
+            else:
+                new_venue = get_object_or_404(Venue, pk=new_venue_id)
+                
+                # Check for conflicts
+                conflict = VenueBooking.objects.filter(
+                    venue=new_venue,
+                    start_datetime=booking.start_datetime,
+                    end_datetime=booking.end_datetime,
+                    status__in=['booked', 'rescheduled']
+                ).exclude(pk=booking.id).exists()
+                
+                if conflict:
+                    return JsonResponse({
+                        'success': False, 
+                        'message': f'Venue {new_venue.name} is not available at this time'
+                    })
+            
+            # Store old venue for notification
+            old_venue = booking.venue
+            
+            # Update the booking
+            booking.venue = new_venue
+            booking.status = 'rescheduled'
+            booking.save()
+            
+            # If this is a combined booking, update all related bookings
+            if hasattr(booking, 'combined_booking_id') and booking.combined_booking_id:
+                VenueBooking.objects.filter(
+                    combined_booking_id=booking.combined_booking_id
+                ).exclude(pk=booking.id).update(
+                    venue=new_venue,
+                    status='rescheduled'
+                )
+            
+            # Send notification email
+            try:
+                recipient_email = "brendonmandlandlovu@gmail.com"
+                if booking.user and booking.user.email:
+                    recipient_email = booking.user.email
+                
+                subject = f"Venue Changed - {booking.session_date if booking.session_date else 'Booking'}"
+                
+                message = f"""
+Dear {booking.user.get_full_name() if booking.user else 'User'},
+
+Your venue booking has been switched to a new venue.
+
+Booking Details:
+- Session: {booking.session_date if booking.session_date else 'N/A'}
+- Date: {booking.start_datetime.strftime('%B %d, %Y')}
+- Time: {booking.start_datetime.strftime('%I:%M %p')} - {booking.end_datetime.strftime('%I:%M %p')}
+- Purpose: {booking.booking_purpose}
+
+Venue Change:
+- Previous Venue: {old_venue.name}
+- New Venue: {new_venue.name}
+
+Changed by: {request.user.get_full_name() if request.user.get_full_name() else request.user.username}
+Changed on: {timezone.now().strftime('%B %d, %Y at %I:%M %p')}
+
+Please make note of the new venue location.
+
+Best regards,
+The Learning Organisation
+                """
+                
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email="noreply@ensemble.com",
+                    recipient_list=[recipient_email],
+                    fail_silently=True,
+                )
+            except Exception as e:
+                pass  # Email sending is not critical
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Venue switched from {old_venue.name} to {new_venue.name}'
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': f'Error switching venue: {str(e)}'})
+
+
+
+@login_required
+def all_sessions_api(request):
+    """API endpoint to get all sessions for search functionality."""
+    from django.http import JsonResponse
+    
+    sessions = SessionDate.objects.select_related('project_plan__group', 'project_plan__module').all()
+    
+    sessions_data = []
+    for session in sessions:
+        group_name = ""
+        module_name = ""
+        if session.project_plan:
+            if session.project_plan.group:
+                group_name = str(session.project_plan.group)
+            if session.project_plan.module:
+                module_name = str(session.project_plan.module)
+        
+        session_text = f"{group_name} - {module_name} ({session.start_date} to {session.end_date})"
+        
+        sessions_data.append({
+            'id': session.id,
+            'text': session_text,
+            'start_date': session.start_date.strftime('%Y-%m-%d'),
+            'end_date': session.end_date.strftime('%Y-%m-%d'),
+            'group': group_name,
+            'module': module_name
+        })
+    
+    return JsonResponse({'sessions': sessions_data})

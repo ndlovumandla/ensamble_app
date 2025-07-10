@@ -2,6 +2,7 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path, include
+from .views import LIFUpdateView, LIFDeleteView
 
 from .views import (
     LIFUpdateView,
@@ -74,6 +75,7 @@ from .views import (
     FacilitatorAutocomplete,
     TemplateView,
     AddLearnerView,
+    all_sessions_api,
     DeleteLearnerView,
     GroupCreateView, 
     get_learner_qualifications,
@@ -169,7 +171,7 @@ urlpatterns = [
     path('projectplans/<int:pk>/edit/', ProjectPlanUpdateView.as_view(), name='projectplan_edit'),
     path('projectplans/<int:pk>/delete/', ProjectPlanDeleteView.as_view(), name='projectplan_delete'),
     path('projectplans/<int:pk>/', ProjectPlanDetailView.as_view(), name='projectplan_detail'),
-
+    path('api/all-sessions/', all_sessions_api, name='all_sessions_api'),
     path('sessiondates/', SessionDateListView.as_view(), name='sessiondate_list'),
     path('sessiondates/add/', SessionDateCreateView.as_view(), name='sessiondate_add'),
     path('sessiondates/<int:pk>/edit/', SessionDateUpdateView.as_view(), name='sessiondate_edit'),
@@ -299,9 +301,10 @@ urlpatterns += [
     path('lif_templates/generate/', generate_lif_word, name='generate_lif_word'),
 ]
 
-from .views import venuebooking_switch
+from .views import VenueBookingSwitchView
+
 urlpatterns += [
-    path('api/venuebooking-switch/', venuebooking_switch, name='venuebooking_switch'),
+    path('venuebooking/switch/', VenueBookingSwitchView.as_view(), name='venuebooking_switch'),
 ]
 
 from .views import external_project_list
@@ -310,11 +313,12 @@ urlpatterns += [
     path('external-projects/', external_project_list, name='external_project_list'),
 ]
 
-from .views import VenueBookingModalFormView
+from .views import VenueBookingModalFormView, CancelVenueBookingView
 
 urlpatterns += [
  
     path('venuebooking/modal-form/', VenueBookingModalFormView.as_view(), name='venuebooking_modal_form'),
+    path('cancel-venue-booking/', CancelVenueBookingView.as_view(), name='cancel_venue_booking'),
 ]
 
 from .views import generate_bulk_lif_zip
@@ -353,5 +357,7 @@ from . import views
 urlpatterns += [
     # ...existing urls...
     path('groups/generate-admin-pack/', views.generate_bulk_admin_pack_zip, name='generate_bulk_admin_pack_zip'),
+    path('lif/<int:pk>/', LIFUpdateView.as_view(), name='lif_update'),  # Read/Edit
+    path('lif/<int:pk>/delete/', LIFDeleteView.as_view(), name='lif_delete'),  # Delete
 ]
 

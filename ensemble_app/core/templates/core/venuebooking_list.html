@@ -22,10 +22,17 @@
         .venue-list-date { font-size: 1.5em; font-weight: 700; color: #228B22; text-align: center; margin-bottom: 18px; letter-spacing: 0.06em; background: #eaf6ff; border-radius: 10px; padding: 10px 30px; display: inline-block; box-shadow: 0 2px 12px #b3e5fc; }
         .live-clock { font-size: 1.2em; font-weight: 700; color: #228B22; text-align: center; margin-bottom: 1em; letter-spacing: 0.06em; background: #fff; border-radius: 12px; padding: 8px 24px; box-shadow: 0 2px 12px #b3e5fc; display: inline-block; }
         .venue-date-filter { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; margin-bottom: 18px; }
-        .venue-date-filter label, .venue-date-filter input, .venue-date-filter button, .venue-date-filter a { font-size: 1.1em !important; font-weight: 600; letter-spacing: 0.04em; }
+        .venue-date-filter label, .venue-date-filter input, .venue-date-filter button, .venue-date-filter a, .venue-date-filter select { font-size: 1.1em !important; font-weight: 600; letter-spacing: 0.04em; }
+        .venue-date-filter select { padding: 8px 12px; border-radius: 6px; border: 2px solid #34C759; background: #fff; }
+        .venue-date-filter .btn { padding: 8px 16px; border-radius: 6px; text-decoration: none; border: none; cursor: pointer; }
+        .venue-date-filter .btn-primary { background: #020381; color: white; }
+        .venue-date-filter .btn-secondary { background: #6c757d; color: white; }
+        .venue-date-filter .btn-success { background: #34C759; color: white; }
+        .venue-date-filter .btn-info { background: #17a2b8; color: white; }
+        .venue-date-filter .btn-warning { background: #ffc107; color: #333; }
         .venue-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; justify-content: center; align-items: stretch; }
         .venue-card { background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(2,3,129,0.10); overflow: hidden; display: flex; flex-direction: column; border: 4px solid #eaf6ff; min-width: 0; min-height: 210px; transition: box-shadow 0.2s, border 0.2s; }
-        .venue-card-header { padding: 16px 18px 8px 18px; background: linear-gradient(90deg, var(--venue-color, #3A7AFE) 80%, #fff 100%); color: #fff; font-size: 1.3em; font-weight: 800; letter-spacing: 0.04em; border-bottom: 2px solid #fff4; display: flex; align-items: center; gap: 12px; }
+        .venue-card-header { padding: 16px 18px 8px 18px; color: #fff; font-size: 1.3em; font-weight: 800; letter-spacing: 0.04em; border-bottom: 2px solid #fff4; display: flex; align-items: center; gap: 12px; }
         .venue-card-header .fa { font-size: 1.1em; opacity: 0.85; }
         .venue-card-body { padding: 10px 18px 14px 18px; display: flex; flex-direction: column; gap: 7px; font-size: 1.08em; }
         .venue-card-row { display: flex; align-items: center; gap: 8px; }
@@ -42,8 +49,10 @@
         .unbooked-venues-list ul { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 18px; }
         .unbooked-venues-list li { background: #eaf6ff; color: #020381; font-weight: 700; border-radius: 8px; padding: 10px 22px; font-size: 1.15em; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 8px #b3e5fc; }
         .unbooked-venues-list .fa { color: #34C759; }
+        .status-filter-info { background: #fff; border-radius: 10px; padding: 12px 20px; margin-bottom: 15px; text-align: center; box-shadow: 0 2px 8px #b3e5fc; }
+        .status-filter-info .current-filter { font-weight: 700; color: #020381; font-size: 1.1em; }
         @media (max-width: 1200px) { .venue-list-title { font-size: 1.5em; } .venue-cards { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); } }
-        @media (max-width: 700px) { .venue-list-title { font-size: 1.1em; } .venue-list-date, .live-clock { font-size: 1em; padding: 6px 12px; } .venue-cards { grid-template-columns: 1fr; } }
+        @media (max-width: 700px) { .venue-list-title { font-size: 1.1em; } .venue-list-date, .live-clock { font-size: 1em; padding: 6px 12px; } .venue-cards { grid-template-columns: 1fr; } .venue-date-filter { flex-direction: column; gap: 8px; } }
     </style>
     <script>
         // Live clock
@@ -93,14 +102,47 @@
     <div class="live-clock">
         <i class="fa fa-clock"></i> <span id="liveClock"></span>
     </div>
+    
+    <!-- Enhanced filter form with status filtering -->
     <form method="get" class="venue-date-filter">
         <label for="date">Show for date:</label>
         <input type="date" id="date" name="date" value="{{ request.GET.date|default:today|date:'Y-m-d' }}">
-        <button type="submit" class="btn btn-primary">Go</button>
-        <a href="?date={{ today|date:'Y-m-d' }}" class="btn btn-secondary">Today</a>
-        <a href="?date={{ tomorrow|date:'Y-m-d' }}" class="btn btn-success">Tomorrow</a>
+        
+        <label for="status">Status:</label>
+        <select id="status" name="status">
+            <option value="">All Active (Default)</option>
+            <option value="booked" {% if status_filter == "booked" %}selected{% endif %}>Booked Only</option>
+            <option value="rescheduled" {% if status_filter == "rescheduled" %}selected{% endif %}>Rescheduled Only</option>
+            <option value="cancelled" {% if status_filter == "cancelled" %}selected{% endif %}>Cancelled Only</option>
+        </select>
+        
+        <button type="submit" class="btn btn-primary">Apply Filters</button>
+        <a href="?date={{ request.GET.date|default:today|date:'Y-m-d' }}" class="btn btn-secondary">Reset Status</a>
+        <a href="?date={{ today|date:'Y-m-d' }}" class="btn btn-success">Today</a>
+        <a href="?date={{ tomorrow|date:'Y-m-d' }}" class="btn btn-info">Tomorrow</a>
         <a href="?date={{ next7|date:'Y-m-d' }}" class="btn btn-info">Next 7 Days</a>
+        <a href="?date={{ request.GET.date|default:today|date:'Y-m-d' }}&status=cancelled" class="btn btn-warning">Show Cancelled</a>
     </form>
+    
+    <!-- Status filter info -->
+    {% if status_filter %}
+    <div class="status-filter-info">
+        <span class="current-filter">
+            <i class="fa fa-filter"></i> 
+            Currently showing: 
+            {% if status_filter == "cancelled" %}
+                <span style="color: #d32f2f;">Cancelled Bookings</span>
+            {% elif status_filter == "rescheduled" %}
+                <span style="color: #FFA500;">Rescheduled Bookings</span>
+            {% elif status_filter == "booked" %}
+                <span style="color: #34C759;">Booked Sessions</span>
+            {% else %}
+                {{ status_filter|title }} Bookings
+            {% endif %}
+        </span>
+    </div>
+    {% endif %}
+    
     <div class="venue-list-date">
         {% if selected_date %}
             {{ selected_date|date:"l, d F Y" }}
@@ -109,7 +151,8 @@
         {% endif %}
     </div>
 
-    <!-- ----------- UNBOOKED VENUES (PHYSICAL ONLY) ----------- -->
+    <!-- Show unbooked venues only when not filtering for cancelled bookings -->
+    {% if not status_filter or status_filter != "cancelled" %}
     <div class="unbooked-venues-list">
         <h3><i class="fa fa-door-open"></i> Venues available to book:</h3>
         <ul>
@@ -122,16 +165,16 @@
         {% endif %}
         </ul>
     </div>
+    {% endif %}
 
-    <!-- ----------- BOOKINGS: GROUPED (MULTI & SINGLE) ----------- -->
+    <!-- BOOKINGS: GROUPED (MULTI & SINGLE) -->
     <div class="venue-cards">
         <!-- PHYSICAL VENUE BOOKINGS FIRST -->
         {% for group in grouped_bookings %}
             {% with booking=group.0 %}
                 {% if "virtual session" not in booking.venue.name|lower %}
-                    {% with venue_color=venue_color_map|get:booking.venue.name %}
-                    <div class="venue-card" style="--venue-color: {{ venue_color }}; border-color: {{ venue_color }};">
-                        <div class="venue-card-header" style="background: linear-gradient(90deg, {{ venue_color }} 80%, #fff 100%);">
+                    <div class="venue-card venue-card-physical" data-venue-color="{% with venue_color=venue_color_map|get:booking.venue.name %}{{ venue_color }}{% endwith %}">
+                        <div class="venue-card-header venue-card-header-physical" data-venue-color="{% with venue_color=venue_color_map|get:booking.venue.name %}{{ venue_color }}{% endwith %}">
                             <i class="fa fa-building"></i>
                             {{ booking.venue.name }}
                             {% if group|length > 1 %}
@@ -230,7 +273,6 @@
                             <i class="fa fa-info-circle"></i>
                         </div>
                     </div>
-                    {% endwith %}
                 {% endif %}
             {% endwith %}
         {% endfor %}
@@ -240,9 +282,8 @@
         {% for group in grouped_bookings %}
             {% with booking=group.0 %}
                 {% if "virtual session" in booking.venue.name|lower %}
-                    {% with venue_color=venue_color_map|get:booking.venue.name %}
-                    <div class="venue-card" style="--venue-color: {{ venue_color }}; border-color: {{ venue_color }};">
-                        <div class="venue-card-header" style="background: linear-gradient(90deg, {{ venue_color }} 80%, #fff 100%);">
+                    <div class="venue-card venue-card-virtual" data-venue-color="{% with venue_color=venue_color_map|get:booking.venue.name %}{{ venue_color }}{% endwith %}">
+                        <div class="venue-card-header venue-card-header-virtual" data-venue-color="{% with venue_color=venue_color_map|get:booking.venue.name %}{{ venue_color }}{% endwith %}">
                             <i class="fa fa-building"></i>
                             {{ booking.venue.name }}
                             {% if group|length > 1 %}
@@ -334,7 +375,6 @@
                             <i class="fa fa-info-circle"></i>
                         </div>
                     </div>
-                    {% endwith %}
                     {% with virtual_count=virtual_count|add:"1" %}{% endwith %}
                 {% endif %}
             {% endwith %}
@@ -345,12 +385,39 @@
             </div>
         {% endif %}
         {% endwith %}
+        
         {% if grouped_bookings|length == 0 %}
             <div class="no-bookings">
-                <i class="fa fa-info-circle"></i> No bookings found for this date.
+                <i class="fa fa-info-circle"></i> 
+                {% if status_filter == "cancelled" %}
+                    No cancelled bookings found for this date.
+                {% elif status_filter %}
+                    No {{ status_filter }} bookings found for this date.
+                {% else %}
+                    No bookings found for this date.
+                {% endif %}
             </div>
         {% endif %}
     </div>
 </div>
+
+<script>
+// Apply venue colors using JavaScript after page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Apply colors to venue cards
+    document.querySelectorAll('.venue-card').forEach(function(card) {
+        var venueColor = card.getAttribute('data-venue-color');
+        if (venueColor) {
+            card.style.borderColor = venueColor;
+            
+            var header = card.querySelector('.venue-card-header');
+            if (header) {
+                header.style.background = 'linear-gradient(90deg, ' + venueColor + ' 80%, #fff 100%)';
+            }
+        }
+    });
+});
+</script>
+
 </body>
 </html>

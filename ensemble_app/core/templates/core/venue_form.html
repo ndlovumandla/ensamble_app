@@ -36,4 +36,50 @@
     </form>
     <a href="{% url 'venue_list' %}" class="btn btn-secondary w-100 mt-2">Back to Venues</a>
 
+<!-- Enhanced Filtering UI -->
+<div class="container glass shadow p-20 mt-4" style="max-width: 700px;">
+    <h4 class="ensemble-glow mb-3"><i class="fa fa-filter"></i> Find Session Date</h4>
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-12 col-md-6">
+            <label for="session_date_filter" class="form-label">Session Date</label>
+            <input type="date" id="session_date_filter" name="session_date_filter" class="form-control styled-input" value="{{ request.GET.session_date_filter|default:'' }}">
+        </div>
+        <div class="col-12 col-md-6">
+            <label for="project_plan_filter" class="form-label">Group/Module/Project Code</label>
+            <input type="text" id="project_plan_filter" name="project_plan_filter" class="form-control styled-input" placeholder="Search by group, module, or project code..." value="{{ request.GET.project_plan_filter|default:'' }}">
+        </div>
+        <div class="col-12 col-md-6">
+            <label for="venue" class="form-label">Venue</label>
+            <input type="text" id="venue" name="venue" class="form-control styled-input" placeholder="Type venue name..." value="{{ request.GET.venue|default:'' }}">
+        </div>
+        <div class="col-12 col-md-6">
+            <button type="submit" class="btn btn-primary btn-glow w-100">
+                <i class="fa fa-search"></i> Search Sessions
+            </button>
+        </div>
+    </form>
+    {% if session_dates %}
+        <div class="mt-4">
+            <h5 class="text-primary">Matching Sessions:</h5>
+            <ul class="list-group">
+                {% for sd in session_dates %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            <strong>{{ sd.project_plan.group.name }} - {{ sd.project_plan.module.name }}</strong><br>
+                            <small class="text-muted">{{ sd.start_date }} to {{ sd.end_date }}</small>
+                        </span>
+                        <a href="?session={{ sd.id }}&project={{ sd.project_plan.id }}&date={{ sd.start_date }}" class="btn btn-sm btn-success">
+                            <i class="fa fa-plus"></i> Select Session
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% elif request.GET.session_date_filter or request.GET.project_plan_filter or request.GET.venue %}
+        <div class="alert alert-warning mt-3">
+            No matching session dates found.
+        </div>
+    {% endif %}
+</div>
+
 {% endblock %}

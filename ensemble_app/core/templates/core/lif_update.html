@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<style>
+/* Style only the textboxes (inputs, selects, textareas) */
+.container.mt-4 input[type="text"],
+.container.mt-4 input[type="email"],
+.container.mt-4 input[type="number"],
+.container.mt-4 input[type="date"],
+.container.mt-4 select,
+.container.mt-4 textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid #3AB0FF;
+    border-radius: 8px;
+    font-size: 1.08em;
+    background: #fafdff;
+    color: #1A1A2E;
+    margin-bottom: 18px;
+    transition: border 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(58,176,255,0.04);
+}
+.container.mt-4 input:focus,
+.container.mt-4 select:focus,
+.container.mt-4 textarea:focus {
+    border-color: #34C759;
+    box-shadow: 0 0 8px #34C759;
+    outline: none;
+}
+.container.mt-4 input[disabled], 
+.container.mt-4 select[disabled], 
+.container.mt-4 textarea[disabled] {
+    background: #f0f4f8;
+    color: #888;
+    border-style: dashed;
+    cursor: not-allowed;
+}
+</style>
+<div class="container mt-4">
+  <h2>Learner Information Form</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-success">Save</button>
+    <a href="{% url 'generate_lif_word' %}" class="btn btn-secondary">Back</a>
+  </form>
+</div>
+{% endblock %}

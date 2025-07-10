@@ -7,11 +7,13 @@
     max-width: 900px;
     margin: 0 auto;
 }
+
 #venueBookingModalForm .row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px 24px;
 }
+
 #venueBookingModalForm .col-12,
 #venueBookingModalForm .col-md-6 {
     width: 100%;
@@ -20,12 +22,14 @@
     display: flex;
     flex-direction: column;
 }
+
 #venueBookingModalForm .form-label {
     font-weight: 700;
     color: #1a237e;
     margin-bottom: 4px;
     font-size: 1em;
 }
+
 #venueBookingModalForm .form-control,
 #venueBookingModalForm select {
     border-radius: 8px;
@@ -38,27 +42,32 @@
     width: 100%;
     min-height: 34px;
 }
+
 #venueBookingModalForm .form-control:focus,
 #venueBookingModalForm select:focus {
     border: 2px solid #020381;
     box-shadow: 0 0 8px #34C75955;
     background: #fff;
 }
+
 #venueBookingModalForm .form-text {
     color: #666;
     font-size: 0.93em;
     margin-top: 1px;
 }
+
 #venueBookingModalForm .text-danger {
     font-size: 0.93em;
     margin-top: 1px;
 }
+
 @media (max-width: 900px) {
     #venueBookingModalForm {
         max-width: 99vw;
         padding: 8px 2vw;
     }
 }
+
 @media (max-width: 700px) {
     #venueBookingModalForm .row {
         grid-template-columns: 1fr;
@@ -76,7 +85,7 @@
                 <div class="alert alert-info" style="margin-bottom:8px;">
                     <div>
                         {% for session in form.fields.session_dates.queryset %}
-                            <div class="form-check" style="margin-bottom:4px;">
+                            <div class="form-check session-item" style="margin-bottom:4px;" data-session-text="{{ session|lower }}" data-session-id="{{ session.id }}">
                                 <input class="form-check-input" type="checkbox" name="session_dates" id="session_{{ session.id }}" value="{{ session.id }}"
                                     {% if session.id|stringformat:"s" in selected_session_ids %}checked{% endif %}>
                                 <label class="form-check-label" for="session_{{ session.id }}">
@@ -88,6 +97,7 @@
                 </div>
             </div>
         {% endif %}
+        
         {% for field in form.visible_fields %}
             {% if not multi_booking_mode %}
                 <div class="col-12 col-md-6">
@@ -115,6 +125,7 @@
             {% endif %}
         {% endfor %}
     </div>
+    
     {% if form.non_field_errors %}
         <div class="alert alert-danger mt-3">
             {{ form.non_field_errors }}

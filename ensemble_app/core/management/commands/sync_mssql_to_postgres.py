@@ -13,8 +13,8 @@ class Command(BaseCommand):
         self.sync_modules()
         self.sync_learners()
         self.sync_groups()
-        self.sync_projectplans()      # <-- move this up
-        self.sync_sessiondates()      # <-- after projectplans
+        self.sync_projectplans()
+        self.sync_sessiondates()
         
 
     def sync_groups(self):
@@ -50,6 +50,16 @@ class Command(BaseCommand):
                     else:
                         self.stdout.write(f"Group {obj.id} already up-to-date, skipping.")
 
+    def has_cancelled_booking(self, session_date_id):
+        """
+        Check if a session date has any cancelled bookings.
+        If so, we should preserve the cancellation and not allow rebooking.
+        """
+        return VenueBooking.objects.filter(
+            session_date_id=session_date_id,
+            status='cancelled'
+        ).exists()
+
     def sync_sessiondates(self):
         mapping = {
             'id': 'Id',
@@ -65,6 +75,9 @@ class Command(BaseCommand):
                 data = dict(zip(columns, row))
                 defaults = {k: data[v] for k, v in mapping.items() if k != 'id'}
 
+                # Check for cancelled bookings before making any changes
+                has_cancelled = self.has_cancelled_booking(data['Id'])
+
                 # Fetch the existing object if it exists
                 try:
                     obj = SessionDate.objects.get(id=data['Id'])
@@ -76,6 +89,16 @@ class Command(BaseCommand):
                 if created:
                     obj = SessionDate.objects.create(id=data['Id'], **defaults)
                     self.stdout.write(f"SessionDate {obj.id} created.")
+                    
+                    # If this is a new session date but it has cancelled bookings, 
+                    # log this unusual situation
+                    if has_cancelled:
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"Warning: New SessionDate {obj.id} has existing cancelled bookings. "
+                                "This may indicate data inconsistency."
+                            )
+                        )
                 else:
                     changed = []
                     # Robust comparison: handle date/time/None/str mismatches
@@ -104,17 +127,60 @@ class Command(BaseCommand):
                         if old_val != new_val:
                             changed.append(k)
                             setattr(obj, k, v)
+                    
                     if changed:
                         obj.save()
-                        # Only delete bookings if start_date or end_date changed
-                        if 'start_date' in changed or 'end_date' in changed:
-                            deleted, _ = VenueBooking.objects.filter(session_date_id=obj.id).delete()
-                            cache.set(f'sessiondate_changed_{obj.id}', True, timeout=3600)  # 1 hour
-                            self.stdout.write(f"SessionDate {obj.id} updated fields: {changed}. Deleted {deleted} VenueBooking(s).")
+                        
+                        # Special handling for sessions with cancelled bookings
+                        if has_cancelled:
+                            # Only delete non-cancelled bookings if start_date or end_date changed
+                            if 'start_date' in changed or 'end_date' in changed:
+                                # Delete only non-cancelled bookings to preserve cancellation status
+                                deleted, deletion_details = VenueBooking.objects.filter(
+                                    session_date_id=obj.id
+                                ).exclude(status='cancelled').delete()
+                                
+                                # Count preserved cancelled bookings
+                                cancelled_count = VenueBooking.objects.filter(
+                                    session_date_id=obj.id,
+                                    status='cancelled'
+                                ).count()
+                                
+                                cache.set(f'sessiondate_changed_{obj.id}', True, timeout=3600)
+                                self.stdout.write(
+                                    self.style.SUCCESS(
+                                        f"SessionDate {obj.id} updated fields: {changed}. "
+                                        f"Deleted {deleted} non-cancelled booking(s). "
+                                        f"Preserved {cancelled_count} cancelled booking(s)."
+                                    )
+                                )
+                            else:
+                                self.stdout.write(
+                                    f"SessionDate {obj.id} updated fields: {changed}. "
+                                    f"No bookings deleted (has cancelled bookings)."
+                                )
                         else:
-                            self.stdout.write(f"SessionDate {obj.id} updated fields: {changed}. No bookings deleted.")
+                            # Normal handling for sessions without cancelled bookings
+                            if 'start_date' in changed or 'end_date' in changed:
+                                deleted, _ = VenueBooking.objects.filter(session_date_id=obj.id).delete()
+                                cache.set(f'sessiondate_changed_{obj.id}', True, timeout=3600)
+                                self.stdout.write(
+                                    f"SessionDate {obj.id} updated fields: {changed}. "
+                                    f"Deleted {deleted} VenueBooking(s)."
+                                )
+                            else:
+                                self.stdout.write(
+                                    f"SessionDate {obj.id} updated fields: {changed}. "
+                                    "No bookings deleted."
+                                )
                     else:
-                        self.stdout.write(f"SessionDate {obj.id} already up-to-date, skipping.")
+                        if has_cancelled:
+                            self.stdout.write(
+                                f"SessionDate {obj.id} already up-to-date, skipping. "
+                                "(Has cancelled bookings preserved)"
+                            )
+                        else:
+                            self.stdout.write(f"SessionDate {obj.id} already up-to-date, skipping.")
 
     def sync_projectplans(self):
         mapping = {

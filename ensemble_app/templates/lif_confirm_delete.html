@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-5">
+  <h2>Delete LIF</h2>
+  <p>Are you sure you want to delete this LIF for <strong>{{ object.learner_first_name }} {{ object.learner_last_name }}</strong>?</p>
+  <form method="post">{% csrf_token %}
+    <button type="submit" class="btn btn-danger">Yes, delete</button>
+    <a href="{% url 'generate_lif_word' %}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}

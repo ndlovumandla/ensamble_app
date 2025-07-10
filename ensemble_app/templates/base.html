@@ -87,7 +87,7 @@
       left: 0;
       top: 0;
       height: 100vh;
-      width: 280px; /* or more if needed */
+      width: 280px;
       background: #fff;
       box-shadow: 2px 0 16px rgba(2,3,129,0.08);
       z-index: 1040;
@@ -97,7 +97,7 @@
       gap: 8px;
       transition: transform 0.3s;
       transform: translateX(0);
-      overflow-y: auto; /* Enable vertical scrolling when sidebar is long */
+      overflow-y: auto;
     }
     .sidebar-nav.closed {
       transform: translateX(-110%);
@@ -117,9 +117,9 @@
       border: 2px solid transparent;
       background: none;
       transition: background 0.18s, color 0.18s, border 0.18s;
-      white-space: normal;           /* allow wrapping */
-      word-break: break-word;        /* break long words */
-      overflow: hidden;              /* prevent overflow */
+      white-space: normal;
+      word-break: break-word;
+      overflow: hidden;
     }
     .sidebar-nav .nav-link.active,
     .sidebar-nav .nav-link:hover {
@@ -129,7 +129,7 @@
     }
     .sidebar-nav .nav-link i {
       min-width: 22px;
-      flex-shrink: 0;                /* icon never shrinks */
+      flex-shrink: 0;
       opacity: 0.8;
     }
     .sidebar-nav .nav-link span {
@@ -226,7 +226,7 @@
       min-width: 0;
       box-sizing: border-box;
       transition: margin-left 0.3s, width 0.3s;
-      overflow-x: auto; /* Allow wide content to scroll horizontally if needed */
+      overflow-x: auto;
     }
     @media (max-width: 991px) {
       .content-wrapper {
@@ -282,13 +282,12 @@
             <span class="sr-only">Home</span>
           </a>
         </li>
-        
-          {% has_role_permission 'role_permission_management' as can_role_perm %}
-          {% if can_role_perm %}
-          <li>
-            <a href="{% url 'role_permission_management' %}" class="nav-link{% if request.resolver_match.url_name == 'role_permission_management' %} active{% endif %}">Role Permissions</a>
-          </li>
-          {% endif %}
+        {% has_role_permission 'role_permission_management' as can_role_perm %}
+        {% if can_role_perm %}
+        <li>
+          <a href="{% url 'role_permission_management' %}" class="nav-link{% if request.resolver_match.url_name == 'role_permission_management' %} active{% endif %}">Role Permissions</a>
+        </li>
+        {% endif %}
       </ul>
     </nav>
   </header>
@@ -338,7 +337,14 @@
             {% if can_submit_poe %}
             <li><a href="{% url 'submit_poe' %}" class="nav-link{% if request.resolver_match.url_name == 'submit_poe' %} active{% endif %}"><i class="fa fa-file-upload"></i> Submit POE (Portal)</a></li>
             {% endif %}
-            <!-- LIF Form Link -->
+            {% has_role_permission 'learner_portal' as can_learner_portal %}
+            {% if can_learner_portal %}
+            <li><a href="{% url 'learner_portal' %}" class="nav-link{% if request.resolver_match.url_name == 'learner_portal' %} active{% endif %}"><i class="fa fa-portal"></i> Learner Portal</a></li>
+            {% endif %}
+            {% has_role_permission 'sit_summative_exam' as can_sit_summative_exam %}
+            {% if can_sit_summative_exam %}
+            <li><a href="{% url 'sit_summative_exam' %}" class="nav-link{% if request.resolver_match.url_name == 'sit_summative_exam' %} active{% endif %}"><i class="fa fa-file-alt"></i> Summative Exam</a></li>
+            {% endif %}
             <li>
               <a href="{% url 'lif_form' %}?learner_id={{ request.user.learner_profile.id }}" class="nav-link{% if request.resolver_match.url_name == 'lif_form' %} active{% endif %}">
                 <i class="fa fa-id-card"></i> Learner Information Form (LIF)
@@ -347,7 +353,6 @@
           </ul>
         </div>
       {% else %}
-        <!-- Admin Sidebar -->
         <div>
           <button class="sidebar-collapse-btn" type="button" data-bs-target="#dashboardMenu" aria-expanded="true">
             <i class="fa fa-gauge"></i> <span>Dashboards</span>
@@ -369,6 +374,38 @@
           </ul>
         </div>
         <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#slaMenu" aria-expanded="false">
+            <i class="fa fa-file-contract"></i> <span>SLA Management</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="slaMenu">
+            {% has_role_permission 'add_sla_wizard' as can_add_sla_wizard %}
+            {% if can_add_sla_wizard %}
+            <li><a href="{% url 'add_sla_wizard' %}" class="nav-link{% if request.resolver_match.url_name == 'add_sla_wizard' %} active{% endif %}"><i class="fa fa-plus"></i> Add SLA</a></li>
+            {% endif %}
+            {% has_role_permission 'sla_detail' as can_sla_detail %}
+            {% if can_sla_detail %}
+            <li><a href="{% url 'sla_detail' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'sla_detail' %} active{% endif %}"><i class="fa fa-info-circle"></i> SLA Details</a></li>
+            {% endif %}
+            {% has_role_permission 'add_sla_qualifications' as can_add_sla_qualifications %}
+            {% if can_add_sla_qualifications %}
+            <li><a href="{% url 'add_sla_qualifications' sla_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'add_sla_qualifications' %} active{% endif %}"><i class="fa fa-book"></i> SLA Qualifications</a></li>
+            {% endif %}
+            {% has_role_permission 'add_sla_billing' as can_add_sla_billing %}
+            {% if can_add_sla_billing %}
+            <li><a href="{% url 'add_sla_billing' sla_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'add_sla_billing' %} active{% endif %}"><i class="fa fa-credit-card"></i> SLA Billing</a></li>
+            {% endif %}
+            {% has_role_permission 'add_sla_learners' as can_add_sla_learners %}
+            {% if can_add_sla_learners %}
+            <li><a href="{% url 'add_sla_learners' sla_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'add_sla_learners' %} active{% endif %}"><i class="fa fa-users"></i> SLA Learners</a></li>
+            {% endif %}
+            {% has_role_permission 'add_learner_qualification' as can_add_learner_qualification %}
+            {% if can_add_learner_qualification %}
+            <li><a href="{% url 'add_learner_qualification' sla_id=1 qual_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'add_learner_qualification' %} active{% endif %}"><i class="fa fa-user-plus"></i> Add Learner Qualification</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
           <button class="sidebar-collapse-btn" type="button" data-bs-target="#poeMenu" aria-expanded="false">
             <i class="fa fa-folder"></i> <span>POE Management</span>
             <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
@@ -382,6 +419,106 @@
             {% if can_poe_template_add %}
             <li><a href="{% url 'poe_template_add' %}" class="nav-link{% if request.resolver_match.url_name == 'poe_template_add' %} active{% endif %}"><i class="fa fa-plus"></i> Add POE Template</a></li>
             {% endif %}
+            {% has_role_permission 'poe_list' as can_poe_list %}
+            {% if can_poe_list %}
+            <li><a href="{% url 'poe_list' %}" class="nav-link{% if request.resolver_match.url_name == 'poe_list' %} active{% endif %}"><i class="fa fa-list"></i> POE List</a></li>
+            {% endif %}
+            {% has_role_permission 'poe_annextures' as can_poe_annextures %}
+            {% if can_poe_annextures %}
+            <li><a href="{% url 'poe_annextures' template_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'poe_annextures' %} active{% endif %}"><i class="fa fa-paperclip"></i> POE Annexures</a></li>
+            {% endif %}
+            {% has_role_permission 'assess_poe' as can_assess_poe %}
+            {% if can_assess_poe %}
+            <li><a href="{% url 'assess_poe' poe_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'assess_poe' %} active{% endif %}"><i class="fa fa-check"></i> Assess POE</a></li>
+            {% endif %}
+            {% has_role_permission 'facilitator_poe_list' as can_facilitator_poe_list %}
+            {% if can_facilitator_poe_list %}
+            <li><a href="{% url 'facilitator_poe_list' %}" class="nav-link{% if request.resolver_match.url_name == 'facilitator_poe_list' %} active{% endif %}"><i class="fa fa-list"></i> Facilitator POE List</a></li>
+            {% endif %}
+            {% has_role_permission 'facilitator_poe_feedback' as can_facilitator_poe_feedback %}
+            {% if can_facilitator_poe_feedback %}
+            <li><a href="{% url 'facilitator_poe_feedback' poe_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'facilitator_poe_feedback' %} active{% endif %}"><i class="fa fa-comment"></i> POE Feedback</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#adobeFormMenu" aria-expanded="false">
+            <i class="fa fa-file-pdf"></i> <span>Adobe Forms</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="adobeFormMenu">
+            {% has_role_permission 'adobe_form_list' as can_adobe_form_list %}
+            {% if can_adobe_form_list %}
+            <li><a href="{% url 'adobe_form_list' %}" class="nav-link{% if request.resolver_match.url_name == 'adobe_form_list' %} active{% endif %}"><i class="fa fa-list"></i> Adobe Form List</a></li>
+            {% endif %}
+            {% has_role_permission 'adobe_form_upload' as can_adobe_form_upload %}
+            {% if can_adobe_form_upload %}
+            <li><a href="{% url 'adobe_form_upload' %}" class="nav-link{% if request.resolver_match.url_name == 'adobe_form_upload' %} active{% endif %}"><i class="fa fa-upload"></i> Upload Adobe Form</a></li>
+            {% endif %}
+            {% has_role_permission 'adobe_form_download' as can_adobe_form_download %}
+            {% if can_adobe_form_download %}
+            <li><a href="{% url 'adobe_form_download' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'adobe_form_download' %} active{% endif %}"><i class="fa fa-download"></i> Download Adobe Form</a></li>
+            {% endif %}
+            {% has_role_permission 'adobe_form_submit' as can_adobe_form_submit %}
+            {% if can_adobe_form_submit %}
+            <li><a href="{% url 'adobe_form_submit' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'adobe_form_submit' %} active{% endif %}"><i class="fa fa-check"></i> Submit Adobe Form</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#lifMenu" aria-expanded="false">
+            <i class="fa fa-id-card"></i> <span>LIF Management</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="lifMenu">
+            {% has_role_permission 'lif_form' as can_lif_form %}
+            {% if can_lif_form %}
+            <li><a href="{% url 'lif_form' %}" class="nav-link{% if request.resolver_match.url_name == 'lif_form' %} active{% endif %}"><i class="fa fa-id-card"></i> LIF Form</a></li>
+            {% endif %}
+            {% has_role_permission 'lif_update' as can_lif_update %}
+            {% if can_lif_update %}
+            <li><a href="{% url 'lif_update' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'lif_update' %} active{% endif %}"><i class="fa fa-edit"></i> Update LIF</a></li>
+            {% endif %}
+            {% has_role_permission 'lif_delete' as can_lif_delete %}
+            {% if can_lif_delete %}
+            <li><a href="{% url 'lif_delete' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'lif_delete' %} active{% endif %}"><i class="fa fa-trash"></i> Delete LIF</a></li>
+            {% endif %}
+            {% has_role_permission 'upload_lif_template' as can_upload_lif_template %}
+            {% if can_upload_lif_template %}
+            <li><a href="{% url 'upload_lif_template' %}" class="nav-link{% if request.resolver_match.url_name == 'upload_lif_template' %} active{% endif %}"><i class="fa fa-upload"></i> Upload LIF Template</a></li>
+            {% endif %}
+            {% has_role_permission 'map_lif_template_fields' as can_map_lif_template_fields %}
+            {% if can_map_lif_template_fields %}
+            <li><a href="{% url 'map_lif_template_fields' template_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'map_lif_template_fields' %} active{% endif %}"><i class="fa fa-link"></i> Map LIF Template Fields</a></li>
+            {% endif %}
+            {% has_role_permission 'lif_template_list' as can_lif_template_list %}
+            {% if can_lif_template_list %}
+            <li><a href="{% url 'lif_template_list' %}" class="nav-link{% if request.resolver_match.url_name == 'lif_template_list' %} active{% endif %}"><i class="fa fa-list"></i> LIF Template List</a></li>
+            {% endif %}
+            {% has_role_permission 'lif_template_delete' as can_lif_template_delete %}
+            {% if can_lif_template_delete %}
+            <li><a href="{% url 'lif_template_delete' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'lif_template_delete' %} active{% endif %}"><i class="fa fa-trash"></i> Delete LIF Template</a></li>
+            {% endif %}
+            {% has_role_permission 'generate_lif_word' as can_generate_lif_word %}
+            {% if can_generate_lif_word %}
+            <li><a href="{% url 'generate_lif_word' %}" class="nav-link{% if request.resolver_match.url_name == 'generate_lif_word' %} active{% endif %}"><i class="fa fa-file-word"></i> Generate LIF Word</a></li>
+            {% endif %}
+            {% has_role_permission 'generate_bulk_lif_zip' as can_generate_bulk_lif_zip %}
+            {% if can_generate_bulk_lif_zip %}
+            <li><a href="{% url 'generate_bulk_lif_zip' %}" class="nav-link{% if request.resolver_match.url_name == 'generate_bulk_lif_zip' %} active{% endif %}"><i class="fa fa-file-archive"></i> Generate Bulk LIF ZIP</a></li>
+            {% endif %}
+            {% has_role_permission 'cognito_lif_entries' as can_cognito_lif_entries %}
+            {% if can_cognito_lif_entries %}
+            <li><a href="{% url 'cognito_lif_entries' %}" class="nav-link{% if request.resolver_match.url_name == 'cognito_lif_entries' %} active{% endif %}"><i class="fa fa-database"></i> Cognito LIF Entries</a></li>
+            {% endif %}
+            {% has_role_permission 'export_cognito_to_lif' as can_export_cognito_to_lif %}
+            {% if can_export_cognito_to_lif %}
+            <li><a href="{% url 'export_cognito_to_lif' %}" class="nav-link{% if request.resolver_match.url_name == 'export_cognito_to_lif' %} active{% endif %}"><i class="fa fa-file-export"></i> Export Cognito to LIF</a></li>
+            {% endif %}
+            {% has_role_permission 'lif_list_json' as can_lif_list_json %}
+            {% if can_lif_list_json %}
+            <li><a href="{% url 'lif_list_json' %}" class="nav-link{% if request.resolver_match.url_name == 'lif_list_json' %} active{% endif %}"><i class="fa fa-code"></i> LIF List JSON</a></li>
+            {% endif %}
           </ul>
         </div>
         <div>
@@ -393,6 +530,26 @@
             {% has_role_permission 'projectplan_list' as can_projectplan_list %}
             {% if can_projectplan_list %}
             <li><a href="{% url 'projectplan_list' %}" class="nav-link{% if request.resolver_match.url_name == 'projectplan_list' %} active{% endif %}"><i class="fa fa-calendar"></i> Project Plans</a></li>
+            {% endif %}
+            {% has_role_permission 'projectplan_add' as can_projectplan_add %}
+            {% if can_projectplan_add %}
+            <li><a href="{% url 'projectplan_add' %}" class="nav-link{% if request.resolver_match.url_name == 'projectplan_add' %} active{% endif %}"><i class="fa fa-plus"></i> Add Project Plan</a></li>
+            {% endif %}
+            {% has_role_permission 'projectplan_edit' as can_projectplan_edit %}
+            {% if can_projectplan_edit %}
+            <li><a href="{% url 'projectplan_edit' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'projectplan_edit' %} active{% endif %}"><i class="fa fa-edit"></i> Edit Project Plan</a></li>
+            {% endif %}
+            {% has_role_permission 'projectplan_delete' as can_projectplan_delete %}
+            {% if can_projectplan_delete %}
+            <li><a href="{% url 'projectplan_delete' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'projectplan_delete' %} active{% endif %}"><i class="fa fa-trash"></i> Delete Project Plan</a></li>
+            {% endif %}
+            {% has_role_permission 'projectplan_detail' as can_projectplan_detail %}
+            {% if can_projectplan_detail %}
+            <li><a href="{% url 'projectplan_detail' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'projectplan_detail' %} active{% endif %}"><i class="fa fa-info-circle"></i> Project Plan Details</a></li>
+            {% endif %}
+            {% has_role_permission 'external_project_list' as can_external_project_list %}
+            {% if can_external_project_list %}
+            <li><a href="{% url 'external_project_list' %}" class="nav-link{% if request.resolver_match.url_name == 'external_project_list' %} active{% endif %}"><i class="fa fa-globe"></i> External Projects</a></li>
             {% endif %}
             {% has_role_permission 'upload_project_plan_excel' as can_upload_project_plan_excel %}
             {% if can_upload_project_plan_excel %}
@@ -409,6 +566,18 @@
             {% has_role_permission 'sessiondate_list' as can_sessiondate_list %}
             {% if can_sessiondate_list %}
             <li><a href="{% url 'sessiondate_list' %}" class="nav-link{% if request.resolver_match.url_name == 'sessiondate_list' %} active{% endif %}"><i class="fa fa-clock"></i> Session Dates</a></li>
+            {% endif %}
+            {% has_role_permission 'sessiondate_add' as can_sessiondate_add %}
+            {% if can_sessiondate_add %}
+            <li><a href="{% url 'sessiondate_add' %}" class="nav-link{% if request.resolver_match.url_name == 'sessiondate_add' %} active{% endif %}"><i class="fa fa-plus"></i> Add Session Date</a></li>
+            {% endif %}
+            {% has_role_permission 'sessiondate_edit' as can_sessiondate_edit %}
+            {% if can_sessiondate_edit %}
+            <li><a href="{% url 'sessiondate_edit' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'sessiondate_edit' %} active{% endif %}"><i class="fa fa-edit"></i> Edit Session Date</a></li>
+            {% endif %}
+            {% has_role_permission 'sessiondate_delete' as can_sessiondate_delete %}
+            {% if can_sessiondate_delete %}
+            <li><a href="{% url 'sessiondate_delete' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'sessiondate_delete' %} active{% endif %}"><i class="fa fa-trash"></i> Delete Session Date</a></li>
             {% endif %}
             {% has_role_permission 'upload_session_date_excel' as can_upload_session_date_excel %}
             {% if can_upload_session_date_excel %}
@@ -446,6 +615,26 @@
             {% if can_venuebooking_add %}
             <li><a href="{% url 'venuebooking_add' %}" class="nav-link"><i class="fa fa-plus"></i> Add Venue Booking</a></li>
             {% endif %}
+            {% has_role_permission 'venuebooking_edit' as can_venuebooking_edit %}
+            {% if can_venuebooking_edit %}
+            <li><a href="{% url 'venuebooking_edit' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'venuebooking_edit' %} active{% endif %}"><i class="fa fa-edit"></i> Edit Venue Booking</a></li>
+            {% endif %}
+            {% has_role_permission 'venuebooking_delete' as can_venuebooking_delete %}
+            {% if can_venuebooking_delete %}
+            <li><a href="{% url 'venuebooking_delete' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'venuebooking_delete' %} active{% endif %}"><i class="fa fa-trash"></i> Delete Venue Booking</a></li>
+            {% endif %}
+            {% has_role_permission 'venuebooking_modal_form' as can_venuebooking_modal_form %}
+            {% if can_venuebooking_modal_form %}
+            <li><a href="{% url 'venuebooking_modal_form' %}" class="nav-link{% if request.resolver_match.url_name == 'venuebooking_modal_form' %} active{% endif %}"><i class="fa fa-window-restore"></i> Venue Booking Modal</a></li>
+            {% endif %}
+            {% has_role_permission 'venue_availability_api' as can_venue_availability_api %}
+            {% if can_venue_availability_api %}
+            <li><a href="{% url 'venue_availability_api' %}" class="nav-link{% if request.resolver_match.url_name == 'venue_availability_api' %} active{% endif %}"><i class="fa fa-calendar"></i> Venue Availability API</a></li>
+            {% endif %}
+            {% has_role_permission 'venuebooking_switch' as can_venuebooking_switch %}
+            {% if can_venuebooking_switch %}
+            <li><a href="{% url 'venuebooking_switch' %}" class="nav-link{% if request.resolver_match.url_name == 'venuebooking_switch' %} active{% endif %}"><i class="fa fa-exchange-alt"></i> Venue Booking Switch</a></li>
+            {% endif %}
             {% has_role_permission 'venuebooking_events_api' as can_venuebooking_events_api %}
             {% if can_venuebooking_events_api %}
             <li><a href="{% url 'venuebooking_events_api' %}" class="nav-link"><i class="fa fa-calendar"></i> Venue Booking Events API</a></li>
@@ -470,6 +659,14 @@
             {% if can_service_add %}
             <li><a href="{% url 'service-add' %}" class="nav-link"><i class="fa fa-plus"></i> Add Service</a></li>
             {% endif %}
+            {% has_role_permission 'service-edit' as can_service_edit %}
+            {% if can_service_edit %}
+            <li><a href="{% url 'service-edit' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'service-edit' %} active{% endif %}"><i class="fa fa-edit"></i> Edit Service</a></li>
+            {% endif %}
+            {% has_role_permission 'service-delete' as can_service_delete %}
+            {% if can_service_delete %}
+            <li><a href="{% url 'service-delete' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'service-delete' %} active{% endif %}"><i class="fa fa-trash"></i> Delete Service</a></li>
+            {% endif %}
             {% has_role_permission 'module-list' as can_module_list %}
             {% if can_module_list %}
             <li><a href="{% url 'module-list' %}" class="nav-link{% if request.resolver_match.url_name == 'module-list' %} active{% endif %}"><i class="fa fa-book"></i> Modules</a></li>
@@ -478,6 +675,14 @@
             {% if can_module_add %}
             <li><a href="{% url 'module-add' %}" class="nav-link"><i class="fa fa-plus"></i> Add Module</a></li>
             {% endif %}
+            {% has_role_permission 'module-edit' as can_module_edit %}
+            {% if can_module_edit %}
+            <li><a href="{% url 'module-edit' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'module-edit' %} active{% endif %}"><i class="fa fa-edit"></i> Edit Module</a></li>
+            {% endif %}
+            {% has_role_permission 'module-delete' as can_module_delete %}
+            {% if can_module_delete %}
+            <li><a href="{% url 'module-delete' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'module-delete' %} active{% endif %}"><i class="fa fa-trash"></i> Delete Module</a></li>
+            {% endif %}
             {% has_role_permission 'service-module-list' as can_service_module_list %}
             {% if can_service_module_list %}
             <li><a href="{% url 'service-module-list' %}" class="nav-link{% if request.resolver_match.url_name == 'service-module-list' %} active{% endif %}"><i class="fa fa-link"></i> Service Modules</a></li>
@@ -485,6 +690,14 @@
             {% has_role_permission 'service-module-add' as can_service_module_add %}
             {% if can_service_module_add %}
             <li><a href="{% url 'service-module-add' %}" class="nav-link"><i class="fa fa-plus"></i> Add Service Module</a></li>
+            {% endif %}
+            {% has_role_permission 'service-module-edit' as can_service_module_edit %}
+            {% if can_service_module_edit %}
+            <li><a href="{% url 'service-module-edit' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'service-module-edit' %} active{% endif %}"><i class="fa fa-edit"></i> Edit Service Module</a></li>
+            {% endif %}
+            {% has_role_permission 'service-module-delete' as can_service_module_delete %}
+            {% if can_service_module_delete %}
+            <li><a href="{% url 'service-module-delete' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'service-module-delete' %} active{% endif %}"><i class="fa fa-trash"></i> Delete Service Module</a></li>
             {% endif %}
             {% has_role_permission 'upload_group_excel' as can_upload_group_excel %}
             {% if can_upload_group_excel %}
@@ -510,6 +723,22 @@
             {% if can_group_create %}
             <li><a href="{% url 'group_create' %}" class="nav-link"><i class="fa fa-plus"></i> Create Group</a></li>
             {% endif %}
+            {% has_role_permission 'group-edit' as can_group_edit %}
+            {% if can_group_edit %}
+            <li><a href="{% url 'group-edit' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'group-edit' %} active{% endif %}"><i class="fa fa-edit"></i> Edit Group</a></li>
+            {% endif %}
+            {% has_role_permission 'group-delete' as can_group_delete %}
+            {% if can_group_delete %}
+            <li><a href="{% url 'group-delete' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'group-delete' %} active{% endif %}"><i class="fa fa-trash"></i> Delete Group</a></li>
+            {% endif %}
+            {% has_role_permission 'group_detail' as can_group_detail %}
+            {% if can_group_detail %}
+            <li><a href="{% url 'group_detail' pk=1 %}" class="nav-link{% if request.resolver_match.url_name == 'group_detail' %} active{% endif %}"><i class="fa fa-info-circle"></i> Group Details</a></li>
+            {% endif %}
+            {% has_role_permission 'generate_bulk_admin_pack_zip' as can_generate_bulk_admin_pack_zip %}
+            {% if can_generate_bulk_admin_pack_zip %}
+            <li><a href="{% url 'generate_bulk_admin_pack_zip' %}" class="nav-link{% if request.resolver_match.url_name == 'generate_bulk_admin_pack_zip' %} active{% endif %}"><i class="fa fa-file-archive"></i> Generate Admin Pack ZIP</a></li>
+            {% endif %}
             {% has_role_permission 'group_qualification_assignment' as can_group_qualification_assignment %}
             {% if can_group_qualification_assignment %}
             <li><a href="{% url 'group_qualification_assignment' %}" class="nav-link{% if request.resolver_match.url_name == 'group_qualification_assignment' %} active{% endif %}"><i class="fa fa-tasks"></i> Group Qualifications</a></li>
@@ -517,6 +746,50 @@
             {% has_role_permission 'assign_learner_qualification_to_group' as can_assign_learner_qualification_to_group %}
             {% if can_assign_learner_qualification_to_group %}
             <li><a href="{% url 'assign_learner_qualification_to_group' %}" class="nav-link"><i class="fa fa-user-plus"></i> Assign Learner Qualification</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <button class="sidebar-collapse-btn" type="button" data-bs-target="#learnerMenu" aria-expanded="false">
+            <i class="fa fa-user-graduate"></i> <span>Learner Management</span>
+            <span class="sidebar-collapse-icon fa fa-chevron-right"></span>
+          </button>
+          <ul class="sidebar-collapse-list collapse" id="learnerMenu">
+            {% has_role_permission 'learner_list' as can_learner_list %}
+            {% if can_learner_list %}
+            <li><a href="{% url 'learner_list' %}" class="nav-link{% if request.resolver_match.url_name == 'learner_list' %} active{% endif %}"><i class="fa fa-users"></i> Learner List</a></li>
+            {% endif %}
+            {% has_role_permission 'learner_details' as can_learner_details %}
+            {% if can_learner_details %}
+            <li><a href="{% url 'learner_details' learner_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'learner_details' %} active{% endif %}"><i class="fa fa-info-circle"></i> Learner Details</a></li>
+            {% endif %}
+            {% has_role_permission 'edit_learner' as can_edit_learner %}
+            {% if can_edit_learner %}
+            <li><a href="{% url 'edit_learner' learner_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'edit_learner' %} active{% endif %}"><i class="fa fa-edit"></i> Edit Learner</a></li>
+            {% endif %}
+            {% has_role_permission 'delete_learner' as can_delete_learner %}
+            {% if can_delete_learner %}
+            <li><a href="{% url 'delete_learner' learner_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'delete_learner' %} active{% endif %}"><i class="fa fa-trash"></i> Delete Learner</a></li>
+            {% endif %}
+            {% has_role_permission 'assign_user_id' as can_assign_user_id %}
+            {% if can_assign_user_id %}
+            <li><a href="{% url 'assign_user_id' learner_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'assign_user_id' %} active{% endif %}"><i class="fa fa-id-badge"></i> Assign User ID</a></li>
+            {% endif %}
+            {% has_role_permission 'set_learner_password' as can_set_learner_password %}
+            {% if can_set_learner_password %}
+            <li><a href="{% url 'set_learner_password' learner_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'set_learner_password' %} active{% endif %}"><i class="fa fa-key"></i> Set Learner Password</a></li>
+            {% endif %}
+            {% has_role_permission 'learner_schedule_list' as can_learner_schedule_list %}
+            {% if can_learner_schedule_list %}
+            <li><a href="{% url 'learner_schedule_list' %}" class="nav-link{% if request.resolver_match.url_name == 'learner_schedule_list' %} active{% endif %}"><i class="fa fa-calendar"></i> Learner Schedules</a></li>
+            {% endif %}
+            {% has_role_permission 'edit_learner_times' as can_edit_learner_times %}
+            {% if can_edit_learner_times %}
+            <li><a href="{% url 'edit_learner_times' learner_qualification_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'edit_learner_times' %} active{% endif %}"><i class="fa fa-clock"></i> Edit Learner Times</a></li>
+            {% endif %}
+            {% has_role_permission 'edit_qualification_times' as can_edit_qualification_times %}
+            {% if can_edit_qualification_times %}
+            <li><a href="{% url 'edit_qualification_times' qual_id=1 %}" class="nav-link{% if request.resolver_match.url_name == 'edit_qualification_times' %} active{% endif %}"><i class="fa fa-clock"></i> Edit Qualification Times</a></li>
             {% endif %}
           </ul>
         </div>

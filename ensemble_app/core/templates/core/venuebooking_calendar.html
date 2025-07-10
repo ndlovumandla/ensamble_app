@@ -541,6 +541,426 @@ document.addEventListener('DOMContentLoaded', function() {
         return params.length ? '?' + params.join('&') : '';
     }
 
+    // Cancel booking function - globally available
+    window.cancelBooking = function(bookingId) {
+        if (!bookingId) {
+            alert('Error: No booking ID provided');
+            return;
+        }
+        
+        if (confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
+            var formData = new FormData();
+            formData.append('booking_id', bookingId);
+            
+            // Get CSRF token
+            var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfToken) {
+                formData.append('csrfmiddlewaretoken', csrfToken.value);
+            }
+            
+            fetch('/cancel-venue-booking/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    // Close modal and refresh calendar
+                    eventModal.hide();
+                    calendar.refetchEvents();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to cancel booking'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while cancelling the booking');
+            });
+        }
+    };
+
+    // Global session search functionality
+var sessionSearchModal = null;
+var allSessionsData = [];
+
+// Function to fetch all sessions from the server
+function fetchAllSessions() {
+    return fetch('/api/all-sessions/')
+        .then(response => response.json())
+        .then(data => {
+            allSessionsData = data.sessions || [];
+            return allSessionsData;
+        })
+        .catch(error => {
+            console.error('Error fetching sessions:', error);
+            return [];
+        });
+}
+
+// Function to create and show the session search modal
+function showSessionSearchModal() {
+    // Create modal HTML with higher z-index
+    var modalHTML = `
+        <div class="modal fade" id="sessionSearchModal" tabindex="-1" aria-labelledby="sessionSearchModalLabel" aria-hidden="true" style="z-index: 1060;">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content glass animated-border">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title" id="sessionSearchModalLabel">
+                            <i class="fa fa-search"></i> Search Sessions
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="globalSessionSearch" class="form-label">Search for sessions:</label>
+                            <input type="text" class="form-control" id="globalSessionSearch" 
+                                   placeholder="Type to search groups, modules, dates..." autocomplete="off">
+                        </div>
+                        <div id="sessionSearchResults" style="max-height: 400px; overflow-y: auto;">
+                            <div class="text-center text-muted py-4">
+                                <i class="fa fa-search fa-2x mb-2"></i>
+                                <p>Start typing to search for sessions...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if it exists
+    var existingModal = document.getElementById('sessionSearchModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Initialize and show modal
+    sessionSearchModal = new bootstrap.Modal(document.getElementById('sessionSearchModal'));
+    sessionSearchModal.show();
+    
+    // Focus on search input when modal is shown
+    document.getElementById('sessionSearchModal').addEventListener('shown.bs.modal', function() {
+        document.getElementById('globalSessionSearch').focus();
+    });
+    
+    // Set up search functionality
+    setupSessionSearch();
+}
+
+// Function to setup search functionality
+function setupSessionSearch() {
+    var searchInput = document.getElementById('globalSessionSearch');
+    var resultsContainer = document.getElementById('sessionSearchResults');
+    
+    searchInput.addEventListener('input', function() {
+        var query = this.value.trim();
+        performSessionSearch(query, resultsContainer);
+    });
+    
+    // Handle Enter key
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            var query = this.value.trim();
+            performSessionSearch(query, resultsContainer);
+        }
+    });
+}
+
+// Function to perform the actual search
+function performSessionSearch(query, resultsContainer) {
+    if (query.length < 2) {
+        resultsContainer.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fa fa-search fa-2x mb-2"></i>
+                <p>Type at least 2 characters to search...</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Show loading
+    resultsContainer.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Searching...</span>
+            </div>
+            <p class="mt-2">Searching sessions...</p>
+        </div>
+    `;
+    
+    // If we don't have sessions data, fetch it first
+    if (allSessionsData.length === 0) {
+        fetchAllSessions().then(function() {
+            doSearch(query, resultsContainer);
+        });
+    } else {
+        doSearch(query, resultsContainer);
+    }
+}
+
+// Function to do the actual search with the data
+function doSearch(query, resultsContainer) {
+    var queryLower = query.toLowerCase();
+    
+    var filteredSessions = allSessionsData.filter(function(session) {
+        return (
+            (session.group && session.group.toLowerCase().includes(queryLower)) ||
+            (session.module && session.module.toLowerCase().includes(queryLower)) ||
+            (session.start_date && session.start_date.includes(queryLower)) ||
+            (session.end_date && session.end_date.includes(queryLower)) ||
+            (session.text && session.text.toLowerCase().includes(queryLower))
+        );
+    });
+    
+    if (filteredSessions.length === 0) {
+        resultsContainer.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fa fa-times-circle fa-2x mb-2"></i>
+                <p>No sessions found for "${query}"</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Build results HTML
+    var resultsHTML = '<div class="list-group">';
+    filteredSessions.forEach(function(session) {
+        resultsHTML += `
+            <div class="list-group-item list-group-item-action session-search-result" 
+                 data-session-id="${session.id}" style="cursor: pointer;">
+                <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">${session.group || 'Unknown Group'} - ${session.module || 'Unknown Module'}</h6>
+                    <small class="text-muted">${session.start_date} to ${session.end_date}</small>
+                </div>
+                <p class="mb-1 text-muted">${session.text || ''}</p>
+                <small>Click to book venue for this session</small>
+            </div>
+        `;
+    });
+    resultsHTML += '</div>';
+    
+    resultsContainer.innerHTML = resultsHTML;
+    
+    // Add click handlers to results
+    document.querySelectorAll('.session-search-result').forEach(function(item) {
+        item.addEventListener('click', function() {
+            var sessionId = this.getAttribute('data-session-id');
+            selectSessionFromSearch(sessionId);
+        });
+    });
+}
+
+// Function to handle session selection from search
+function selectSessionFromSearch(sessionId) {
+    // Close the search modal
+    if (sessionSearchModal) {
+        sessionSearchModal.hide();
+    }
+    
+    // Find the session data
+    var selectedSession = allSessionsData.find(function(session) {
+        return session.id == sessionId;
+    });
+    
+    if (!selectedSession) {
+        alert('Session not found!');
+        return;
+    }
+    
+    // Open the booking modal for this session with the session pre-populated
+    var formUrl = "{% url 'venuebooking_modal_form' %}?session=" + sessionId + "&date=" + selectedSession.start_date;
+    var eventModalBody = document.getElementById('eventActionModalBody');
+    var eventModalFooter = document.getElementById('eventActionModalFooter');
+    
+    // Show loading state
+    eventModalBody.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:180px;"><div class="spinner-border text-primary" style="width:2.5rem;height:2.5rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+    eventModalFooter.innerHTML = '';
+    
+    fetch(formUrl)
+        .then(r => r.text())
+        .then(html => {
+            eventModalBody.innerHTML = html;
+            
+            // Initialize Select2 after a short delay
+            setTimeout(function() {
+                if ($('#id_project_plan').length) $('#id_project_plan').select2({ width: '100%', allowClear: true });
+                if ($('#id_session_date').length) {
+                    $('#id_session_date').select2({ width: '100%', allowClear: true });
+                    
+                    // Set the selected session in the dropdown
+                    $('#id_session_date').val(sessionId).trigger('change');
+                }
+                if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
+            }, 100);
+            
+            // Clear footer and add buttons
+            eventModalFooter.innerHTML = "";
+            
+            // Add Search Sessions button
+            var searchSessionsBtn = document.createElement('button');
+            searchSessionsBtn.type = "button";
+            searchSessionsBtn.className = "btn btn-info";
+            searchSessionsBtn.innerHTML = '<i class="fa fa-search"></i> Search Sessions';
+            searchSessionsBtn.onclick = function() {
+                // Store reference to current modal elements
+                var currentModalBody = eventModalBody;
+                var currentModalFooter = eventModalFooter;
+                var currentFormUrl = formUrl;
+                
+                // Override the selectSessionFromSearch function to populate current modal
+                window.originalSelectSessionFromSearch = selectSessionFromSearch;
+                selectSessionFromSearch = function(selectedSessionId) {
+                    // Close search modal
+                    if (sessionSearchModal) {
+                        sessionSearchModal.hide();
+                    }
+                    
+                    // Find the selected session
+                    var selectedSession = allSessionsData.find(function(session) {
+                        return session.id == selectedSessionId;
+                    });
+                    
+                    if (!selectedSession) {
+                        alert('Session not found!');
+                        return;
+                    }
+                    
+                    // Update the session dropdown in the current modal
+                    var sessionSelect = document.getElementById('id_session_date');
+                    if (sessionSelect) {
+                        // Check if the selected session exists in the dropdown
+                        var optionExists = false;
+                        for (var i = 0; i < sessionSelect.options.length; i++) {
+                            if (sessionSelect.options[i].value == selectedSessionId) {
+                                sessionSelect.value = selectedSessionId;
+                                optionExists = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!optionExists) {
+                            // Add the option if it doesn't exist
+                            var option = document.createElement('option');
+                            option.value = selectedSessionId;
+                            option.text = selectedSession.text;
+                            option.selected = true;
+                            sessionSelect.appendChild(option);
+                        }
+                        
+                        // Trigger change event
+                        var event = new Event('change', { bubbles: true });
+                        sessionSelect.dispatchEvent(event);
+                        
+                        // Trigger Select2 update if it's being used
+                        if (typeof $ !== 'undefined' && $(sessionSelect).hasClass('select2-hidden-accessible')) {
+                            $(sessionSelect).trigger('change');
+                        }
+                        
+                        // Visual feedback
+                        sessionSelect.style.border = '2px solid #34C759';
+                        sessionSelect.style.backgroundColor = '#e8f5e8';
+                        setTimeout(function() {
+                            sessionSelect.style.border = '';
+                            sessionSelect.style.backgroundColor = '';
+                        }, 2000);
+                        
+                        // Show brief confirmation message
+                        var confirmDiv = document.createElement('div');
+                        confirmDiv.innerHTML = '<div class="alert alert-success" style="margin-top: 10px; padding: 8px 12px; font-size: 0.9em;"><i class="fa fa-check-circle"></i> Session "' + selectedSession.text + '" has been selected!</div>';
+                        sessionSelect.parentElement.appendChild(confirmDiv);
+                        setTimeout(function() {
+                            if (confirmDiv.parentElement) {
+                                confirmDiv.parentElement.removeChild(confirmDiv);
+                            }
+                        }, 3000);
+                    } else {
+                        alert('Unable to update session selection in the current form.');
+                    }
+                    
+                    // Restore original function
+                    selectSessionFromSearch = window.originalSelectSessionFromSearch;
+                };
+                
+                // Show search modal WITHOUT hiding current modal
+                showSessionSearchModal();
+            };
+            eventModalFooter.appendChild(searchSessionsBtn);
+            
+            // Add main Book button
+            var bookBtn = document.createElement('button');
+            bookBtn.type = "button";
+            bookBtn.className = "btn btn-success btn-glow";
+            bookBtn.innerHTML = '<i class="fa fa-plus-circle"></i> Book a Venue';
+            bookBtn.onclick = function() {
+                var bookingForm = document.getElementById('venueBookingModalForm');
+                if (bookingForm) bookingForm.requestSubmit();
+            };
+            eventModalFooter.appendChild(bookBtn);
+            
+            // Setup form submission
+            var bookingForm = document.getElementById('venueBookingModalForm');
+            if (bookingForm) {
+                bookingForm.onsubmit = function(e) {
+                    e.preventDefault();
+                    var formData = new FormData(bookingForm);
+                    fetch(formUrl, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": "{{ csrf_token }}"
+                        },
+                        body: formData
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            eventModal.hide();
+                            calendar.refetchEvents();
+                            
+                            // Show success notification
+                            var notif = document.getElementById('venueSwitchNotification');
+                            notif.innerHTML = '<i class="fa fa-check-circle" style="color:#34C759;font-size:1.5em;margin-right:8px;"></i> Venue booked successfully for ' + selectedSession.text + '!';
+                            notif.classList.add('show');
+                            setTimeout(function() {
+                                notif.classList.remove('show');
+                            }, 3000);
+                        } else if (data.html) {
+                            eventModalBody.innerHTML = data.html;
+                            // Re-initialize Select2 and set the session again
+                            setTimeout(function() {
+                                if ($('#id_project_plan').length) $('#id_project_plan').select2({ width: '100%', allowClear: true });
+                                if ($('#id_session_date').length) {
+                                    $('#id_session_date').select2({ width: '100%', allowClear: true });
+                                    $('#id_session_date').val(sessionId).trigger('change');
+                                }
+                                if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
+                            }, 100);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while booking the venue.');
+                    });
+                };
+            }
+        })
+        .catch(error => {
+            console.error('Error loading form:', error);
+            eventModalBody.innerHTML = '<div class="alert alert-danger">Error loading booking form. Please try again.</div>';
+        });
+    
+    // Set modal title and show it
+    document.getElementById('eventActionModalLabel').innerHTML = '<i class="fa fa-calendar-plus"></i> Book Venue for ' + selectedSession.text;
+    eventModal.show();
+}
+
     function eventClickHandler(info) {
         if (multiSelectMode) {
             info.jsEvent.preventDefault();
@@ -586,10 +1006,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
                     }, 100);
 
+                    // Clear the footer and add buttons in the correct order
                     eventModalFooter.innerHTML = "";
 
+                    // 1. View Project Plan button (if applicable)
                     if (props.project_plan_id) {
                         var viewPlanBtn = document.createElement('button');
+                        viewPlanBtn.type = "button";
                         viewPlanBtn.className = "btn btn-primary";
                         viewPlanBtn.innerHTML = '<i class="fa fa-eye"></i> View Project Plan';
                         viewPlanBtn.onclick = function() {
@@ -598,6 +1021,123 @@ document.addEventListener('DOMContentLoaded', function() {
                         eventModalFooter.appendChild(viewPlanBtn);
                     }
 
+                    // 2. Search Sessions button (ALWAYS SHOW - for both booked and unbooked)
+                    var searchSessionsBtn = document.createElement('button');
+                    searchSessionsBtn.type = "button";
+                    searchSessionsBtn.className = "btn btn-info";
+                    searchSessionsBtn.innerHTML = '<i class="fa fa-search"></i> Search Sessions';
+                    searchSessionsBtn.onclick = function() {
+                        // Store reference to current modal elements
+                        var currentModalBody = eventModalBody;
+                        var currentModalFooter = eventModalFooter;
+                        var currentFormUrl = formUrl;
+                        
+                        // Override the selectSessionFromSearch function to populate current modal
+                        window.originalSelectSessionFromSearch = selectSessionFromSearch;
+                        selectSessionFromSearch = function(selectedSessionId) {
+                            // Close search modal
+                            if (sessionSearchModal) {
+                                sessionSearchModal.hide();
+                            }
+                            
+                            // Find the selected session
+                            var selectedSession = allSessionsData.find(function(session) {
+                                return session.id == selectedSessionId;
+                            });
+                            
+                            if (!selectedSession) {
+                                alert('Session not found!');
+                                return;
+                            }
+                            
+                            // Update the session dropdown in the current modal
+                            var sessionSelect = document.getElementById('id_session_date');
+                            if (sessionSelect) {
+                                // Check if the selected session exists in the dropdown
+                                var optionExists = false;
+                                for (var i = 0; i < sessionSelect.options.length; i++) {
+                                    if (sessionSelect.options[i].value == selectedSessionId) {
+                                        sessionSelect.value = selectedSessionId;
+                                        optionExists = true;
+                                        break;
+                                    }
+                                }
+                                
+                                if (!optionExists) {
+                                    // Add the option if it doesn't exist
+                                    var option = document.createElement('option');
+                                    option.value = selectedSessionId;
+                                    option.text = selectedSession.text;
+                                    option.selected = true;
+                                    sessionSelect.appendChild(option);
+                                }
+                                
+                                // Trigger change event
+                                var event = new Event('change', { bubbles: true });
+                                sessionSelect.dispatchEvent(event);
+                                
+                                // Trigger Select2 update if it's being used
+                                if (typeof $ !== 'undefined' && $(sessionSelect).hasClass('select2-hidden-accessible')) {
+                                    $(sessionSelect).trigger('change');
+                                }
+                                
+                                // Visual feedback
+                                sessionSelect.style.border = '2px solid #34C759';
+                                sessionSelect.style.backgroundColor = '#e8f5e8';
+                                setTimeout(function() {
+                                    sessionSelect.style.border = '';
+                                    sessionSelect.style.backgroundColor = '';
+                                }, 2000);
+                                
+                                // Show brief confirmation message
+                                var confirmDiv = document.createElement('div');
+                                confirmDiv.innerHTML = '<div class="alert alert-success" style="margin-top: 10px; padding: 8px 12px; font-size: 0.9em;"><i class="fa fa-check-circle"></i> Session "' + selectedSession.text + '" has been selected!</div>';
+                                sessionSelect.parentElement.appendChild(confirmDiv);
+                                setTimeout(function() {
+                                    if (confirmDiv.parentElement) {
+                                        confirmDiv.parentElement.removeChild(confirmDiv);
+                                    }
+                                }, 3000);
+                            } else {
+                                alert('Unable to update session selection in the current form.');
+                            }
+                            
+                            // Restore original function
+                            selectSessionFromSearch = window.originalSelectSessionFromSearch;
+                        };
+                        
+                        // Show search modal WITHOUT hiding current modal
+                        showSessionSearchModal();
+                    };
+                    eventModalFooter.appendChild(searchSessionsBtn);
+
+                    // 3. Cancel Booking button (only for existing bookings, not unbooked sessions)
+                    if (!isUnbooked && bookingId) {
+                        var cancelBtn = document.createElement('button');
+                        cancelBtn.type = "button";
+                        cancelBtn.className = "btn btn-danger";
+                        cancelBtn.innerHTML = '<i class="fa fa-times-circle"></i> Cancel Booking';
+                        cancelBtn.onclick = function() {
+                            window.cancelBooking(bookingId);
+                        };
+                        eventModalFooter.appendChild(cancelBtn);
+                    }
+
+                    // 4. Switch Venue button (only for existing bookings, not unbooked sessions)
+                    if (!isUnbooked && bookingId) {
+                        var switchBtn = document.createElement('button');
+                        switchBtn.type = "button";
+                        switchBtn.className = "btn btn-warning";
+                        switchBtn.innerHTML = '<i class="fa fa-exchange-alt"></i> Switch Venue';
+                        switchBtn.onclick = function() {
+                            document.getElementById('switchBookingId').value = bookingId;
+                            eventModal.hide();
+                            switchVenueModal.show();
+                        };
+                        eventModalFooter.appendChild(switchBtn);
+                    }
+
+                    // 5. Main action button (Book/Update) - always last
                     var bookBtn = document.createElement('button');
                     bookBtn.type = "button";
                     bookBtn.className = "btn btn-success btn-glow";
@@ -744,6 +1284,91 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         eventModalFooter.innerHTML = "";
 
+                        // Add Search Sessions button for date click too
+                        var searchSessionsBtn = document.createElement('button');
+                        searchSessionsBtn.type = "button";
+                        searchSessionsBtn.className = "btn btn-info";
+                        searchSessionsBtn.innerHTML = '<i class="fa fa-search"></i> Search Sessions';
+                        searchSessionsBtn.onclick = function() {
+                            // Override the selectSessionFromSearch function to populate current modal
+                            window.originalSelectSessionFromSearch = selectSessionFromSearch;
+                            selectSessionFromSearch = function(selectedSessionId) {
+                                // Close search modal
+                                if (sessionSearchModal) {
+                                    sessionSearchModal.hide();
+                                }
+                                
+                                // Find the selected session
+                                var selectedSession = allSessionsData.find(function(session) {
+                                    return session.id == selectedSessionId;
+                                });
+                                
+                                if (!selectedSession) {
+                                    alert('Session not found!');
+                                    return;
+                                }
+                                
+                                // Update the session dropdown in the current modal
+                                var sessionSelect = document.getElementById('id_session_date');
+                                if (sessionSelect) {
+                                    // Check if the selected session exists in the dropdown
+                                    var optionExists = false;
+                                    for (var i = 0; i < sessionSelect.options.length; i++) {
+                                        if (sessionSelect.options[i].value == selectedSessionId) {
+                                            sessionSelect.value = selectedSessionId;
+                                            optionExists = true;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    if (!optionExists) {
+                                        // Add the option if it doesn't exist
+                                        var option = document.createElement('option');
+                                        option.value = selectedSessionId;
+                                        option.text = selectedSession.text;
+                                        option.selected = true;
+                                        sessionSelect.appendChild(option);
+                                    }
+                                    
+                                    // Trigger change event
+                                    var event = new Event('change', { bubbles: true });
+                                    sessionSelect.dispatchEvent(event);
+                                    
+                                    // Trigger Select2 update if it's being used
+                                    if (typeof $ !== 'undefined' && $(sessionSelect).hasClass('select2-hidden-accessible')) {
+                                        $(sessionSelect).trigger('change');
+                                    }
+                                    
+                                    // Visual feedback
+                                    sessionSelect.style.border = '2px solid #34C759';
+                                    sessionSelect.style.backgroundColor = '#e8f5e8';
+                                    setTimeout(function() {
+                                        sessionSelect.style.border = '';
+                                        sessionSelect.style.backgroundColor = '';
+                                    }, 2000);
+                                    
+                                    // Show brief confirmation message
+                                    var confirmDiv = document.createElement('div');
+                                    confirmDiv.innerHTML = '<div class="alert alert-success" style="margin-top: 10px; padding: 8px 12px; font-size: 0.9em;"><i class="fa fa-check-circle"></i> Session "' + selectedSession.text + '" has been selected!</div>';
+                                    sessionSelect.parentElement.appendChild(confirmDiv);
+                                    setTimeout(function() {
+                                        if (confirmDiv.parentElement) {
+                                            confirmDiv.parentElement.removeChild(confirmDiv);
+                                        }
+                                    }, 3000);
+                                } else {
+                                    alert('Unable to update session selection in the current form.');
+                                }
+                                
+                                // Restore original function
+                                selectSessionFromSearch = window.originalSelectSessionFromSearch;
+                            };
+                            
+                            // Show search modal WITHOUT hiding current modal
+                            showSessionSearchModal();
+                        };
+                        eventModalFooter.appendChild(searchSessionsBtn);
+
                         var bookBtn = document.createElement('button');
                         bookBtn.type = "button";
                         bookBtn.className = "btn btn-success btn-glow";
@@ -793,10 +1418,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     renderCalendar();
 
+    // Global function for refreshing calendar (can be called from modal)
+    window.refreshCalendar = function() {
+        if (calendar) {
+            calendar.refetchEvents();
+        }
+    };
+
     setInterval(function() {
         calendar.refetchEvents();
     }, 60000);
 
+    var switchVenueForm = document.getElementById('switchVenueForm');
     switchVenueForm.addEventListener('submit', function(e) {
         e.preventDefault();
         var bookingId = document.getElementById('switchBookingId').value;
@@ -835,6 +1468,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    
 });
 
 document.getElementById('venueAvailabilityForm').addEventListener('submit', function(e) {

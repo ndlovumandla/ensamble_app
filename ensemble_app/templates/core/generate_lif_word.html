@@ -126,6 +126,27 @@
   background: #40A2E3;
   color: #fff;
 }
+.lif-action-btns {
+  display: flex;
+  gap: 0.5em;
+}
+.lif-action-btns a, .lif-action-btns form {
+  display: inline-block;
+  margin: 0;
+}
+.lif-action-btns .btn {
+  padding: 0.3em 0.8em;
+  font-size: 0.98em;
+  border-radius: 7px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.lif-action-btns .btn-view { background: #1976d2; color: #fff; }
+.lif-action-btns .btn-view:hover { background: #125ea2; }
+.lif-action-btns .btn-edit { background: #43a047; color: #fff; }
+.lif-action-btns .btn-edit:hover { background: #2e7031; }
+.lif-action-btns .btn-delete { background: #e53935; color: #fff; }
+.lif-action-btns .btn-delete:hover { background: #b71c1c; }
 @media (max-width: 900px) {
   .generate-lif-container { padding: 1.2rem 0.5rem; }
   .filter-row { flex-direction: column; gap: 0.7em; }
@@ -210,7 +231,7 @@
             <th>Equity</th>
             <th>Email</th>
             <th>Birth Date</th>
-            <th>Template</th>
+            <th style="min-width:120px;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -226,12 +247,14 @@
             <td>{{ lif.email_address|default:"—" }}</td>
             <td>{{ lif.learner_birth_date|date:"Y-m-d" }}</td>
             <td>
-              {% for t in templates %}
-                {% if filters.template_id and filters.template_id|stringformat:"i" == t.id|stringformat:"i" %}
-                  {{ t.name }}
-                {% endif %}
-              {% endfor %}
-              {% if not filters.template_id %}—{% endif %}
+              <div class="lif-action-btns">
+                <a href="{% url 'lif_update' lif.id %}" class="btn btn-view" title="Read/View"><i class="fa fa-eye"></i></a>
+                <a href="{% url 'lif_update' lif.id %}?edit=1" class="btn btn-edit" title="Edit"><i class="fa fa-edit"></i></a>
+                <form method="post" action="{% url 'lif_delete' lif.id %}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this LIF?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-delete" title="Delete"><i class="fa fa-trash"></i></button>
+                </form>
+              </div>
             </td>
           </tr>
           {% empty %}

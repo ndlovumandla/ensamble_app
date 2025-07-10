@@ -184,7 +184,7 @@ input[type="checkbox"] {
             {% csrf_token %}
             <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
                 <label class="fw-bold me-2">LIF Template:</label>
-                <select name="template_id" class="form-select form-select-sm w-auto" required>
+                <select name="template_id" class="form-select form-select-sm w-auto" required id="lif-template-select">
                     {% for t in lif_templates %}
                         <option value="{{ t.id }}">{{ t.name }}</option>
                     {% endfor %}
@@ -195,14 +195,15 @@ input[type="checkbox"] {
                 <table class="table table-hover table-bordered table-striped align-middle">
                     <thead>
                         <tr>
-                            <th style="width:32px;"><input type="checkbox" id="select-all-learners"></th>
+                            <th style="width:1.8em; min-width:1.8em; max-width:1.8em; text-align:center; padding-left:0.1em; padding-right:0.1em;">
+                                <input type="checkbox" id="select-all-learners">
+                            </th>
                             <th style="width:13%;">Name</th>
                             <th style="width:12%;">ID Number</th>
                             <th style="width:15%;">Email</th>
                             <th style="width:10%;">Status</th>
                             <th style="width:18%;">Qualifications</th>
-                            <th style="width:8%;">LIF Signed</th>
-                            <th style="width:12%;">Generate LIF</th>
+                            <th style="width:10%;">LIF Signed</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -243,24 +244,9 @@ input[type="checkbox"] {
                                     <span class="badge bg-danger">No</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                {% if lif_map|get_item:learner.id %}
-                                <form method="get" action="{% url 'generate_lif_word' %}" target="_blank" style="display:inline;">
-                                    <input type="hidden" name="learner_id" value="{{ learner.id }}">
-                                    <select name="template_id" class="form-select form-select-sm d-inline w-auto" required>
-                                        {% for t in lif_templates %}
-                                            <option value="{{ t.id }}">{{ t.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <button type="submit" class="btn btn-sm btn-primary">Generate</button>
-                                </form>
-                                {% else %}
-                                    <span class="text-muted">—</span>
-                                {% endif %}
-                            </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="8" class="text-center text-muted">No learners linked to this group.</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted">No learners linked to this group.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -270,6 +256,14 @@ input[type="checkbox"] {
         document.getElementById('select-all-learners').addEventListener('change', function() {
             const checked = this.checked;
             document.querySelectorAll('.learner-checkbox').forEach(cb => cb.checked = checked);
+        });
+        // Ensure LIF template dropdown is enabled and posts the selected value
+        document.getElementById('bulk-lif-form').addEventListener('submit', function(e) {
+            var select = document.getElementById('lif-template-select');
+            if (!select.value) {
+                e.preventDefault();
+                alert('Please select a LIF Template.');
+            }
         });
         </script>
     </div>
@@ -301,38 +295,72 @@ input[type="checkbox"] {
                 <button type="submit" class="btn btn-warning btn-sm">
                     <i class="fa fa-file-archive"></i> Generate Admin Pack ZIP for Selected
                 </button>
+                <div class="form-check ms-3">
+                    <input class="form-check-input" type="checkbox" id="only-signed-lif" autocomplete="off">
+                    <label class="form-check-label" for="only-signed-lif" style="font-weight:500;">
+                        Only show learners with signed LIF
+                    </label>
+                </div>
             </div>
             <div class="table-responsive">
-                <table class="table table-hover table-bordered table-striped align-middle">
+                <table class="table table-hover table-bordered table-striped align-middle" id="admin-pack-learners-table">
                     <thead>
                         <tr>
-                            <th style="width:32px;"><input type="checkbox" id="select-all-learners-admin"></th>
+                            <th style="width:1.8em; min-width:1.8em; max-width:1.8em; text-align:center; padding-left:0.1em; padding-right:0.1em;">
+                                <input type="checkbox" id="select-all-learners-admin">
+                            </th>
                             <th>Name</th>
                             <th>ID Number</th>
                             <th>Email</th>
+                            <th style="width:10%;">LIF Signed</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for learner in group_learners %}
-                        <tr>
+                        <tr data-lif-signed="{% if lif_map|get_item:learner.id %}yes{% else %}no{% endif %}">
                             <td class="text-center">
-                                <input type="checkbox" name="learner_ids" value="{{ learner.id }}" class="learner-checkbox-admin">
+                                <input type="checkbox" name="learner_ids" value="{{ learner.id }}" class="learner-checkbox-admin" {% if not lif_map|get_item:learner.id %}data-lif-signed="no"{% else %}data-lif-signed="yes"{% endif %}>
                             </td>
                             <td>{{ learner.FirstName }} {{ learner.Surname }}</td>
                             <td>{{ learner.IDNumber }}</td>
                             <td>{{ learner.EmailAddress }}</td>
+                            <td>
+                                {% if lif_map|get_item:learner.id %}
+                                    <span class="badge bg-success">Yes</span>
+                                {% else %}
+                                    <span class="badge bg-danger">No</span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="4" class="text-center text-muted">No learners linked to this group.</td></tr>
+                        <tr><td colspan="5" class="text-center text-muted">No learners linked to this group.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </form>
         <script>
+        // Select all checkboxes
         document.getElementById('select-all-learners-admin').addEventListener('change', function() {
             const checked = this.checked;
-            document.querySelectorAll('.learner-checkbox-admin').forEach(cb => { if (!cb.disabled) cb.checked = checked; });
+            document.querySelectorAll('.learner-checkbox-admin:enabled').forEach(cb => { cb.checked = checked; });
+        });
+
+        // Filter rows by LIF signed
+        document.getElementById('only-signed-lif').addEventListener('change', function() {
+            const showOnlySigned = this.checked;
+            const table = document.getElementById('admin-pack-learners-table');
+            table.querySelectorAll('tbody tr').forEach(row => {
+                if (showOnlySigned) {
+                    if (row.getAttribute('data-lif-signed') !== 'yes') {
+                        row.style.display = 'none';
+                    } else {
+                        row.style.display = '';
+                    }
+                } else {
+                    row.style.display = '';
+                }
+            });
         });
         </script>
     </div>
