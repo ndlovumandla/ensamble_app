@@ -125,6 +125,19 @@ def get_venue_color(venue_name):
     key = venue_name.strip().lower()
     return VENUE_COLOR_MAP.get(key, "#34C759")
 
+from .models import SessionDate, ProjectPlan, Group, SLA_Qualifications
+
+def get_default_num_learners_for_session(session_date_id):
+    try:
+        session = SessionDate.objects.select_related('project_plan__group').get(id=session_date_id)
+        group = session.project_plan.group
+        # Get all SLA_Qualifications linked to this group
+        sla_quals = group.sla_qualifications.all()
+        # Sum their learner_count
+        total = sum(q.learner_count for q in sla_quals if q.learner_count)
+        return total if total > 0 else None
+    except Exception:
+        return None
 
 def auto_book_virtual_sessions():
     from .models import SessionDate, VenueBooking, Venue
@@ -152,15 +165,14 @@ def auto_book_virtual_sessions():
         start_dt = make_aware(datetime.combine(session.start_date, time(8, 0)))
         end_dt = make_aware(datetime.combine(session.end_date, time(17, 0)))
         
-        # Check for any booking with same venue and time (regardless of session)
-        exists = VenueBooking.objects.filter(
-            venue=virtual_venue,
-            start_datetime=start_dt,
-            end_datetime=end_dt,
+        # **CRITICAL FIX**: Check for ANY existing booking for this session
+        # This prevents duplicate bookings for the same session
+        existing_booking = VenueBooking.objects.filter(
+            session_date=session,
             status__in=['booked', 'rescheduled']
         ).exists()
         
-        if not exists:
+        if not existing_booking:
             # Get the default number of learners for this session
             default_num_learners = get_default_num_learners_for_session(session.id)
             
@@ -172,149 +184,17 @@ def auto_book_virtual_sessions():
                 end_datetime=end_dt,
                 booking_purpose=f"Auto-booked Virtual Session - {session.project_plan.group.name if session.project_plan and session.project_plan.group else 'Unknown Group'}",
                 status='booked',
-                num_learners=default_num_learners if default_num_learners is not None else 0,  # Use calculated default
-                num_learners_lunch=default_num_learners if default_num_learners is not None else 0  # Use calculated default
+                num_learners=default_num_learners if default_num_learners is not None else 0,
+                num_learners_lunch=default_num_learners if default_num_learners is not None else 0,
+                user=None  # System auto-booking
             )
-@login_required
-def home_redirect_view(request):
-    # Staff users (admin/finance) are redirected to the finance dashboard.
-    if request.user.is_staff:
-        return redirect('finance_dashboard')
-    try:
-        # Assumes you have a OneToOne relation or property 'learner_profile' on your user.
-        learner = request.user.learner_profile
-        return redirect('learner_home')
-    except Learner.DoesNotExist:
-        return redirect('finance_dashboard')
-
-# --- Service CRUD ---
-class ServiceListView(RolePermissionRequiredMixin, ListView):
-    model = Service
-    template_name = "core/service_list.html"
-    context_object_name = "services"
-    paginate_by = 10 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        search = self.request.GET.get('search', '')
-        if search:
-            queryset = queryset.filter(
-                Q(name__icontains=search) |
-                Q(gl_code__icontains=search) |
-                Q(saqa_id__icontains=search)
-            )
-        return queryset
-
-class ServiceCreateView(RolePermissionRequiredMixin, CreateView):
-    model = Service
-    form_class = ServiceForm
-    template_name = "core/service_form.html"
-    success_url = reverse_lazy("service-list")
-
-class ServiceUpdateView(RolePermissionRequiredMixin, UpdateView):
-    model = Service
-    form_class = ServiceForm
-    template_name = "core/service_form.html"
-    success_url = reverse_lazy("service-list")
-
-class ServiceDeleteView(RolePermissionRequiredMixin, DeleteView):
-    model = Service
-    template_name = "core/service_confirm_delete.html"
-    success_url = reverse_lazy("service-list")
-
-# --- Module CRUD ---
-class ModuleListView(RolePermissionRequiredMixin, ListView):
-    model = Module
-    template_name = "core/module_list.html"
-    context_object_name = "modules"
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        search = self.request.GET.get('search', '')
-        service = self.request.GET.get('service', '')
-        if search:
-            queryset = queryset.filter(Q(name__icontains=search) | Q(code__icontains=search))
-        if service:
-            queryset = queryset.filter(services__id=service)
-        return queryset.distinct()
-
-class ModuleCreateView(RolePermissionRequiredMixin, CreateView):
-    model = Module
-    form_class = ModuleForm
-    template_name = "core/module_form.html"
-    success_url = reverse_lazy("module-list")
-
-class ModuleUpdateView(RolePermissionRequiredMixin, UpdateView):
-    model = Module
-    form_class = ModuleForm
-    template_name = "core/module_form.html"
-    success_url = reverse_lazy("module-list")
-
-class ModuleDeleteView(RolePermissionRequiredMixin, DeleteView):
-    model = Module
-    template_name = "core/module_confirm_delete.html"
-    success_url = reverse_lazy("module-list")
-
-# --- Service_Module CRUD ---
-class ServiceModuleListView(RolePermissionRequiredMixin, ListView):
-    model = Service_Module
-    template_name = "core/service_module_list.html"
-    context_object_name = "service_modules"
-
-class ServiceModuleCreateView(RolePermissionRequiredMixin, CreateView):
-    model = Service_Module
-    form_class = ServiceModuleForm
-    template_name = "core/service_module_form.html"
-    success_url = reverse_lazy("service-module-list")
-
-class ServiceModuleUpdateView(RolePermissionRequiredMixin, UpdateView):
-    model = Service_Module
-    form_class = ServiceModuleForm
-    template_name = "core/service_module_form.html"
-    success_url = reverse_lazy("service-module-list")
-
-class ServiceModuleDeleteView(RolePermissionRequiredMixin, DeleteView):
-    model = Service_Module
-    template_name = "core/service_module_confirm_delete.html"
-    success_url = reverse_lazy("service-module-list")
-
-
-class VenueBookingCalendarView(RolePermissionRequiredMixin, TemplateView):
-    template_name = "core/venuebooking_calendar.html"
-    def get_context_data(self, **kwargs):
-        from .models import Venue
-        # Auto-book virtual sessions before rendering the calendar
-        auto_book_virtual_sessions()
-        context = super().get_context_data(**kwargs)
-        context['venues'] = Venue.objects.all().order_by('name')
-        return context
-
-from collections import defaultdict
-from django.http import JsonResponse
-from datetime import datetime, time
-from django.http import JsonResponse
-from django.utils.timezone import make_aware
-from datetime import datetime, time
-from django.http import JsonResponse
-
-from django.http import JsonResponse
-from django.utils.timezone import make_aware
-from datetime import datetime, time
-from django.http import JsonResponse
-from django.utils.timezone import make_aware
-from datetime import datetime, time
-from django.core.cache import cache
-
-from django.utils.timezone import make_aware
-from datetime import datetime, time
-from django.core.cache import cache
-from django.http import JsonResponse
-
-from django.utils.timezone import make_aware
-from datetime import datetime, time
-from django.core.cache import cache
-from django.http import JsonResponse
 
 def venuebooking_events_api(request):
     from .models import Venue, VenueBooking, SessionDate
+
+    # **REMOVE THE AUTO-BOOKING LOGIC FROM HERE**
+    # Just call the function at the beginning
+    auto_book_virtual_sessions()
 
     status_filter = request.GET.get('status')
     venue_filter = request.GET.get('venue')
@@ -485,50 +365,8 @@ def venuebooking_events_api(request):
                 }
             })
 
-    # --- AUTO-BOOK VIRTUAL SESSIONS ---
-    virtual_sessions = SessionDate.objects.filter(
-        preferred_training_methodology__icontains="virtual session"
-    ).exclude(id__in=booked_sessions)
-
-    for session in virtual_sessions:
-        start_dt = make_aware(datetime.combine(session.start_date, time(8, 0)))
-        end_dt = make_aware(datetime.combine(session.end_date, time(17, 0)))
-        base_name = "Virtual Session"
-        virtual_venues = list(Venue.objects.filter(name__istartswith=base_name).order_by('name'))
-        venue_to_use = None
-        for v in virtual_venues:
-            conflict = VenueBooking.objects.filter(
-                venue=v,
-                start_datetime=start_dt,
-                end_datetime=end_dt,
-                status__in=['booked', 'rescheduled']
-            ).exists()
-            if not conflict:
-                venue_to_use = v
-                break
-        if not venue_to_use:
-            existing_names = [v.name for v in virtual_venues]
-            idx = 2
-            new_name = f"{base_name} {idx}"
-            while new_name in existing_names:
-                idx += 1
-                new_name = f"{base_name} {idx}"
-            venue_to_use = Venue.objects.create(name=new_name)
-        if not VenueBooking.objects.filter(
-            venue=venue_to_use,
-            start_datetime=start_dt,
-            end_datetime=end_dt,
-            status__in=['booked', 'rescheduled']
-        ).exists():
-            VenueBooking.objects.create(
-                venue=venue_to_use,
-                session_date=session,
-                start_datetime=start_dt,
-                end_datetime=end_dt,
-                booking_purpose="Virtual Session",
-                facilitator=getattr(session, "facilitator", None),
-                status="booked"
-            )
+    # **REMOVED THE DUPLICATE AUTO-BOOKING LOGIC HERE**
+    # This was causing the duplicates!
 
     # --- Unbooked slots ---
     session_dates = SessionDate.objects.select_related('project_plan__group', 'project_plan__module')
@@ -619,7 +457,146 @@ def venuebooking_events_api(request):
     if show_empty == "1":
         events = [e for e in events if e['status'] == 'unbooked']
 
-    return JsonResponse(events, safe=False)
+    return JsonResponse(events, safe=False)   
+
+@login_required
+def home_redirect_view(request):
+    # Staff users (admin/finance) are redirected to the finance dashboard.
+    if request.user.is_staff:
+        return redirect('finance_dashboard')
+    try:
+        # Assumes you have a OneToOne relation or property 'learner_profile' on your user.
+        learner = request.user.learner_profile
+        return redirect('learner_home')
+    except Learner.DoesNotExist:
+        return redirect('finance_dashboard')
+
+# --- Service CRUD ---
+class ServiceListView(RolePermissionRequiredMixin, ListView):
+    model = Service
+    template_name = "core/service_list.html"
+    context_object_name = "services"
+    paginate_by = 10 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search = self.request.GET.get('search', '')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(gl_code__icontains=search) |
+                Q(saqa_id__icontains=search)
+            )
+        return queryset
+
+class ServiceCreateView(RolePermissionRequiredMixin, CreateView):
+    model = Service
+    form_class = ServiceForm
+    template_name = "core/service_form.html"
+    success_url = reverse_lazy("service-list")
+
+class ServiceUpdateView(RolePermissionRequiredMixin, UpdateView):
+    model = Service
+    form_class = ServiceForm
+    template_name = "core/service_form.html"
+    success_url = reverse_lazy("service-list")
+
+class ServiceDeleteView(RolePermissionRequiredMixin, DeleteView):
+    model = Service
+    template_name = "core/service_confirm_delete.html"
+    success_url = reverse_lazy("service-list")
+
+# --- Module CRUD ---
+class ModuleListView(RolePermissionRequiredMixin, ListView):
+    model = Module
+    template_name = "core/module_list.html"
+    context_object_name = "modules"
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search = self.request.GET.get('search', '')
+        service = self.request.GET.get('service', '')
+        if search:
+            queryset = queryset.filter(Q(name__icontains=search) | Q(code__icontains=search))
+        if service:
+            queryset = queryset.filter(services__id=service)
+        return queryset.distinct()
+
+class ModuleCreateView(RolePermissionRequiredMixin, CreateView):
+    model = Module
+    form_class = ModuleForm
+    template_name = "core/module_form.html"
+    success_url = reverse_lazy("module-list")
+
+class ModuleUpdateView(RolePermissionRequiredMixin, UpdateView):
+    model = Module
+    form_class = ModuleForm
+    template_name = "core/module_form.html"
+    success_url = reverse_lazy("module-list")
+
+class ModuleDeleteView(RolePermissionRequiredMixin, DeleteView):
+    model = Module
+    template_name = "core/module_confirm_delete.html"
+    success_url = reverse_lazy("module-list")
+
+# --- Service_Module CRUD ---
+class ServiceModuleListView(RolePermissionRequiredMixin, ListView):
+    model = Service_Module
+    template_name = "core/service_module_list.html"
+    context_object_name = "service_modules"
+
+class ServiceModuleCreateView(RolePermissionRequiredMixin, CreateView):
+    model = Service_Module
+    form_class = ServiceModuleForm
+    template_name = "core/service_module_form.html"
+    success_url = reverse_lazy("service-module-list")
+
+class ServiceModuleUpdateView(RolePermissionRequiredMixin, UpdateView):
+    model = Service_Module
+    form_class = ServiceModuleForm
+    template_name = "core/service_module_form.html"
+    success_url = reverse_lazy("service-module-list")
+
+class ServiceModuleDeleteView(RolePermissionRequiredMixin, DeleteView):
+    model = Service_Module
+    template_name = "core/service_module_confirm_delete.html"
+    success_url = reverse_lazy("service-module-list")
+
+
+class VenueBookingCalendarView(RolePermissionRequiredMixin, TemplateView):
+    template_name = "core/venuebooking_calendar.html"
+    def get_context_data(self, **kwargs):
+        from .models import Venue
+        # Auto-book virtual sessions before rendering the calendar
+        auto_book_virtual_sessions()
+        context = super().get_context_data(**kwargs)
+        context['venues'] = Venue.objects.all().order_by('name')
+        return context
+
+from collections import defaultdict
+from django.http import JsonResponse
+from datetime import datetime, time
+from django.http import JsonResponse
+from django.utils.timezone import make_aware
+from datetime import datetime, time
+from django.http import JsonResponse
+
+from django.http import JsonResponse
+from django.utils.timezone import make_aware
+from datetime import datetime, time
+from django.http import JsonResponse
+from django.utils.timezone import make_aware
+from datetime import datetime, time
+from django.core.cache import cache
+
+from django.utils.timezone import make_aware
+from datetime import datetime, time
+from django.core.cache import cache
+from django.http import JsonResponse
+
+from django.utils.timezone import make_aware
+from datetime import datetime, time
+from django.core.cache import cache
+from django.http import JsonResponse
+
 
 from django.views.decorators.http import require_GET
 @require_GET
@@ -2528,6 +2505,22 @@ class VenueBookingListView(RolePermissionRequiredMixin, ListView):
             grouped.setdefault(key, []).append(b)
         context['grouped_bookings'] = list(grouped.values())
 
+        # --- Parse manual booking purposes ---
+        for group in context['grouped_bookings']:
+            for booking in group:
+                if not booking.session_date and booking.booking_purpose:
+                    # Parse manual booking format: Group Name, Module Name, Purpose (3 parts only)
+                    parts = [part.strip() for part in booking.booking_purpose.split(',')]
+                    if len(parts) >= 3:
+                        booking.manual_group_name = parts[0]
+                        booking.manual_module_name = parts[1]
+                        booking.manual_purpose = ', '.join(parts[2:])  # Everything after module
+                    else:
+                        # Fallback for incorrect format
+                        booking.manual_group_name = "Manual Booking"
+                        booking.manual_module_name = "N/A"
+                        booking.manual_purpose = booking.booking_purpose
+
         # --- Separate physical and virtual bookings for template display ---
         physical_bookings = []
         virtual_bookings = []
@@ -2541,6 +2534,7 @@ class VenueBookingListView(RolePermissionRequiredMixin, ListView):
         context['virtual_count'] = len(virtual_bookings)
 
         return context
+
 
 from django.views.generic.edit import CreateView
 from .models import VenueBooking, SessionDate, ProjectPlan
@@ -2730,14 +2724,15 @@ class CancelVenueBookingView(RolePermissionRequiredMixin, View):
             cancelled_by_user = request.user
             
             # Get booking details before cancellation for email
-            venue_name = booking.venue.name
+            venue_name = booking.venue.name if booking.venue else "No Venue"
             session_info = str(booking.session_date) if booking.session_date else "N/A"
             start_datetime = booking.start_datetime
             end_datetime = booking.end_datetime
             booking_purpose = booking.booking_purpose
             
-            # Cancel the booking
+            # **KEY FIX**: Remove venue link and change status
             booking.status = 'cancelled'
+            booking.venue = None  # This removes the venue link!
             booking.save()
             
             # If this is a combined booking, cancel all related bookings
@@ -2748,6 +2743,7 @@ class CancelVenueBookingView(RolePermissionRequiredMixin, View):
                 
                 for related_booking in related_bookings:
                     related_booking.status = 'cancelled'
+                    related_booking.venue = None  # Remove venue link for related bookings too
                     related_booking.save()
             
             # Send email notification
@@ -2763,7 +2759,7 @@ class CancelVenueBookingView(RolePermissionRequiredMixin, View):
             
             return JsonResponse({
                 'success': True,
-                'message': 'Booking cancelled successfully. Notification email sent.'
+                'message': f'Booking cancelled successfully. {venue_name} is now available for other bookings.'
             })
             
         except Exception as e:
@@ -2790,7 +2786,7 @@ class CancelVenueBookingView(RolePermissionRequiredMixin, View):
             message = f"""
 Dear {original_user.get_full_name() if original_user else 'User'},
 
-Your venue booking has been cancelled.
+Your venue booking has been cancelled. The venue is now available for other bookings.
 
 Booking Details:
 - Venue: {venue_name}
@@ -2801,6 +2797,8 @@ Booking Details:
 
 Cancelled by: {cancelled_by_user.get_full_name() if cancelled_by_user.get_full_name() else cancelled_by_user.username}
 Cancelled on: {timezone.now().strftime('%B %d, %Y at %I:%M %p')}
+
+The venue {venue_name} is now available for new bookings during this time slot.
 
 If you have any questions about this cancellation, please contact the person who cancelled the booking or your administrator.
 
@@ -2822,7 +2820,6 @@ The Learning Organisation
         except Exception as e:
             # Log the error but don't fail the cancellation
             logger.error(f"Failed to send cancellation email: {str(e)}")
-
 
 class ProjectPlanDetailView(RolePermissionRequiredMixin, DetailView):
     model = ProjectPlan
@@ -5850,20 +5847,7 @@ def venuebooking_switch(request):
         return JsonResponse({"success": False, "error": str(e)}, status=500)
     
 
-from .models import SessionDate, ProjectPlan, Group, SLA_Qualifications
-
-def get_default_num_learners_for_session(session_date_id):
-    try:
-        session = SessionDate.objects.select_related('project_plan__group').get(id=session_date_id)
-        group = session.project_plan.group
-        # Get all SLA_Qualifications linked to this group
-        sla_quals = group.sla_qualifications.all()
-        # Sum their learner_count
-        total = sum(q.learner_count for q in sla_quals if q.learner_count)
-        return total if total > 0 else None
-    except Exception:
-        return None
-    
+ 
 from .models import ExternalProject
 from django.views.generic import ListView
 
@@ -5925,7 +5909,6 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.http import JsonResponse, HttpResponse
 import uuid
-
 class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
     def get(self, request):
         booking_id = request.GET.get('booking')
@@ -5939,33 +5922,92 @@ class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
         if booking_id:
             booking = get_object_or_404(VenueBooking, pk=booking_id)
             obj = booking
-            # Try combined_booking_id first, else match on start/end/venue
+            
+            # **CRITICAL FIX**: Only use multi-booking logic if there's a combined_booking_id
             if getattr(booking, 'combined_booking_id', None):
                 bookings = VenueBooking.objects.filter(combined_booking_id=booking.combined_booking_id)
+                session_ids_list = list(bookings.values_list('session_date_id', flat=True))
+                session_dates = SessionDate.objects.filter(id__in=session_ids_list).select_related('project_plan', 'project_plan__group', 'project_plan__module')
+                session_ids = ",".join(str(sid) for sid in session_ids_list if sid is not None)
+                
+                if len(session_ids_list) > 1:
+                    multi_booking_mode = True
+                    selected_session_ids = [str(sid) for sid in session_ids_list if sid is not None]
             else:
-                bookings = VenueBooking.objects.filter(
-                    venue=booking.venue,
-                    start_datetime=booking.start_datetime,
-                    end_datetime=booking.end_datetime,
-                    status__in=['booked', 'rescheduled']
-                )
-            session_ids_list = list(bookings.values_list('session_date_id', flat=True))
-            session_dates = SessionDate.objects.filter(id__in=session_ids_list).select_related('project_plan', 'project_plan__group', 'project_plan__module')
+                # **THIS IS THE KEY FIX**: For single bookings, only work with the current booking
+                session_ids_list = [booking.session_date.id] if booking.session_date else []
+                session_dates = SessionDate.objects.filter(id__in=session_ids_list).select_related('project_plan', 'project_plan__group', 'project_plan__module')
+                session_ids = ",".join(str(sid) for sid in session_ids_list if sid is not None)
+                multi_booking_mode = False
+                selected_session_ids = []
+            
             form = VenueBookingForm(instance=booking)
+            
+            # ENSURE NUM_LEARNERS IS POPULATED FOR EXISTING BOOKINGS (INCLUDING VIRTUAL SESSIONS)
+            if booking.num_learners and booking.num_learners > 0:
+                form.fields['num_learners'].initial = booking.num_learners
+                form.fields['num_learners_lunch'].initial = booking.num_learners_lunch
+            elif booking.session_date:
+                # If no learners set or set to 0, calculate from session
+                default_num_learners = get_default_num_learners_for_session(booking.session_date.id)
+                if default_num_learners and default_num_learners > 0:
+                    form.fields['num_learners'].initial = default_num_learners
+                    form.fields['num_learners_lunch'].initial = default_num_learners
+            
             if 'session_dates' in form.fields:
                 form.fields['session_dates'].queryset = session_dates
-            # Pass session_ids to context so template/POST works for multi-booking
-            session_ids = ",".join(str(sid) for sid in session_ids_list)
-            if len(session_ids_list) > 1:
-                multi_booking_mode = True
-                selected_session_ids = [str(sid) for sid in session_ids_list]
+                
         else:
             initial = {}
             session_dates = SessionDate.objects.select_related('project_plan', 'project_plan__group', 'project_plan__module').all()
             obj = None
 
-            # Single session booking
-            if session_id:
+            # **UPDATED**: Handle multiple sessions with datetime pre-population and total learner count
+            if session_ids:
+                multi_booking_mode = True
+                selected_session_ids = session_ids.split(',')
+                
+                # Get the selected sessions
+                selected_sessions = SessionDate.objects.filter(id__in=selected_session_ids).order_by('start_date')
+                session_dates = selected_sessions
+                
+                if selected_sessions.exists():
+                    # **KEY UPDATE**: Pre-populate with the earliest start and latest end times
+                    earliest_session = selected_sessions.first()
+                    latest_session = selected_sessions.last()
+                    
+                    # Use the earliest start date/time and latest end date/time
+                    start_dt = timezone.make_aware(datetime.combine(earliest_session.start_date, time(8, 0)))
+                    end_dt = timezone.make_aware(datetime.combine(latest_session.end_date, time(17, 0)))
+                    
+                    # **NEW**: Calculate total number of learners from all selected sessions
+                    total_num_learners = 0
+                    for session in selected_sessions:
+                        session_learners = get_default_num_learners_for_session(session.id)
+                        if session_learners is not None and session_learners > 0:
+                            total_num_learners += session_learners
+                    
+                    # **UPDATED**: Use total learners if calculated, otherwise use first session's count as fallback
+                    if total_num_learners == 0:
+                        # Fallback to first session if no totals found
+                        default_num_learners = get_default_num_learners_for_session(earliest_session.id)
+                        total_num_learners = default_num_learners if default_num_learners is not None else 0
+                    
+                    initial.update({
+                        'start_datetime': start_dt,
+                        'end_datetime': end_dt,
+                        'num_learners': total_num_learners,
+                        'num_learners_lunch': total_num_learners,
+                        'booking_purpose': f"Multiple Sessions: {', '.join([str(s.project_plan.group) + ' - ' + str(s.project_plan.module) if s.project_plan else 'Unknown' for s in selected_sessions])}"
+                    })
+                    
+                    # **ADDITIONAL**: If all sessions have the same facilitator, pre-select it
+                    facilitators = set(s.facilitator for s in selected_sessions if s.facilitator)
+                    if len(facilitators) == 1:
+                        initial['facilitator'] = facilitators.pop()
+                        
+            elif session_id:
+                # Single session booking
                 try:
                     session = SessionDate.objects.get(id=session_id)
                     initial['session_date'] = session
@@ -5976,9 +6018,14 @@ class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
                     default_learners = get_default_num_learners_for_session(session_id)
                     if default_learners:
                         initial['num_learners'] = default_learners
+                        initial['num_learners_lunch'] = default_learners
                 except SessionDate.DoesNotExist:
                     pass
+            else:
+                # No specific session - show all
+                session_dates = SessionDate.objects.select_related('project_plan', 'project_plan__group', 'project_plan__module').order_by('-start_date')[:50]
 
+            # **KEY FIX**: Always populate date fields when date parameter is provided
             if date and not initial.get('start_datetime'):
                 try:
                     date_obj = datetime.strptime(date, '%Y-%m-%d').date()
@@ -5986,20 +6033,34 @@ class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
                     initial['end_datetime'] = timezone.make_aware(datetime.combine(date_obj, time(17, 0)))
                 except ValueError:
                     pass
+            
+            # **ADDITIONAL FIX**: Even if session is selected, override with clicked date if provided
+            elif date and initial.get('start_datetime'):
+                try:
+                    date_obj = datetime.strptime(date, '%Y-%m-%d').date()
+                    # Keep the session's time but use the clicked date
+                    existing_start_time = initial['start_datetime'].time()
+                    existing_end_time = initial['end_datetime'].time()
+                    initial['start_datetime'] = timezone.make_aware(datetime.combine(date_obj, existing_start_time))
+                    initial['end_datetime'] = timezone.make_aware(datetime.combine(date_obj, existing_end_time))
+                except ValueError:
+                    pass
 
             form = VenueBookingForm(initial=initial)
 
-            # Multi-booking: pre-select session_dates and filter options
+            # **CRITICAL FIX**: Only enable multi-booking when session_ids parameter is explicitly provided
             if session_ids:
                 ids = [int(sid) for sid in session_ids.split(',') if sid.isdigit()]
-                session_dates = SessionDate.objects.filter(id__in=ids).select_related('project_plan', 'project_plan__group', 'project_plan__module')
-                if 'session_dates' in form.fields:
-                    form.fields['session_dates'].queryset = session_dates
-                multi_booking_mode = True
-                selected_session_ids = [str(sid) for sid in ids]
-            else:
-                if 'session_dates' in form.fields:
-                    form.fields['session_dates'].queryset = session_dates
+                if len(ids) > 1:  # Only if there are actually multiple sessions
+                    session_dates = SessionDate.objects.filter(id__in=ids).select_related('project_plan', 'project_plan__group', 'project_plan__module')
+                    if 'session_dates' in form.fields:
+                        form.fields['session_dates'].queryset = session_dates
+                    multi_booking_mode = True
+                    selected_session_ids = [str(sid) for sid in ids]
+            
+            # For single session bookings (default case)
+            if not multi_booking_mode and 'session_dates' in form.fields:
+                form.fields['session_dates'].queryset = session_dates
 
         project_plans = {pp.id: str(pp) for pp in ProjectPlan.objects.all().order_by('id')}
         
@@ -6029,6 +6090,7 @@ class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
             'session_ids': session_ids if booking_id else session_ids if session_ids else "",
             'multi_booking_mode': multi_booking_mode,
             'selected_session_ids': selected_session_ids,
+            'is_editing': bool(booking_id),
         }, request=request)
         return HttpResponse(html)
 
@@ -6054,6 +6116,25 @@ class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
             if 'session_dates' in form.fields:
                 form.fields['session_dates'].queryset = session_dates
 
+        # --- MANUAL BOOKING VALIDATION ---
+        # Validate manual booking format before other validation
+        session_date = form.data.get('session_date')
+        session_dates_selected = form.data.getlist('session_dates') if 'session_dates' in form.data else []
+        booking_purpose = form.data.get('booking_purpose', '').strip()
+        
+        # Check if this is a manual booking (no session selected)
+        is_manual_booking = not session_date and not (session_dates_selected and len(session_dates_selected) > 0)
+        
+        if is_manual_booking:
+            if not booking_purpose:
+                form.add_error('booking_purpose', 'Booking purpose is required when no session is selected.')
+            else:
+                # Validate the format: Group Name, Module Name, Purpose
+                parts = [part.strip() for part in booking_purpose.split(',')]
+                if len(parts) < 3 or any(part == '' for part in parts[:3]):
+                    form.add_error('booking_purpose', 
+                        'When no session is selected, please use format: Group Name, Module Name, Booking Purpose (e.g., "The Blizzers, Mathematics, Exam")')
+
         # --- STRICT CONFLICT CHECK LOGIC ---
         # Only for single booking (not multi-booking)
         if not session_ids:
@@ -6073,7 +6154,8 @@ class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
                 venue_id=venue,
                 start_datetime=start_dt,
                 end_datetime=end_dt,
-            )
+                status__in=['booked', 'rescheduled']  # Only check active bookings
+            ).exclude(venue__isnull=True)  # Exclude bookings with no venue link
             if booking_id:
                 conflict_qs = conflict_qs.exclude(pk=booking_id)
             existing_booking = conflict_qs.first()
@@ -6104,7 +6186,8 @@ class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
                     venue_id=venue,
                     start_datetime=start_dt,
                     end_datetime=end_dt,
-                )
+                    status__in=['booked', 'rescheduled']
+                ).exclude(venue__isnull=True)
                 if booking_id:
                     conflict_qs = conflict_qs.exclude(pk=booking_id)
                 existing_booking = conflict_qs.first()
@@ -6221,13 +6304,14 @@ class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
             html = render_to_string('core/venuebooking_modal_form.html', {
                 'form': form,
                 'session_dates': session_dates,
+                'all_sessions': json.dumps([]),  # Add this for error redisplay
                 'project_plans': project_plans,
                 'object': booking if booking_id else None,
                 'multi_booking_mode': multi_booking_mode,
                 'selected_session_ids': selected_session_ids,
+                'is_editing': bool(booking_id),
             }, request=request)
             return JsonResponse({'success': False, 'html': html})
-
 import io
 import zipfile
 import re

@@ -320,8 +320,37 @@ class VenueBookingForm(forms.ModelForm):
             'status': forms.Select(attrs={'class': 'form-select'}),
         }
 
+    def clean(self):
+        cleaned_data = super().clean()
+        session_date = cleaned_data.get('session_date')
+        booking_purpose = cleaned_data.get('booking_purpose')
+        
+        # If no session date is selected, enforce the format
+        if not session_date and booking_purpose:
+            # Check if booking_purpose follows the required format (3 parts only)
+            parts = [part.strip() for part in booking_purpose.split(',')]
+            if len(parts) < 3:
+                raise forms.ValidationError(
+                    "When no session is selected, booking purpose must follow this format: "
+                    "Group Name, Module Name, Booking Purpose (e.g., 'The Blizzers, Mathematics, Exam')"
+                )
+        elif not session_date and not booking_purpose:
+            raise forms.ValidationError(
+                "When no session is selected, you must provide a booking purpose in this format: "
+                "Group Name, Module Name, Booking Purpose (e.g., 'The Blizzers, Mathematics, Exam')"
+            )
+        
+        return cleaned_data
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Add help text to booking_purpose field
+        self.fields['booking_purpose'].help_text = (
+            "If no session is selected, use format: Group Name, Module Name, Purpose "
+            "(e.g., 'The Blizzers, Mathematics, Exam')"
+        )
+        # Make booking_purpose required when no session_date
+        self.fields['booking_purpose'].required = True
         if 'facilitator' in self.fields:
             self.fields['facilitator'].queryset = LearnerRole.objects.filter(role__name='Facilitator')
             self.fields['num_learners'].disabled = True

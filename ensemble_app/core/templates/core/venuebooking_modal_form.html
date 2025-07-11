@@ -1,3 +1,14 @@
+<!-- Modal Header -->
+<div class="modal-header" style="border-bottom: 1px solid #dee2e6; margin-bottom: 20px; padding-bottom: 15px;">
+    <h5 class="modal-title">
+        {% if is_editing %}
+            <i class="fa fa-edit"></i> Edit Venue Booking
+        {% else %}
+            <i class="fa fa-calendar-plus"></i> Book Venue
+        {% endif %}
+    </h5>
+</div>
+
 <style>
 #venueBookingModalForm {
     background: #fff;
@@ -61,6 +72,31 @@
     margin-top: 1px;
 }
 
+.manual-booking-guide {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    color: #856404;
+}
+
+.manual-booking-guide .icon {
+    color: #f39c12;
+    margin-right: 8px;
+}
+
+.manual-booking-guide .format-example {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px;
+    margin: 8px 0;
+    font-family: monospace;
+    font-weight: bold;
+    color: #333;
+}
+
 @media (max-width: 900px) {
     #venueBookingModalForm {
         max-width: 99vw;
@@ -78,6 +114,18 @@
 
 <form id="venueBookingModalForm" method="post">
     {% csrf_token %}
+    
+    <!-- Manual booking guidance -->
+    <div class="manual-booking-guide" id="manualBookingGuide" style="display: none;">
+        <div><i class="fa fa-info-circle icon"></i><strong>Manual Booking Format Required</strong></div>
+        <div style="margin-top: 8px;">
+            Since no session is selected, please enter your booking purpose as:
+            <div class="format-example">Group Name, Module Name, Booking Purpose</div>
+            <small style="color: #6c757d;">Example: <em>The Blizzers, Mathematics, Exam</em></small>
+            <br><small style="color: #6c757d;">Use the Start Date/Time and End Date/Time fields below to set when your booking takes place.</small>
+        </div>
+    </div>
+    
     <div class="row g-3">
         {% if multi_booking_mode %}
             <div class="col-12" style="order:-1;">
@@ -99,21 +147,18 @@
         {% endif %}
         
         {% for field in form.visible_fields %}
-            {% if not multi_booking_mode %}
+            {% if field.name == "session_dates" %}
+                <!-- Skip session_dates field as it's handled above -->
+            {% elif field.name == "session_date" and multi_booking_mode %}
+                <!-- Hide single session field in multi-booking mode -->
+            {% else %}
                 <div class="col-12 col-md-6">
-                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                    {{ field }}
-                    {% if field.help_text %}
-                        <small class="form-text text-muted">{{ field.help_text }}</small>
-                    {% endif %}
-                    {% for error in field.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-            {% if multi_booking_mode and field.name != "session_dates" and field.name != "session_date" %}
-                <div class="col-12 col-md-6">
-                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                    <label for="{{ field.id_for_label }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.name == "booking_purpose" %}
+                            <span style="color: #d32f2f;">*</span>
+                        {% endif %}
+                    </label>
                     {{ field }}
                     {% if field.help_text %}
                         <small class="form-text text-muted">{{ field.help_text }}</small>
@@ -132,3 +177,75 @@
         </div>
     {% endif %}
 </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var sessionDateField = document.getElementById('id_session_date');
+    var bookingPurposeField = document.getElementById('id_booking_purpose');
+    var manualGuide = document.getElementById('manualBookingGuide');
+    
+    function toggleManualBookingGuide() {
+        if (sessionDateField && bookingPurposeField && manualGuide) {
+            var hasSessionSelected = sessionDateField.value && sessionDateField.value !== '';
+            
+            if (hasSessionSelected) {
+                manualGuide.style.display = 'none';
+                bookingPurposeField.placeholder = 'Purpose of booking';
+            } else {
+                manualGuide.style.display = 'block';
+                bookingPurposeField.placeholder = 'Group Name, Module Name, Booking Purpose';
+                bookingPurposeField.style.borderColor = '#f39c12';
+            }
+        }
+    }
+    
+    // Check on page load
+    toggleManualBookingGuide();
+    
+    // Check when session selection changes
+    if (sessionDateField) {
+        sessionDateField.addEventListener('change', toggleManualBookingGuide);
+        
+        // For Select2 dropdowns
+        if (typeof $ !== 'undefined') {
+            $(sessionDateField).on('change', toggleManualBookingGuide);
+        }
+    }
+    
+    // Validate format on blur
+    if (bookingPurposeField) {
+        bookingPurposeField.addEventListener('blur', function() {
+            var hasSessionSelected = sessionDateField && sessionDateField.value && sessionDateField.value !== '';
+            
+            if (!hasSessionSelected && this.value) {
+                var parts = this.value.split(',').map(part => part.trim());
+                if (parts.length < 3 || parts.some(part => part === '')) {
+                    this.style.borderColor = '#dc3545';
+                    
+                    // Remove existing error message
+                    var existingError = this.parentElement.querySelector('.format-error');
+                    if (existingError) {
+                        existingError.remove();
+                    }
+                    
+                    // Add error message
+                    var errorDiv = document.createElement('div');
+                    errorDiv.className = 'text-danger format-error';
+                    errorDiv.style.fontSize = '0.93em';
+                    errorDiv.style.marginTop = '2px';
+                    errorDiv.innerHTML = '<i class="fa fa-exclamation-triangle"></i> Please use format: Group Name, Module Name, Purpose';
+                    this.parentElement.appendChild(errorDiv);
+                } else {
+                    this.style.borderColor = '#34C759';
+                    
+                    // Remove error message
+                    var existingError = this.parentElement.querySelector('.format-error');
+                    if (existingError) {
+                        existingError.remove();
+                    }
+                }
+            }
+        });
+    }
+});
+</script>

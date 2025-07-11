@@ -190,6 +190,8 @@
                                         {% for b in group %}
                                             {% if b.session_date and b.session_date.project_plan %}
                                                 {{ b.session_date.project_plan.group.name|default:"No Group" }}{% if not forloop.last %}, {% endif %}
+                                            {% elif b.manual_group_name %}
+                                                {{ b.manual_group_name }}{% if not forloop.last %}, {% endif %}
                                             {% else %}
                                                 <span style="color:#d32f2f;">No group{% if not forloop.last %}, {% endif %}</span>
                                             {% endif %}
@@ -203,6 +205,8 @@
                                         {% for b in group %}
                                             {% if b.session_date and b.session_date.project_plan %}
                                                 {{ b.session_date.project_plan.module.name|default:"No Module" }}{% if not forloop.last %}, {% endif %}
+                                            {% elif b.manual_module_name %}
+                                                {{ b.manual_module_name }}{% if not forloop.last %}, {% endif %}
                                             {% else %}
                                                 <span style="color:#d32f2f;">No module{% if not forloop.last %}, {% endif %}</span>
                                             {% endif %}
@@ -214,6 +218,8 @@
                                     <span class="value">
                                         {% if booking.session_date %}
                                             {{ booking.session_date.start_date|date:"d M" }} - {{ booking.session_date.end_date|date:"d M" }}
+                                        {% elif booking.start_datetime and booking.end_datetime %}
+                                            {{ booking.start_datetime|date:"d M Y" }} - {{ booking.end_datetime|date:"d M Y" }}
                                         {% else %}
                                             <span style="color:#d32f2f;">N/A</span>
                                         {% endif %}
@@ -223,9 +229,20 @@
                                     <span class="label"><i class="fa fa-clock"></i> Time:</span>
                                     <span class="value">{{ booking.start_datetime|date:"H:i" }} - {{ booking.end_datetime|date:"H:i" }}</span>
                                 </div>
+                                <!-- Update the Purpose row to show just the purpose without session dates -->
                                 <div class="venue-card-row">
                                     <span class="label"><i class="fa fa-bullseye"></i> Purpose:</span>
-                                    <span class="value">{{ booking.booking_purpose|default:"—" }}</span>
+                                    <span class="value">
+                                        {% with booking=group.0 %}
+                                            {% if booking.session_date %}
+                                                {{ booking.booking_purpose|default:"—" }}
+                                            {% elif booking.manual_purpose %}
+                                                {{ booking.manual_purpose }}
+                                            {% else %}
+                                                {{ booking.booking_purpose|default:"—" }}
+                                            {% endif %}
+                                        {% endwith %}
+                                    </span>
                                 </div>
                                 <div class="venue-card-row">
                                     <span class="label"><i class="fa fa-user-graduate"></i> Learners:</span>
@@ -298,6 +315,8 @@
                                         {% for b in group %}
                                             {% if b.session_date and b.session_date.project_plan %}
                                                 {{ b.session_date.project_plan.group.name|default:"No Group" }}{% if not forloop.last %}, {% endif %}
+                                            {% elif b.manual_group_name %}
+                                                {{ b.manual_group_name }}{% if not forloop.last %}, {% endif %}
                                             {% else %}
                                                 <span style="color:#d32f2f;">No group{% if not forloop.last %}, {% endif %}</span>
                                             {% endif %}
@@ -311,6 +330,8 @@
                                         {% for b in group %}
                                             {% if b.session_date and b.session_date.project_plan %}
                                                 {{ b.session_date.project_plan.module.name|default:"No Module" }}{% if not forloop.last %}, {% endif %}
+                                            {% elif b.manual_module_name %}
+                                                {{ b.manual_module_name }}{% if not forloop.last %}, {% endif %}
                                             {% else %}
                                                 <span style="color:#d32f2f;">No module{% if not forloop.last %}, {% endif %}</span>
                                             {% endif %}
@@ -322,6 +343,8 @@
                                     <span class="value">
                                         {% if booking.session_date %}
                                             {{ booking.session_date.start_date|date:"d M" }} - {{ booking.session_date.end_date|date:"d M" }}
+                                        {% elif booking.start_datetime and booking.end_datetime %}
+                                            {{ booking.start_datetime|date:"d M Y" }} - {{ booking.end_datetime|date:"d M Y" }}
                                         {% else %}
                                             <span style="color:#d32f2f;">N/A</span>
                                         {% endif %}
@@ -331,9 +354,20 @@
                                     <span class="label"><i class="fa fa-clock"></i> Time:</span>
                                     <span class="value">{{ booking.start_datetime|date:"H:i" }} - {{ booking.end_datetime|date:"H:i" }}</span>
                                 </div>
+                                <!-- Update the Purpose row to show just the purpose without session dates -->
                                 <div class="venue-card-row">
                                     <span class="label"><i class="fa fa-bullseye"></i> Purpose:</span>
-                                    <span class="value">{{ booking.booking_purpose|default:"—" }}</span>
+                                    <span class="value">
+                                        {% with booking=group.0 %}
+                                            {% if booking.session_date %}
+                                                {{ booking.booking_purpose|default:"—" }}
+                                            {% elif booking.manual_purpose %}
+                                                {{ booking.manual_purpose }}
+                                            {% else %}
+                                                {{ booking.booking_purpose|default:"—" }}
+                                            {% endif %}
+                                        {% endwith %}
+                                    </span>
                                 </div>
                                 <div class="venue-card-row">
                                     <span class="label"><i class="fa fa-user-graduate"></i> Learners:</span>
