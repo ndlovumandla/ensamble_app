@@ -383,7 +383,7 @@ class VenueBooking(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     session_date = models.ForeignKey('SessionDate', on_delete=models.SET_NULL, null=True, blank=True)
-    venue = models.ForeignKey('Venue', on_delete=models.CASCADE)
+    venue = models.ForeignKey('Venue', on_delete=models.CASCADE, null=True, blank=True)
     start_datetime = models.DateTimeField()
     end_datetime = models.DateTimeField()
     booking_purpose = models.CharField(max_length=100)

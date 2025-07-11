@@ -323,23 +323,25 @@ class VenueBookingForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         session_date = cleaned_data.get('session_date')
+        session_dates = cleaned_data.get('session_dates')
         booking_purpose = cleaned_data.get('booking_purpose')
-        
-        # If no session date is selected, enforce the format
-        if not session_date and booking_purpose:
-            # Check if booking_purpose follows the required format (3 parts only)
-            parts = [part.strip() for part in booking_purpose.split(',')]
-            if len(parts) < 3:
+
+        # --- FIX: Only require manual booking purpose if NO session is selected (single or multi) ---
+        # If neither a single session nor any multi sessions are selected, require manual format
+        if not session_date and (not session_dates or len(session_dates) == 0):
+            if booking_purpose:
+                parts = [part.strip() for part in booking_purpose.split(',')]
+                if len(parts) < 3:
+                    raise forms.ValidationError(
+                        "When no session is selected, booking purpose must follow this format: "
+                        "Group Name, Module Name, Booking Purpose (e.g., 'The Blizzers, Mathematics, Exam')"
+                    )
+            else:
                 raise forms.ValidationError(
-                    "When no session is selected, booking purpose must follow this format: "
+                    "When no session is selected, you must provide a booking purpose in this format: "
                     "Group Name, Module Name, Booking Purpose (e.g., 'The Blizzers, Mathematics, Exam')"
                 )
-        elif not session_date and not booking_purpose:
-            raise forms.ValidationError(
-                "When no session is selected, you must provide a booking purpose in this format: "
-                "Group Name, Module Name, Booking Purpose (e.g., 'The Blizzers, Mathematics, Exam')"
-            )
-        
+        # If at least one session is selected (single or multi), do not require manual booking purpose format
         return cleaned_data
 
     def __init__(self, *args, **kwargs):
@@ -353,7 +355,7 @@ class VenueBookingForm(forms.ModelForm):
         self.fields['booking_purpose'].required = True
         if 'facilitator' in self.fields:
             self.fields['facilitator'].queryset = LearnerRole.objects.filter(role__name='Facilitator')
-            self.fields['num_learners'].disabled = True
+            self.fields['num_learners'].disabled = False
         # Prepopulate num_learners if session_date is set and not already filled
         if not self.initial.get('num_learners'):
             session_date_id = self.initial.get('session_date') or self.data.get('session_date')

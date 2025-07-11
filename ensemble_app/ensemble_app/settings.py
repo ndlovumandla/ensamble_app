@@ -51,6 +51,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.PermissionMiddleware',  # Add this line
+    'core.middleware.LearnerLIFMiddleware',
 ]
 
 ROOT_URLCONF = 'ensemble_app.urls'

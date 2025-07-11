@@ -161,7 +161,18 @@ def auto_book_virtual_sessions():
         # Skip auto-booking if there are cancelled bookings for this session
         if has_cancelled_booking:
             continue
-            
+
+        # Check if this session already has a booking
+        existing_booking = VenueBooking.objects.filter(
+            session_date=session,
+            venue=virtual_venue,
+            status__in=['booked', 'rescheduled']
+        ).exists()
+
+        # Skip booking if it already exists
+        if existing_booking:
+            continue
+
         start_dt = make_aware(datetime.combine(session.start_date, time(8, 0)))
         end_dt = make_aware(datetime.combine(session.end_date, time(17, 0)))
         

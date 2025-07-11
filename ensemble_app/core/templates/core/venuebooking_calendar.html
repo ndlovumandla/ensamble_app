@@ -1511,6 +1511,80 @@ function handleConflictPopup(data, originalFormData, formUrl, eventModalBody, is
             eventOverlap: false,
             eventMaxStack: 6,
             dayMaxEvents: false,
+            eventClick: eventClickHandler,
+            dateClick: function(info) {
+                // Store the clicked date globally
+                window.currentClickedDate = info.dateStr;
+
+                var eventModalBody = document.getElementById('eventActionModalBody');
+                var eventModalFooter = document.getElementById('eventActionModalFooter');
+
+                eventModalBody.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:180px;"><div class="spinner-border text-primary" style="width:2.5rem;height:2.5rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+                eventModalFooter.innerHTML = '<div style="width:100%;display:flex;justify-content:center;"><div class="spinner-border text-success" style="width:1.8rem;height:1.8rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+                var formUrl = "{% url 'venuebooking_modal_form' %}?date=" + encodeURIComponent(info.dateStr);
+
+                fetch(formUrl)
+                    .then(r => r.text())
+                    .then(html => {
+                        eventModalBody.innerHTML = html;
+
+                        // Pre-populate the start_datetime and end_datetime fields
+                        var startDatetimeField = document.getElementById('id_start_datetime');
+                        var endDatetimeField = document.getElementById('id_end_datetime');
+                        if (startDatetimeField && !startDatetimeField.value) {
+                            startDatetimeField.value = info.dateStr + ' 08:00';
+                        }
+                        if (endDatetimeField && !endDatetimeField.value) {
+                            endDatetimeField.value = info.dateStr + ' 17:00';
+                        }
+
+                        setTimeout(function() {
+                            if ($('#id_project_plan').length) $('#id_project_plan').select2({ width: '100%', allowClear: true });
+                            if ($('#id_session_date').length) $('#id_session_date').select2({ width: '100%', allowClear: true });
+                            if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
+                        }, 100);
+
+                        eventModalFooter.innerHTML = "";
+
+                        var bookBtn = document.createElement('button');
+                        bookBtn.type = "button";
+                        bookBtn.className = "btn btn-success btn-glow";
+                        bookBtn.innerHTML = '<i class="fa fa-plus-circle"></i> Book a Venue';
+                        bookBtn.onclick = function() {
+                            var bookingForm = document.getElementById('venueBookingModalForm');
+                            if (bookingForm) bookingForm.requestSubmit();
+                        };
+                        eventModalFooter.appendChild(bookBtn);
+
+                        var bookingForm = document.getElementById('venueBookingModalForm');
+                        if (bookingForm) {
+                            bookingForm.onsubmit = function(e) {
+                                e.preventDefault();
+                                var formData = new FormData(bookingForm);
+                                fetch(formUrl, {
+                                    method: "POST",
+                                    headers: {
+                                        "X-CSRFToken": "{{ csrf_token }}"
+                                    },
+                                    body: formData
+                                })
+                                .then(r => r.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        eventModal.hide();
+                                        calendar.refetchEvents();
+                                    } else if (data.html) {
+                                        eventModalBody.innerHTML = data.html;
+                                    }
+                                });
+                            };
+                        }
+                    });
+
+                document.getElementById('eventActionModalLabel').innerHTML = '<i class="fa fa-calendar-plus"></i> Book Venue';
+                eventModal.show();
+            },
             eventContent: function(arg) {
                 var props = arg.event.extendedProps;
                 var group = props.group || "";
