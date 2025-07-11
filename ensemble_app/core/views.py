@@ -6323,6 +6323,7 @@ class VenueBookingModalFormView(RolePermissionRequiredMixin, View):
                 'is_editing': bool(booking_id),
             }, request=request)
             return JsonResponse({'success': False, 'html': html})
+
 import io
 import zipfile
 import re
