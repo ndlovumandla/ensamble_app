@@ -1583,6 +1583,93 @@ class LearnerDetailsView(RolePermissionRequiredMixin, DetailView):
     template_name = 'core/learner_details.html'
     pk_url_kwarg = 'learner_id'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        learner = self.object
+
+        # Status color mapping
+        STATUS_COLOR_MAP = {
+            "C": "#22c55e",      # Competent - green
+            "CAT": "#0ea5e9",    # CAT (Competent) - blue
+            "NYS": "#f59e42",    # Not Yet Submitted - orange
+            "NYC": "#ef4444",    # Not Yet Competent - red
+            "DO": "#64748b",     # Drop Out - gray
+            "IA": "#fbbf24",     # In Assessment - yellow
+            None: "#e5e7eb",     # No status - light gray
+            "": "#e5e7eb",
+        }
+
+        group_data = []
+        qualifications = LearnerQualification.objects.filter(learner=learner).select_related(
+            'sla_qualification__service', 'sla_qualification__sla'
+        )
+        for qual in qualifications:
+            groups = Group.objects.filter(sla_qualifications=qual.sla_qualification)
+            for group in groups:
+                modules = Module.objects.filter(projectplan__group=group).distinct()
+                module_data = []
+                for module in modules:
+                    # Get all unit standards for this module
+                    unit_standards = UnitStandard.objects.filter(modules__module=module).distinct()
+                    us_data = []
+                    for us in unit_standards:
+                        # Find the latest assessment for this learner, group, module, and unit standard
+                        assessment = (
+                            LearnerAssessment.objects
+                            .filter(learner=learner, group=group, module=module)
+                            .order_by('-id')
+                            .first()
+                        )
+                        status = None
+                        status_abbr = None
+                        status_color = STATUS_COLOR_MAP[None]
+                        comments = ""
+                        assessment_id = None
+                        if assessment:
+                            aus = (
+                                assessment.unit_standard_results
+                                .filter(unit_standard=us)
+                                .order_by('-id')
+                                .first()
+                            )
+                            if aus:
+                                # Status code abbreviation logic (3 > 2 > 1)
+                                status_abbr = aus.status_code_abbreviation
+                                status = aus.status_code
+                                if aus.status_code_abbreviation3:
+                                    status_abbr = aus.status_code_abbreviation3
+                                    status = aus.status_code3
+                                    comments = aus.comments3 or ""
+                                elif aus.status_code_abbreviation2:
+                                    status_abbr = aus.status_code_abbreviation2
+                                    status = aus.status_code2
+                                    comments = aus.comments2 or ""
+                                else:
+                                    status_abbr = aus.status_code_abbreviation
+                                    status = aus.status_code
+                                    comments = aus.comments or ""
+                                status_color = STATUS_COLOR_MAP.get(status_abbr, "#e5e7eb")
+                                assessment_id = assessment.id
+                        us_data.append({
+                            'unit_standard': us,
+                            'status_abbr': status_abbr,
+                            'status': status,
+                            'status_color': status_color,
+                            'comments': comments,
+                            'assessment_id': assessment_id,
+                        })
+                    module_data.append({
+                        'module': module,
+                        'unit_standards': us_data,
+                    })
+                group_data.append({
+                    'group': group,
+                    'qualification': qual,
+                    'modules': module_data,
+                })
+        context['group_data'] = group_data
+        return context
+
 # ─── New Views for Added Models ──────────────────────────────────────
 
 # Set up logging

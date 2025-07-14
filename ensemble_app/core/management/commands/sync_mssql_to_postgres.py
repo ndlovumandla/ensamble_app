@@ -1,13 +1,16 @@
 from django.core.management.base import BaseCommand
 from django.db import connections, transaction
-from core.models import Group, SessionDate, ProjectPlan, Module, Learner, VenueBooking
+from core.models import (
+    Group, SessionDate, ProjectPlan, Module, Learner, VenueBooking,
+    UnitStandard, ModuleUnitStandard, LearnerAssessment, AssessmentUnitStandard
+)
 from django.core.cache import cache
 import logging
 
 logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    help = "Sync data from MSSQL to Postgres for Group, SessionDate, ProjectPlan, Module, Learner"
+    help = "Sync data from MSSQL to Postgres for Group, SessionDate, ProjectPlan, Module, Learner, UnitStandard, LearnerAssessment"
 
     def handle(self, *args, **options):
         self.sync_modules()
@@ -15,7 +18,276 @@ class Command(BaseCommand):
         self.sync_groups()
         self.sync_projectplans()
         self.sync_sessiondates()
+        self.sync_unitstandards()
+        self.sync_module_unitstandards()
+        self.sync_learner_assessments()
+        self.sync_assessment_unitstandards()
+
+    def sync_unitstandards(self):
+        mapping = {
+            'id': 'Id',
+            'title': 'Title',
+            'unit_standard_type': 'UnitStandardType',
+            'unit_standard_title': 'UnitStandardTitle',
+            'level': 'Level',
+            'credits': 'Credits',
+            'communications_cat': 'CommunicationsCAT',
+            'math_cat': 'MathCAT',
+            'created': 'Created',
+            'modified': 'Modified',
+            'created_by_id': 'CreatedBy',
+            'modified_by_id': 'ModifiedBy',
+        }
         
+        with connections['mssql'].cursor() as cursor:
+            cursor.execute("""
+                SELECT Id, Title, UnitStandardType, UnitStandardTitle, Level, Credits,
+                       CommunicationsCAT, MathCAT, Created, Modified, CreatedBy, ModifiedBy
+                FROM UnitStandards
+            """)
+            columns = [col[0] for col in cursor.description]
+            for row in cursor.fetchall():
+                data = dict(zip(columns, row))
+                # Remove user FK fields from defaults for now since we may not have those users
+                defaults = {k: data[v] for k, v in mapping.items() 
+                           if k not in ['id', 'created_by_id', 'modified_by_id']}
+                
+                obj, created = UnitStandard.objects.update_or_create(
+                    id=data['Id'],
+                    defaults=defaults
+                )
+                if created:
+                    self.stdout.write(f"UnitStandard {obj.id} created.")
+                else:
+                    changed = []
+                    for k in defaults:
+                        if getattr(obj, k) != defaults[k]:
+                            changed.append(k)
+                    if changed:
+                        self.stdout.write(f"UnitStandard {obj.id} updated fields: {changed}")
+                    else:
+                        self.stdout.write(f"UnitStandard {obj.id} already up-to-date, skipping.")
+
+    def sync_module_unitstandards(self):
+        with connections['mssql'].cursor() as cursor:
+            cursor.execute("SELECT ModulesId, UnitStandardsId FROM ModuleUnitStandard")
+            columns = [col[0] for col in cursor.description]
+            for row in cursor.fetchall():
+                data = dict(zip(columns, row))
+                
+                # Check if both module and unit standard exist
+                try:
+                    module = Module.objects.get(id=data['ModulesId'])
+                    unit_standard = UnitStandard.objects.get(id=data['UnitStandardsId'])
+                except (Module.DoesNotExist, UnitStandard.DoesNotExist):
+                    self.stdout.write(
+                        f"Skipping ModuleUnitStandard: Module {data['ModulesId']} "
+                        f"or UnitStandard {data['UnitStandardsId']} not found."
+                    )
+                    continue
+                
+                obj, created = ModuleUnitStandard.objects.get_or_create(
+                    module=module,
+                    unit_standard=unit_standard
+                )
+                if created:
+                    self.stdout.write(
+                        f"ModuleUnitStandard created: Module {module.id} - UnitStandard {unit_standard.id}"
+                    )
+                else:
+                    self.stdout.write(
+                        f"ModuleUnitStandard already exists: Module {module.id} - UnitStandard {unit_standard.id}"
+                    )
+
+    def sync_learner_assessments(self):
+        mapping = {
+            'id': 'Id',
+            'title': 'Title',
+            'learner_id': 'LearnerId',          # FK: Learner
+            'group_id': 'ProjectId',            # FK: Group (ProjectId in MSSQL)
+            'module_id': 'ModuleId',            # FK: Module
+            'start_date': 'StartDate',
+            'end_date': 'EndDate',
+            'attempt_number': 'AttemptNumber',
+            'poe_submitted': 'PoESubmitted',
+            'remediation_submitted': 'RemediationSubmitted',
+            'formative_assessment': 'FormativeAssessment',
+            'summative_assessment': 'SummativeAssessment',
+            'assessment_date': 'AssessmentDate',
+            'actual_assessment_date': 'ActualAssessmentDate',
+            'actual_assessment_date2': 'ActualAssessmentDate2',
+            'actual_assessment_date3': 'ActualAssessmentDate3',
+            'date_booked_in': 'DateBookedIn',
+            'date_booked_out': 'DateBookedOut',
+            'date_booked_in2': 'DateBookedIn2',
+            'date_booked_out2': 'DateBookedOut2',
+            'date_booked_in3': 'DateBookedIn3',
+            'date_booked_out3': 'DateBookedOut3',
+            'due_date_booked_in': 'DueDateBookedIn',
+            'due_date_booked_out': 'DueDateBookedOut',
+            'due_date_booked_in2': 'DueDateBookedIn2',
+            'due_date_booked_out2': 'DueDateBookedOut2',
+            'due_date_booked_in3': 'DueDateBookedIn3',
+            'due_date_booked_out3': 'DueDateBookedOut3',
+            'end_date2': 'EndDate2',
+            'end_date3': 'EndDate3',
+            'colour': 'Colour',
+            'created': 'Created',
+            'modified': 'Modified',
+        }
+        
+        with connections['mssql'].cursor() as cursor:
+            cursor.execute("""
+                SELECT Id, Title, LearnerId, StartDate, EndDate, ProjectId, ModuleId,
+                       AttemptNumber, PoESubmitted, RemediationSubmitted, FormativeAssessment,
+                       SummativeAssessment, AssessorId, AssessorId2, AssessorId3, AssessmentDate,
+                       ActualAssessmentDate, ActualAssessmentDate2, ActualAssessmentDate3,
+                       DateBookedIn, DateBookedOut, DateBookedIn2, DateBookedOut2, DateBookedIn3, DateBookedOut3,
+                       DueDateBookedIn, DueDateBookedOut, DueDateBookedIn2, DueDateBookedOut2,
+                       DueDateBookedIn3, DueDateBookedOut3, EndDate2, EndDate3, Colour,
+                       Created, Modified, CreatedBy, ModifiedBy
+                FROM LearnerAssessments
+            """)
+            columns = [col[0] for col in cursor.description]
+            for row in cursor.fetchall():
+                data = dict(zip(columns, row))
+                
+                # Check if required FK objects exist
+                try:
+                    learner = Learner.objects.get(id=data['LearnerId'])
+                    group = Group.objects.get(id=data['ProjectId'])
+                    module = Module.objects.get(id=data['ModuleId'])
+                except (Learner.DoesNotExist, Group.DoesNotExist, Module.DoesNotExist) as e:
+                    self.stdout.write(
+                        f"Skipping LearnerAssessment {data['Id']}: Missing FK - {str(e)}"
+                    )
+                    continue
+                
+                # Remove FK fields that might not exist (assessors, users, project_plan) and primary key
+                defaults = {k: data[v] for k, v in mapping.items() 
+                           if k not in ['id', 'assessor_id', 'assessor2_id', 'assessor3_id', 
+                                       'created_by_id', 'modified_by_id', 'project_plan_id']}
+                
+                # Set the required FKs
+                defaults['learner'] = learner
+                defaults['group'] = group
+                defaults['module'] = module
+                for bool_field in [
+                    'poe_submitted', 'remediation_submitted', 'formative_assessment',
+                    'summative_assessment'
+                ]:
+                    if bool_field in defaults:
+                        val = defaults[bool_field]
+                        if isinstance(val, str):
+                            val_clean = val.strip().lower()
+                            if val_clean == 'yes':
+                                defaults[bool_field] = True
+                            elif val_clean == 'no':
+                                defaults[bool_field] = False
+                            else:
+                                # Handles 'N/A', '', None, or any other value
+                                defaults[bool_field] = None
+                
+                obj, created = LearnerAssessment.objects.update_or_create(
+                    id=data['Id'],
+                    defaults=defaults
+                )
+                if created:
+                    self.stdout.write(f"LearnerAssessment {obj.id} created.")
+                else:
+                    changed = []
+                    for k, v in defaults.items():
+                        if getattr(obj, k) != v:
+                            changed.append(k)
+                    if changed:
+                        self.stdout.write(f"LearnerAssessment {obj.id} updated fields: {changed}")
+                    else:
+                        self.stdout.write(f"LearnerAssessment {obj.id} already up-to-date, skipping.")
+
+    def sync_assessment_unitstandards(self):
+        mapping = {
+            'id': 'Id',
+            'learner_assessment_id': 'LearnerAssessmentId',
+            'unit_standard_id': 'UnitStandardId',
+            'unit_standard2_id': 'UnitStandardId2',
+            'unit_standard3_id': 'UnitStandardId3',
+            'status_code': 'StatusCode',
+            'status_code_abbreviation': 'StatusCodeAbbreviation',
+            'status_code2': 'StatusCode2',
+            'status_code_abbreviation2': 'StatusCodeAbbreviation2',
+            'status_code3': 'StatusCode3',
+            'status_code_abbreviation3': 'StatusCodeAbbreviation3',
+            'comments': 'Comments',
+            'comments2': 'Comments2',
+            'comments3': 'Comments3',
+            'colour': 'Colour',
+            'created': 'Created',
+            'modified': 'Modified',
+            #'created_by_id': 'CreatedBy',
+            #'modified_by_id': 'ModifiedBy',
+        }
+        
+        with connections['mssql'].cursor() as cursor:
+            cursor.execute("""
+                SELECT Id, LearnerAssessmentId, UnitStandardId, UnitStandardId2, UnitStandardId3,
+                       StatusCode, StatusCodeAbbreviation, StatusCode2, StatusCodeAbbreviation2,
+                       StatusCode3, StatusCodeAbbreviation3, Comments, Comments2, Comments3,
+                       Colour, Created, Modified, CreatedBy, ModifiedBy
+                FROM AssessmentUnitStandards
+            """)
+            columns = [col[0] for col in cursor.description]
+            for row in cursor.fetchall():
+                data = dict(zip(columns, row))
+                
+                # Check if required FK objects exist
+                try:
+                    learner_assessment = LearnerAssessment.objects.get(id=data['LearnerAssessmentId'])
+                    unit_standard = UnitStandard.objects.get(id=data['UnitStandardId'])
+                except (LearnerAssessment.DoesNotExist, UnitStandard.DoesNotExist) as e:
+                    self.stdout.write(
+                        f"Skipping AssessmentUnitStandard {data['Id']}: Missing FK - {str(e)}"
+                    )
+                    continue
+                
+                # Remove user FK fields and primary key
+                defaults = {k: data[v] for k, v in mapping.items() 
+                           if k not in ['id', 'learner_assessment_id', 'unit_standard_id',
+                                       'unit_standard2_id', 'unit_standard3_id',
+                                       'created_by_id', 'modified_by_id']}
+                
+                # Set the required FKs
+                defaults['learner_assessment'] = learner_assessment
+                defaults['unit_standard'] = unit_standard
+                
+                # Set optional FKs if they exist
+                if data['UnitStandardId2']:
+                    try:
+                        defaults['unit_standard2'] = UnitStandard.objects.get(id=data['UnitStandardId2'])
+                    except UnitStandard.DoesNotExist:
+                        pass
+                
+                if data['UnitStandardId3']:
+                    try:
+                        defaults['unit_standard3'] = UnitStandard.objects.get(id=data['UnitStandardId3'])
+                    except UnitStandard.DoesNotExist:
+                        pass
+                
+                obj, created = AssessmentUnitStandard.objects.update_or_create(
+                    learner_assessment=learner_assessment,
+                    unit_standard=unit_standard,
+                    defaults=defaults
+                )
+                if created:
+                    self.stdout.write(f"AssessmentUnitStandard {obj.id} created.")
+                else:
+                    changed = []
+                    for k, v in defaults.items():
+                        if getattr(obj, k) != v:
+                            changed.append(k)
+                    if changed:
+                        self.stdout.write(f"AssessmentUnitStandard {obj.id} updated fields: {changed}")
+                    else:
+                        self.stdout.write(f"AssessmentUnitStandard {obj.id} already up-to-date, skipping.")
 
     def sync_groups(self):
         mapping = {

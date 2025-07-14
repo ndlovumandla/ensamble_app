@@ -2,24 +2,235 @@
 {% block title %}Learner Details{% endblock %}
 {% block content %}
 
-    <div class="card">
-        <h2>Learner Details</h2>
-        <div class="detail-container">
+<style>
+    .learner-details-card {
+        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
+        border-radius: 18px;
+        box-shadow: 0 4px 24px rgba(60,60,120,0.09);
+        padding: 2.5rem 2rem 2rem 2rem;
+        margin: 2rem auto;
+        max-width: 1000px;
+        color: #222;
+    }
+    .learner-details-card h2 {
+        color: #3b82f6;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        letter-spacing: 1px;
+    }
+    .learner-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+    .learner-meta > div {
+        flex: 1 1 250px;
+        background: #f1f5f9;
+        border-radius: 10px;
+        padding: 1rem 1.5rem;
+        box-shadow: 0 2px 8px rgba(60,60,120,0.05);
+    }
+    .group-section {
+        margin-bottom: 2.5rem;
+        border-left: 5px solid #6366f1;
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 1.5rem 1.5rem 1.5rem 2rem;
+        box-shadow: 0 2px 8px rgba(60,60,120,0.04);
+    }
+    .group-title {
+        color: #6366f1;
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .qual-label {
+        background: #e0e7ff;
+        color: #3730a3;
+        padding: 0.2rem 0.7rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        margin-left: 0.5rem;
+    }
+    .module-block {
+        margin: 1.2rem 0 1.2rem 0.5rem;
+        padding: 1rem 1.2rem;
+        background: #f1f5f9;
+        border-radius: 8px;
+        border-left: 4px solid #3b82f6;
+    }
+    .module-title {
+        color: #3b82f6;
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 0.3rem;
+    }
+    .unit-standard-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+        margin-top: 0.5rem;
+    }
+    .unit-standard-chip {
+        border-radius: 16px;
+        padding: 0.3rem 1.1rem 0.3rem 0.8rem;
+        font-size: 0.98rem;
+        font-weight: 500;
+        box-shadow: 0 1px 4px rgba(60,60,120,0.07);
+        margin-bottom: 0.2rem;
+        display: flex;
+        align-items: center;
+        min-width: 220px;
+        background: #e5e7eb;
+        color: #222;
+        border: 2px solid #e5e7eb;
+        transition: border 0.2s, background 0.2s;
+        position: relative;
+    }
+    .unit-standard-chip .status-dot {
+        display: inline-block;
+        width: 1.1em;
+        height: 1.1em;
+        border-radius: 50%;
+        margin-right: 0.7em;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 2px #fff;
+    }
+    .unit-standard-chip .status-label {
+        font-weight: 700;
+        margin-left: 0.5em;
+        font-size: 0.97em;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+    .unit-standard-chip .us-title {
+        font-weight: 600;
+        color: #222;
+        margin-right: 0.5em;
+    }
+    .unit-standard-chip .us-meta {
+        font-size: 0.93em;
+        color: #64748b;
+        margin-left: 0.7em;
+    }
+    .unit-standard-chip .us-comments {
+        display: block;
+        font-size: 0.92em;
+        color: #6366f1;
+        margin-top: 0.2em;
+        margin-left: 2.2em;
+        font-style: italic;
+        max-width: 400px;
+        white-space: pre-line;
+    }
+    .unit-standard-chip.status-C { background: #e7fbe9; border-color: #22c55e; }
+    .unit-standard-chip.status-CAT { background: #e0f2fe; border-color: #0ea5e9; }
+    .unit-standard-chip.status-NYS { background: #fff7ed; border-color: #f59e42; }
+    .unit-standard-chip.status-NYC { background: #fef2f2; border-color: #ef4444; }
+    .unit-standard-chip.status-DO { background: #f3f4f6; border-color: #64748b; }
+    .unit-standard-chip.status-IA { background: #fef9c3; border-color: #fbbf24; }
+    .unit-standard-chip.status-None, .unit-standard-chip.status- { background: #f3f4f6; border-color: #e5e7eb; }
+    .no-unit-standards {
+        color: #64748b;
+        font-style: italic;
+        margin-left: 1.2rem;
+    }
+    .btn-back {
+        margin-top: 2rem;
+        background: #6366f1;
+        color: #fff;
+        border-radius: 8px;
+        padding: 0.7rem 1.5rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: background 0.2s;
+        box-shadow: 0 2px 8px rgba(60,60,120,0.07);
+    }
+    .btn-back:hover {
+        background: #3730a3;
+        color: #fff;
+    }
+</style>
+
+<div class="learner-details-card">
+    <h2>Learner Details</h2>
+    <div class="learner-meta">
+        <div>
             <p><strong>Name:</strong> {{ object.FirstName }} {{ object.Surname }}</p>
             <p><strong>ID Number:</strong> {{ object.IDNumber }}</p>
+            <p><strong>User ID:</strong> {{ object.UserID|default:"N/A" }}</p>
+            <p><strong>Email:</strong> {{ object.EmailAddress|default:"N/A" }}</p>
+        </div>
+        <div>
             <p><strong>Gender:</strong> {{ object.Gender }}</p>
             <p><strong>Equity:</strong> {{ object.Equity }}</p>
-            <p><strong>Email:</strong> {{ object.EmailAddress|default:"N/A" }}</p>
-            <p><strong>User ID:</strong> {{ object.UserID|default:"N/A" }}</p>
             <p><strong>Qualifications:</strong>
                 {% for qual in object.learnerqualification_set.all %}
-                    {{ qual.sla_qualification.service.name }} ({{ qual.sla_qualification.sla.sla_reference }}) - {{ qual.status }}<br>
+                    <span class="qual-label">
+                        {{ qual.sla_qualification.service.name }} ({{ qual.sla_qualification.sla.sla_reference }}) - {{ qual.status }}
+                    </span><br>
                 {% empty %}
                     None
                 {% endfor %}
             </p>
         </div>
-        <a href="{% url 'learner_list' %}" class="btn btn-secondary">Back to Learners</a>
     </div>
 
+    <h3 style="color:#3b82f6; margin-bottom:1.2rem;">Unit Standards by Group</h3>
+    {% if group_data %}
+        {% for group_info in group_data %}
+            <div class="group-section">
+                <div class="group-title">
+                    {{ group_info.group.name|default:"(No Name)" }}
+                    <span class="qual-label">
+                        {{ group_info.qualification.sla_qualification.service.name }} ({{ group_info.qualification.sla_qualification.sla.sla_reference }})
+                    </span>
+                </div>
+                {% if group_info.modules %}
+                    {% for mod in group_info.modules %}
+                        <div class="module-block">
+                            <div class="module-title">{{ mod.module.name|default:"(No Module Name)" }}</div>
+                            <div class="unit-standard-list">
+                                {% if mod.unit_standards %}
+                                    {% for us in mod.unit_standards %}
+                                        <div class="unit-standard-chip status-{{ us.status_abbr|default:"None" }}">
+                                            <span class="status-dot" style="background: {{ us.status_color }}"></span>
+                                            <span class="us-title">{{ us.unit_standard.title }}</span>
+                                            <span class="status-label">
+                                                {% if us.status_abbr %}
+                                                    {{ us.status_abbr }}
+                                                {% else %}
+                                                    No Status
+                                                {% endif %}
+                                            </span>
+                                            <span class="us-meta">
+                                                Level: {{ us.unit_standard.level|default:"-" }},
+                                                Credits: {{ us.unit_standard.credits|default:"-" }},
+                                                Type: {{ us.unit_standard.unit_standard_type|default:"-" }}
+                                            </span>
+                                            {% if us.comments %}
+                                                <span class="us-comments">Comments: {{ us.comments }}</span>
+                                            {% endif %}
+                                        </div>
+                                    {% empty %}
+                                        <span class="no-unit-standards">No unit standards for this module.</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="no-unit-standards">No unit standards for this module.</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <span class="no-unit-standards">No modules found for this group.</span>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="no-unit-standards">No group/unit standard data found for this learner.</div>
+    {% endif %}
+
+    <a href="{% url 'learner_list' %}" class="btn-back">← Back to Learners</a>
+</div>
 {% endblock %}

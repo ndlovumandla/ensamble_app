@@ -383,7 +383,7 @@ class VenueBooking(models.Model):
         ('cancelled', 'Cancelled'),
     ]
     session_date = models.ForeignKey('SessionDate', on_delete=models.SET_NULL, null=True, blank=True)
-    venue = models.ForeignKey('Venue', on_delete=models.CASCADE, null=True, blank=True)
+    venue = models.ForeignKey('Venue', on_delete=models.CASCADE)
     start_datetime = models.DateTimeField()
     end_datetime = models.DateTimeField()
     booking_purpose = models.CharField(max_length=100)
@@ -462,6 +462,13 @@ class LearnerModulePOE(models.Model):
     )
     review_date = models.DateTimeField(null=True, blank=True)
     feedback = models.TextField(blank=True)
+    learner_assessment = models.ForeignKey(
+        'LearnerAssessment',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='poes'
+    )
 
     class Meta:
         unique_together = ('learner', 'learner_qualification', 'module')
@@ -734,3 +741,194 @@ class ExternalProject(models.Model):
         managed = False  # Don't let Django manage the table
         db_table = 'Projects'
         app_label = 'core'
+
+class UnitStandard(models.Model):
+    title = models.CharField()
+    unit_standard_type = models.CharField( blank=True, null=True)
+    unit_standard_title = models.CharField(blank=True, null=True)
+    level = models.IntegerField(blank=True, null=True)
+    credits = models.IntegerField(blank=True, null=True)
+    communications_cat = models.CharField(blank=True, null=True)
+    math_cat = models.CharField(blank=True, null=True)
+    created = models.DateTimeField(auto_now_add=True)
+    modified = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_unit_standards'
+    )
+    modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='modified_unit_standards'
+    )
+
+    def __str__(self):
+        return f"{self.title}"
+
+    class Meta:
+        verbose_name = "Unit Standard"
+        verbose_name_plural = "Unit Standards"
+
+class ModuleUnitStandard(models.Model):
+    module = models.ForeignKey(Module, on_delete=models.CASCADE, related_name='unit_standards')
+    unit_standard = models.ForeignKey(UnitStandard, on_delete=models.CASCADE, related_name='modules')
+
+    class Meta:
+        unique_together = ('module', 'unit_standard')
+        verbose_name = "Module Unit Standard"
+        verbose_name_plural = "Module Unit Standards"
+
+    def __str__(self):
+        return f"{self.module} - {self.unit_standard}"
+
+class LearnerAssessment(models.Model):
+    title = models.CharField(max_length=255)
+    learner = models.ForeignKey(Learner, on_delete=models.CASCADE, related_name='assessments')
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='assessments')
+    module = models.ForeignKey(Module, on_delete=models.CASCADE, related_name='assessments')
+    project_plan = models.ForeignKey(ProjectPlan, on_delete=models.CASCADE, related_name='assessments')
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    attempt_number = models.IntegerField(default=1)
+    poe_submitted = models.BooleanField(default=False)
+    remediation_submitted = models.BooleanField(default=False)
+    formative_assessment = models.BooleanField(default=False)
+    summative_assessment = models.BooleanField(default=False)
+    assessor = models.ForeignKey(
+        LearnerRole,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='primary_assessments'
+    )
+    assessor2 = models.ForeignKey(
+        LearnerRole,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='secondary_assessments'
+    )
+    assessor3 = models.ForeignKey(
+        LearnerRole,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tertiary_assessments'
+    )
+    assessment_date = models.DateField(null=True, blank=True)
+    actual_assessment_date = models.DateField(null=True, blank=True)
+    actual_assessment_date2 = models.DateField(null=True, blank=True)
+    actual_assessment_date3 = models.DateField(null=True, blank=True)
+    date_booked_in = models.DateField(null=True, blank=True)
+    date_booked_out = models.DateField(null=True, blank=True)
+    date_booked_in2 = models.DateField(null=True, blank=True)
+    date_booked_out2 = models.DateField(null=True, blank=True)
+    date_booked_in3 = models.DateField(null=True, blank=True)
+    date_booked_out3 = models.DateField(null=True, blank=True)
+    due_date_booked_in = models.DateField(null=True, blank=True)
+    due_date_booked_out = models.DateField(null=True, blank=True)
+    due_date_booked_in2 = models.DateField(null=True, blank=True)
+    due_date_booked_out2 = models.DateField(null=True, blank=True)
+    due_date_booked_in3 = models.DateField(null=True, blank=True)
+    due_date_booked_out3 = models.DateField(null=True, blank=True)
+    end_date2 = models.DateField(null=True, blank=True)
+    end_date3 = models.DateField(null=True, blank=True)
+    colour = models.CharField(max_length=50, blank=True, null=True)
+    created = models.DateTimeField(auto_now_add=True)
+    modified = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_assessments'
+    )
+    modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='modified_assessments'
+    )
+
+    def __str__(self):
+        return f"{self.title} - {self.learner} ({self.module})"
+
+    class Meta:
+        verbose_name = "Learner Assessment"
+        verbose_name_plural = "Learner Assessments"
+
+class AssessmentUnitStandard(models.Model):
+    learner_assessment = models.ForeignKey(
+        LearnerAssessment,
+        on_delete=models.CASCADE,
+        related_name='unit_standard_results'
+    )
+    unit_standard = models.ForeignKey(
+        UnitStandard,
+        on_delete=models.CASCADE,
+        related_name='assessment_results'
+    )
+    status_code = models.CharField(max_length=20, blank=True, null=True)
+    status_code_abbreviation = models.CharField(max_length=10, blank=True, null=True)
+    status_code2 = models.CharField(max_length=20, blank=True, null=True)
+    status_code_abbreviation2 = models.CharField(max_length=10, blank=True, null=True)
+    status_code3 = models.CharField(max_length=20, blank=True, null=True)
+    status_code_abbreviation3 = models.CharField(max_length=10, blank=True, null=True)
+    comments = models.TextField(blank=True, null=True)
+    comments2 = models.TextField(blank=True, null=True)
+    comments3 = models.TextField(blank=True, null=True)
+    unit_standard2 = models.ForeignKey(
+        UnitStandard,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='assessment_results2'
+    )
+    unit_standard3 = models.ForeignKey(
+        UnitStandard,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='assessment_results3'
+    )
+    colour = models.CharField(max_length=50, blank=True, null=True)
+    created = models.DateTimeField(auto_now_add=True)
+    modified = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_assessment_unit_standards'
+    )
+    modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='modified_assessment_unit_standards'
+    )
+
+    class Meta:
+        unique_together = ('learner_assessment', 'unit_standard')
+        verbose_name = "Assessment Unit Standard"
+        verbose_name_plural = "Assessment Unit Standards"
+
+    def __str__(self):
+        return f"{self.learner_assessment} - {self.unit_standard}"
+
+# Update the existing LearnerModulePOE model to add the learner_assessment relationship
+# Add this field to the existing LearnerModulePOE class:
+# learner_assessment = models.ForeignKey(
+#     LearnerAssessment,
+#     on_delete=models.CASCADE,
+#     null=True,
+#     blank=True,
+#     related_name='poes'
+# )
