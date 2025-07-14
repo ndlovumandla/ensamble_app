@@ -1578,6 +1578,11 @@ class EditLearnerView(RolePermissionRequiredMixin, UpdateView):
     success_url = reverse_lazy('learner_list')
     pk_url_kwarg = 'learner_id'
 
+from django.views.generic import DetailView
+from .models import Learner, Group, LearnerQualification, Module, ModuleUnitStandard, UnitStandard, LearnerAssessment
+
+from django.utils.html import format_html
+
 class LearnerDetailsView(RolePermissionRequiredMixin, DetailView):
     model = Learner
     template_name = 'core/learner_details.html'

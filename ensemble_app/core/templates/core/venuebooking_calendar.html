@@ -1,0 +1,1981 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Venue Booking Calendar{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'styles2.css' %}">
+<style>
+    nav .nav-link,
+    .sidebar-nav,
+    .sidebar-nav ul,
+    .sidebar-nav .nav-link {
+        display: none !important;
+    }
+    nav .brand,
+    nav .calendar-link {
+        display: inline-block !important;
+    }
+    .fc-event-switch-highlight {
+        animation: switchHighlight 1.5s ease;
+        box-shadow: 0 0 0 4px #ffe066, 0 2px 8px rgba(2,3,129,0.08);
+        border: 2px solid #ffe066 !important;
+    }
+    @keyframes switchHighlight {
+        0%   { box-shadow: 0 0 0 8px #ffe066, 0 2px 8px rgba(2,3,129,0.08); }
+        60%  { box-shadow: 0 0 0 4px #ffe066, 0 2px 8px rgba(2,3,129,0.08); }
+        100% { box-shadow: 0 0 0 0px #ffe066, 0 2px 8px rgba(2,3,129,0.08); }
+    }
+    #venueSwitchNotification {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%,-50%);
+        z-index: 20000;
+        min-width: 320px;
+        max-width: 90vw;
+        padding: 24px 32px;
+        background: #ffe066;
+        color: #333;
+        font-size: 1.25em;
+        font-weight: 600;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        border: 2px solid #ffec99;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    #venueSwitchNotification.show {
+        display: block;
+        opacity: 1;
+    }
+    #venueMultiBookNotification {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%,-50%);
+        z-index: 20001;
+        min-width: 320px;
+        max-width: 90vw;
+        padding: 24px 32px;
+        background: #34C759;
+        color: #fff;
+        font-size: 1.25em;
+        font-weight: 600;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        border: 2px solid #34C759;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    #venueMultiBookNotification.show {
+        display: block;
+        opacity: 1;
+    }
+    #venueSessionChangedNotification {
+        display: none;
+        position: fixed;
+        top: 10%;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 20001;
+        min-width: 320px;
+        max-width: 90vw;
+        padding: 20px 28px;
+        background: #ffe066;
+        color: #333;
+        font-size: 1.15em;
+        font-weight: 600;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        border: 2px solid #ffec99;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    #venueSessionChangedNotification.show {
+        display: block;
+        opacity: 1;
+    }
+    .form-label {
+        font-weight: 600;
+        color: var(--primary);
+    }
+    .form-control, .select2-container--default .select2-selection--single {
+        border-radius: 8px !important;
+        border: 1.5px solid #34C759 !important;
+        background: #f8fcff !important;
+        font-size: 1em;
+        padding: 8px 12px;
+        box-shadow: 0 1px 4px #34C75911;
+        transition: border 0.2s, box-shadow 0.2s;
+    }
+    .form-control:focus {
+        border: 2px solid #020381 !important;
+        box-shadow: 0 0 8px #34C75955 !important;
+        background: #fff !important;
+    }
+    .select2-container .select2-selection--single .select2-selection__rendered {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .select2-results__option {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 95vw;
+    }
+    #eventActionModal .modal-dialog {
+        max-width: 700px;
+        width: 98vw;
+        margin: 0 auto;
+    }
+    #eventActionModal .modal-content {
+        border-radius: 14px;
+        box-shadow: 0 8px 32px rgba(2,3,129,0.10);
+        background: #fff;
+    }
+    #eventActionModal .modal-body {
+        padding: 12px 8px 8px 8px;
+        max-height: none;
+        overflow: visible;
+    }
+    #venueBookingModalForm {
+        padding: 0;
+        max-width: 100%;
+        width: 100%;
+    }
+    #venueBookingModalForm .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 18px;
+    }
+    #venueBookingModalForm .col-12,
+    #venueBookingModalForm .col-md-6 {
+        width: 100%;
+        min-width: 0;
+        margin-bottom: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    #venueBookingModalForm .form-label {
+        font-weight: 600;
+        color: #1a237e;
+        margin-bottom: 2px;
+        font-size: 0.98em;
+    }
+    #venueBookingModalForm .form-control,
+    #venueBookingModalForm select {
+        border-radius: 7px;
+        border: 1px solid #34C759;
+        background: #f8fcff;
+        font-size: 0.98em;
+        padding: 5px 8px;
+        box-shadow: none;
+        margin-bottom: 0;
+        width: 100%;
+        min-height: 30px;
+    }
+    #venueBookingModalForm .form-control:focus,
+    #venueBookingModalForm select:focus {
+        border: 1.5px solid #020381;
+        background: #fff;
+    }
+    #venueBookingModalForm .form-text {
+        color: #666;
+        font-size: 0.92em;
+        margin-top: 1px;
+    }
+    #venueBookingModalForm .text-danger {
+        font-size: 0.93em;
+        margin-top: 1px;
+    }
+    @media (max-width: 700px) {
+        #eventActionModal .modal-dialog {
+            max-width: 99vw;
+        }
+        #venueBookingModalForm .row {
+            grid-template-columns: 1fr;
+            gap: 6px 0;
+        }
+    }
+    .fc-event-selected { outline: 3px solid #34C759 !important; filter: brightness(1.15); }
+    .fc-event-main {
+    background: none !important;
+    padding: 0 !important;
+    border: none !important;
+    display: block !important;
+}
+.fc-colored-event {
+    display: inline-block !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    vertical-align: top;
+}
+.fc-timegrid-all-day-events, .fc-daygrid-day-events {
+    display: flex !important;
+    flex-direction: column !important; /* stack events vertically */
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    gap: 4px;
+    min-height: 48px;
+    overflow-x: visible !important; /* prevent horizontal scroll */
+    overflow-y: visible !important;
+    white-space: normal !important; /* allow wrapping */
+}
+
+.fc-timegrid-all-day-events .fc-event,
+.fc-daygrid-day-events .fc-event {
+    margin-bottom: 0 !important;
+    margin-right: 0 !important;
+}
+
+.fc-timegrid-all-day-events .fc-colored-event,
+.fc-daygrid-day-events .fc-colored-event {
+    max-width: fit-content !important;   /* remove width restriction */
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 32px !important;
+    margin: 0 !important;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    white-space: normal !important; /* allow text to wrap */
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+}
+
+.fc-colored-event {
+    max-width: fit-content !important;   /* remove width restriction */
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    white-space: normal !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+}
+</style>
+<button id="multiBookBtn" class="btn btn-success btn-glow"
+        style="display:none;position:fixed;bottom:32px;right:32px;z-index:9999;font-size:1.2em;">
+    <i class="fa fa-layer-group"></i> Book for Multiple Events
+</button>
+<button id="multiSelectToggle" class="btn btn-primary"
+        style="position:fixed;bottom:90px;right:32px;z-index:9999;">
+    <i class="fa fa-mouse-pointer"></i> Multi-Select
+</button>
+<div class="dropdown mb-3" style="position:relative;z-index:100;">
+  <button class="btn btn-primary dropdown-toggle" type="button" id="gotoDropdown" aria-expanded="false">
+    <i class="fa fa-compass"></i> Go To
+  </button>
+  <ul class="dropdown-menu" aria-labelledby="gotoDropdown" style="z-index:9999;">
+    <li><a class="dropdown-item" href="{% url 'venuebooking_calendar' %}"><i class="fa fa-calendar"></i> Venue Booking Calendar</a></li>
+    <li><a class="dropdown-item" href="{% url 'venuebooking_list' %}"><i class="fa fa-list"></i> Venue Bookings List</a></li>
+    <li><a class="dropdown-item" href="{% url 'venuebooking_add' %}"><i class="fa fa-plus-circle"></i> Book a Venue</a></li>
+  </ul>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var btn = document.getElementById('gotoDropdown');
+    var menu = document.querySelector('.dropdown-menu[aria-labelledby="gotoDropdown"]');
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      menu.classList.toggle('show');
+    });
+    document.addEventListener('click', function() {
+      menu.classList.remove('show');
+    });
+  });
+</script>
+
+<link rel="stylesheet" href="{% static 'styles2.css' %}">
+<div class="container glass shadow p-30 fade-in" style="max-width: 1200px;">
+    <h2 class="dashboard-title ensemble-glow mb-20">Venue Booking Calendar</h2>
+    <div class="mb-3">
+        <form id="venueAvailabilityForm" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <select id="venueAvailabilitySelect" class="form-select" name="venue_id" required style="max-width:180px; max-height:180px; overflow-y:auto;">
+                    <option value="">Check Venue Availability...</option>
+                    <option value="virtual-session-group">Virtual Session</option>
+                    {% for venue in venues %}
+                        {% if "virtual session" not in venue.name|lower %}
+                            <option value="{{ venue.id }}">{{ venue.name }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <input type="date" id="venueAvailabilityDate" class="form-control" name="date" required>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary btn-glow">Check</button>
+            </div>
+            <div class="col-auto" id="venueAvailabilityResult"></div>
+        </form>
+    </div>
+</div>
+<form id="calendarFilterForm" class="mb-3 flex gap-10" style="flex-wrap:wrap;">
+    <select name="status" id="filterStatus" class="form-select" style="max-width:180px;">
+        <option value="">All Statuses</option>
+        <option value="booked">Booked</option>
+        <option value="rescheduled">Rescheduled</option>
+        <option value="cancelled">Cancelled</option>
+        <option value="unbooked">Unbooked</option>
+    </select>
+    <select name="venue" id="filterVenue" class="form-select" style="max-width:180px; max-height:180px; overflow-y:auto;">
+        <option value="">All Venues</option>
+        <option value="Virtual Session">Virtual Session</option>
+        {% for venue in venues %}
+            {% if "virtual session" not in venue.name|lower %}
+                <option value="{{ venue.name }}">{{ venue.name }}</option>
+            {% endif %}
+        {% endfor %}
+    </select>
+    <input type="text" name="facilitator" id="filterFacilitator" class="form-control" placeholder="Facilitator" style="max-width:160px;">
+    <select name="show_empty" id="filterShowEmpty" class="form-select" style="max-width:140px;">
+        <option value="">All</option>
+        <option value="1">Only Empty Slots</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-glow">Filter</button>
+</form>
+<div id="calendar" class="mb-20"></div>
+
+<div class="modal fade" id="eventActionModal" tabindex="-1" aria-labelledby="eventActionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content glass animated-border">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="eventActionModalLabel"><i class="fa fa-calendar-check-o"></i> Session/Booking Options</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="eventActionModalBody" style="font-size:1.1em; max-height:70vh; overflow-y:auto;">
+      </div>
+      <div class="modal-footer flex gap-10" id="eventActionModalFooter">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="switchVenueModal" tabindex="-1" aria-labelledby="switchVenueModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content glass animated-border">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="switchVenueModalLabel"><i class="fa fa-exchange-alt"></i> Switch Venue</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="switchVenueForm">
+        <div class="modal-body">
+          <input type="hidden" name="booking_id" id="switchBookingId">
+          <div class="mb-3">
+            <label for="newVenueSelect" class="form-label">Select New Venue</label>
+            <select class="form-select" id="newVenueSelect" name="new_venue_id" required>
+              <option value="virtual-session-group">Virtual Session</option>
+              {% for venue in venues %}
+                {% if "virtual session" not in venue.name|lower %}
+                  <option value="{{ venue.id }}">{{ venue.name }}</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer flex gap-10">
+          <button type="submit" class="btn btn-primary"><i class="fa fa-exchange-alt"></i> Switch</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="venueSwitchNotification">
+    <i class="fa fa-check-circle" style="color:#34C759;font-size:1.5em;margin-right:8px;"></i>
+    Venue switched successfully!
+</div>
+<div id="venueMultiBookNotification" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20001;min-width:320px;max-width:90vw;padding:24px 32px;background:#34C759;color:#fff;font-size:1.25em;font-weight:600;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.18);border:2px solid #34C759;text-align:center;opacity:0;transition:opacity 0.3s;">
+    <i class="fa fa-check-circle" style="color:#fff;font-size:1.5em;margin-right:8px;"></i>
+    Venues booked successfully for multiple sessions!
+</div>
+<div id="venueSessionChangedNotification">
+    <i class="fa fa-exclamation-circle" style="color:#d32f2f;font-size:1.3em;margin-right:8px;"></i>
+    Session details have changed. Please review your booking.
+</div>
+
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    var eventModal = new bootstrap.Modal(document.getElementById('eventActionModal'));
+    var switchVenueModal = new bootstrap.Modal(document.getElementById('switchVenueModal'));
+    var filterForm = document.getElementById('calendarFilterForm');
+    var calendar;
+
+    var multiSelectMode = false;
+    var selectedEventIds = [];
+    var multiBookBtn = document.getElementById('multiBookBtn');
+    var multiSelectToggle = document.getElementById('multiSelectToggle');
+
+    function showSessionChangeNotification(event) {
+        var notif = document.getElementById('venueSessionChangedNotification');
+        notif.innerHTML = `<i class="fa fa-exclamation-circle" style="color:#d32f2f;font-size:1.3em;margin-right:8px;"></i>
+            Session "${event.title}" has changed. Please review your booking.`;
+        notif.style.display = "block";
+        notif.classList.add('show');
+        notif.style.opacity = 1;
+        setTimeout(function() {
+            notif.classList.remove('show');
+            notif.style.opacity = 0;
+            setTimeout(function() { notif.style.display = "none"; }, 400);
+        }, 5000);
+    }
+
+    function updateMultiBookBtn() {
+        multiBookBtn.style.display = (multiSelectMode && selectedEventIds.length > 1) ? 'block' : 'none';
+    }
+    function clearEventSelections() {
+        document.querySelectorAll('.fc-event-selected').forEach(el => el.classList.remove('fc-event-selected'));
+        selectedEventIds = [];
+        updateMultiBookBtn();
+    }
+    multiSelectToggle.onclick = function() {
+        multiSelectMode = !multiSelectMode;
+        clearEventSelections();
+        if (multiSelectMode) {
+            multiSelectToggle.classList.add('btn-danger');
+            multiSelectToggle.classList.remove('btn-primary');
+        } else {
+            multiSelectToggle.classList.remove('btn-danger');
+            multiSelectToggle.classList.add('btn-primary');
+        }
+    };
+    multiBookBtn.onclick = function() {
+        if (selectedEventIds.length < 2) return;
+        let formUrl = "{% url 'venuebooking_modal_form' %}?session_ids=" + selectedEventIds.join(",");
+        var eventModalBody = document.getElementById('eventActionModalBody');
+        var eventModalFooter = document.getElementById('eventActionModalFooter');
+        eventModalBody.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:180px;"><div class="spinner-border text-primary" style="width:2.5rem;height:2.5rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        eventModalFooter.innerHTML = '';
+        fetch(formUrl)
+            .then(r => r.text())
+            .then(html => {
+                eventModalBody.innerHTML = html;
+                setTimeout(function() {
+                    var single = document.getElementById('id_session_date');
+                    var multi = document.getElementById('id_session_dates');
+                    if (single) single.closest('.form-group,.mb-3,.col-12,.col-md-6')?.classList.add('d-none');
+                    if (multi) {
+                        multi.closest('.form-group,.mb-3,.col-12,.col-md-6')?.classList.remove('d-none');
+                        for (let opt of multi.options) {
+                            if (selectedEventIds.includes(opt.value)) opt.selected = true;
+                            else opt.selected = false;
+                        }
+                        $(multi).trigger('change');
+                    }
+                    // **KEY FIX**: Pre-check checkboxes for multi-booking
+                    selectedEventIds.forEach(function(sessionId) {
+                        var checkbox = document.getElementById('session_' + sessionId);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                        }
+                    });
+                    
+                    if ($('#id_session_dates').length) $('#id_session_dates').select2({ width: '100%', allowClear: true });
+                    if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
+                }, 100);
+                eventModalFooter.innerHTML = "";
+                var bookBtn = document.createElement('button');
+                bookBtn.type = "button";
+                bookBtn.className = "btn btn-success btn-glow";
+                bookBtn.innerHTML = '<i class="fa fa-layer-group"></i> Book for Multiple Events';
+                bookBtn.onclick = function() {
+                    var bookingForm = document.getElementById('venueBookingModalForm');
+                    if (bookingForm) bookingForm.requestSubmit();
+                };
+                eventModalFooter.appendChild(bookBtn);
+                var bookingForm = document.getElementById('venueBookingModalForm');
+                if (bookingForm) {
+                    bookingForm.onsubmit = function(e) {
+                        e.preventDefault();
+                        var formData = new FormData(bookingForm);
+                        
+                        // **CRITICAL FIX**: Ensure session_dates are included for multi-booking
+                        handleMultiBookingFormData(formData);
+                        
+                        fetch(formUrl, {
+                            method: "POST",
+                            headers: {
+                                "X-CSRFToken": "{{ csrf_token }}"
+                            },
+                            body: formData
+                        })
+                        .then (r => r.json())
+                        .then(data => {
+                            if (data.success) {
+                                eventModal.hide();
+                                calendar.refetchEvents();
+                                clearEventSelections();
+                                var notif = document.getElementById('venueMultiBookNotification');
+                                notif.style.display = "block";
+                                notif.classList.add('show');
+                                notif.style.opacity = 1;
+                                setTimeout(function() {
+                                    notif.classList.remove('show');
+                                    notif.style.opacity = 0;
+                                    setTimeout(function() { notif.style.display = "none"; }, 400);
+                                }, 2500);
+                            } else if (data.html) {
+                                eventModalBody.innerHTML = data.html;
+                                // Re-check checkboxes after form reload
+                                setTimeout(function() {
+                                    selectedEventIds.forEach(function(sessionId) {
+                                        var checkbox = document.getElementById('session_' + sessionId);
+                                        if (checkbox) {
+                                            checkbox.checked = true;
+                                        }
+                                    });
+                                    if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
+                                }, 100);
+                            }
+                        });
+                    };
+                }
+            });
+        document.getElementById('eventActionModalLabel').innerHTML = '<i class="fa fa-layer-group"></i> Book for Multiple Events';
+        eventModal.show();
+    };
+
+    // **NEW FUNCTION**: Add this helper function after the multiBookBtn.onclick function:
+    function handleMultiBookingFormData(formData) {
+        // Clear existing session_dates
+        formData.delete('session_dates');
+        
+        // Look for checkboxes first
+        var checkboxes = document.querySelectorAll('input[name="session_dates"]:checked');
+        if (checkboxes.length > 0) {
+            checkboxes.forEach(function(checkbox) {
+                formData.append('session_dates', checkbox.value);
+            });
+        } else {
+            // Fallback to selectedEventIds if no checkboxes found
+            selectedEventIds.forEach(function(sessionId) {
+                formData.append('session_dates', sessionId);
+            });
+        }
+        
+        console.log('Multi-booking sessions:', formData.getAll('session_dates'));
+    }
+
+    function getFilterParams() {
+        const params = [];
+        if (filterForm.status.value) params.push('status=' + encodeURIComponent(filterForm.status.value));
+        if (filterForm.venue.value) params.push('venue=' + encodeURIComponent(filterForm.venue.value));
+        if (filterForm.facilitator.value) params.push('facilitator=' + encodeURIComponent(filterForm.facilitator.value));
+        if (filterForm.show_empty && filterForm.show_empty.value === "1") params.push('show_empty=1');
+        return params.length ? '?' + params.join('&') : '';
+    }
+
+    // Cancel booking function - globally available
+    window.cancelBooking = function(bookingId) {
+        if (!bookingId) {
+            alert('Error: No booking ID provided');
+            return;
+        }
+        
+        if (confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
+            var formData = new FormData();
+            formData.append('booking_id', bookingId);
+            
+            // Get CSRF token
+            var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfToken) {
+                formData.append('csrfmiddlewaretoken', csrfToken.value);
+            }
+            
+            fetch('/cancel-venue-booking/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    // Close modal and refresh calendar
+                    eventModal.hide();
+                    calendar.refetchEvents();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to cancel booking'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while cancelling the booking');
+            });
+        }
+    };
+
+    // Global session search functionality
+var sessionSearchModal = null;
+var allSessionsData = [];
+
+// Function to fetch all sessions from the server
+function fetchAllSessions() {
+    return fetch('/api/all-sessions/')
+        .then(response => response.json())
+        .then(data => {
+            allSessionsData = data.sessions || [];
+            return allSessionsData;
+        })
+        .catch(error => {
+            console.error('Error fetching sessions:', error);
+            return [];
+        });
+}
+
+// Function to create and show the session search modal
+function showSessionSearchModal() {
+    // Create modal HTML with higher z-index
+    var modalHTML = `
+        <div class="modal fade" id="sessionSearchModal" tabindex="-1" aria-labelledby="sessionSearchModalLabel" aria-hidden="true" style="z-index: 1060;">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content glass animated-border">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title" id="sessionSearchModalLabel">
+                            <i class="fa fa-search"></i> Search Sessions
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="globalSessionSearch" class="form-label">Search for sessions:</label>
+                            <input type="text" class="form-control" id="globalSessionSearch" 
+                                   placeholder="Type to search groups, modules, dates..." autocomplete="off">
+                        </div>
+                        <div id="sessionSearchResults" style="max-height: 400px; overflow-y: auto;">
+                            <div class="text-center text-muted py-4">
+                                <i class="fa fa-search fa-2x mb-2"></i>
+                                <p>Start typing to search for sessions...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if it exists
+    var existingModal = document.getElementById('sessionSearchModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Initialize and show modal
+    sessionSearchModal = new bootstrap.Modal(document.getElementById('sessionSearchModal'));
+    sessionSearchModal.show();
+    
+    // Focus on search input when modal is shown
+    document.getElementById('sessionSearchModal').addEventListener('shown.bs.modal', function() {
+        document.getElementById('globalSessionSearch').focus();
+    });
+    
+    // Set up search functionality
+    setupSessionSearch();
+}
+
+// Function to setup search functionality
+function setupSessionSearch() {
+    var searchInput = document.getElementById('globalSessionSearch');
+    var resultsContainer = document.getElementById('sessionSearchResults');
+    
+    searchInput.addEventListener('input', function() {
+        var query = this.value.trim();
+        performSessionSearch(query, resultsContainer);
+    });
+    
+    // Handle Enter key
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            var query = this.value.trim();
+            performSessionSearch(query, resultsContainer);
+        }
+    });
+}
+
+// Function to perform the actual search
+function performSessionSearch(query, resultsContainer) {
+    if (query.length < 2) {
+        resultsContainer.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fa fa-search fa-2x mb-2"></i>
+                <p>Type at least 2 characters to search...</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Show loading
+    resultsContainer.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Searching...</span>
+            </div>
+            <p class="mt-2">Searching sessions...</p>
+        </div>
+    `;
+    
+    // If we don't have sessions data, fetch it first
+    if (allSessionsData.length === 0) {
+        fetchAllSessions().then(function() {
+            doSearch(query, resultsContainer);
+        });
+    } else {
+        doSearch(query, resultsContainer);
+    }
+}
+
+// Function to do the actual search with the data
+function doSearch(query, resultsContainer) {
+    var queryLower = query.toLowerCase();
+    
+    var filteredSessions = allSessionsData.filter(function(session) {
+        return (
+            (session.group && session.group.toLowerCase().includes(queryLower)) ||
+            (session.module && session.module.toLowerCase().includes(queryLower)) ||
+            (session.start_date && session.start_date.includes(queryLower)) ||
+            (session.end_date && session.end_date.includes(queryLower)) ||
+            (session.text && session.text.toLowerCase().includes(queryLower))
+        );
+    });
+    
+    if (filteredSessions.length === 0) {
+        resultsContainer.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fa fa-times-circle fa-2x mb-2"></i>
+                <p>No sessions found for "${query}"</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Build results HTML
+    var resultsHTML = '<div class="list-group">';
+    filteredSessions.forEach(function(session) {
+        resultsHTML += `
+            <div class="list-group-item list-group-item-action session-search-result" 
+                 data-session-id="${session.id}" style="cursor: pointer;">
+                <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">${session.group || 'Unknown Group'} - ${session.module || 'Unknown Module'}</h6>
+                    <small class="text-muted">${session.start_date} to ${session.end_date}</small>
+                </div>
+                <p class="mb-1 text-muted">${session.text || ''}</p>
+                <small>Click to book venue for this session</small>
+            </div>
+        `;
+    });
+    resultsHTML += '</div>';
+    
+    resultsContainer.innerHTML = resultsHTML;
+    
+    // Add click handlers to results
+    document.querySelectorAll('.session-search-result').forEach(function(item) {
+        item.addEventListener('click', function() {
+            var sessionId = this.getAttribute('data-session-id');
+            selectSessionFromSearch(sessionId);
+        });
+    });
+}
+
+// Function to handle session selection from search
+function selectSessionFromSearch(sessionId) {
+    // Close the search modal
+    if (sessionSearchModal) {
+        sessionSearchModal.hide();
+    }
+    
+    // Find the session data
+    var selectedSession = allSessionsData.find(function(session) {
+        return session.id == sessionId;
+    });
+    
+    if (!selectedSession) {
+        alert('Session not found!');
+        return;
+    }
+    
+    // **KEY FIX**: Get the current clicked date from context if available
+    var clickedDate = window.currentClickedDate || selectedSession.start_date;
+    
+    // Open the booking modal for this session with the session pre-populated
+    var formUrl = "{% url 'venuebooking_modal_form' %}?session=" + sessionId + "&date=" + clickedDate;
+    var eventModalBody = document.getElementById('eventActionModalBody');
+    var eventModalFooter = document.getElementById('eventActionModalFooter');
+    
+    // Show loading state
+    eventModalBody.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:180px;"><div class="spinner-border text-primary" style="width:2.5rem;height:2.5rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+    eventModalFooter.innerHTML = '';
+    
+    fetch(formUrl)
+        .then(r => r.text())
+        .then(html => {
+            eventModalBody.innerHTML = html;
+            
+            // Initialize Select2 after a short delay
+            setTimeout(function() {
+                if ($('#id_project_plan').length) $('#id_project_plan').select2({ width: '100%', allowClear: true });
+                if ($('#id_session_date').length) {
+                    $('#id_session_date').select2({ width: '100%', allowClear: true });
+                    
+                    // Set the selected session in the dropdown
+                    $('#id_session_date').val(sessionId).trigger('change');
+                }
+                if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
+            }, 100);
+            
+            // Clear footer and add buttons
+            eventModalFooter.innerHTML = "";
+            
+            // Add Search Sessions button
+            var searchSessionsBtn = document.createElement('button');
+            searchSessionsBtn.type = "button";
+            searchSessionsBtn.className = "btn btn-info";
+            searchSessionsBtn.innerHTML = '<i class="fa fa-search"></i> Search Sessions';
+            searchSessionsBtn.onclick = function() {
+                // Store reference to current modal elements
+                var currentModalBody = eventModalBody;
+                var currentModalFooter = eventModalFooter;
+                var currentFormUrl = formUrl;
+                
+                // Override the selectSessionFromSearch function to populate current modal
+                window.originalSelectSessionFromSearch = selectSessionFromSearch;
+                selectSessionFromSearch = function(selectedSessionId) {
+                    // Close search modal
+                    if (sessionSearchModal) {
+                        sessionSearchModal.hide();
+                    }
+                    
+                    // Find the selected session
+                    var selectedSession = allSessionsData.find(function(session) {
+                        return session.id == selectedSessionId;
+                    });
+                    
+                    if (!selectedSession) {
+                        alert('Session not found!');
+                        return;
+                    }
+                    
+                    // Update the session dropdown in the current modal
+                    var sessionSelect = document.getElementById('id_session_date');
+                    if (sessionSelect) {
+                        // Check if the selected session exists in the dropdown
+                        var optionExists = false;
+                        for (var i = 0; i < sessionSelect.options.length; i++) {
+                            if (sessionSelect.options[i].value == selectedSessionId) {
+                                sessionSelect.value = selectedSessionId;
+                                optionExists = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!optionExists) {
+                            // Add the option if it doesn't exist
+                            var option = document.createElement('option');
+                            option.value = selectedSessionId;
+                            option.text = selectedSession.text;
+                            option.selected = true;
+                            sessionSelect.appendChild(option);
+                        }
+                        
+                        // Trigger change event
+                        var event = new Event('change', { bubbles: true });
+                        sessionSelect.dispatchEvent(event);
+                        
+                        // Trigger Select2 update if it's being used
+                        if (typeof $ !== 'undefined' && $(sessionSelect).hasClass('select2-hidden-accessible')) {
+                            $(sessionSelect).trigger('change');
+                        }
+                        
+                        // Visual feedback
+                        sessionSelect.style.border = '2px solid #34C759';
+                        sessionSelect.style.backgroundColor = '#e8f5e8';
+                        setTimeout(function() {
+                            sessionSelect.style.border = '';
+                            sessionSelect.style.backgroundColor = '';
+                        }, 2000);
+                        
+                        // Show brief confirmation message
+                        var confirmDiv = document.createElement('div');
+                        confirmDiv.innerHTML = '<div class="alert alert-success" style="margin-top: 10px; padding: 8px 12px; font-size: 0.9em;"><i class="fa fa-check-circle"></i> Session "' + selectedSession.text + '" has been selected!</div>';
+                        sessionSelect.parentElement.appendChild(confirmDiv);
+                        setTimeout(function() {
+                            if (confirmDiv.parentElement) {
+                                confirmDiv.parentElement.removeChild(confirmDiv);
+                            }
+                        }, 3000);
+                    } else {
+                        alert('Unable to update session selection in the current form.');
+                    }
+                    
+                    // Restore original function
+                    selectSessionFromSearch = window.originalSelectSessionFromSearch;
+                };
+                
+                // Show search modal WITHOUT hiding current modal
+                showSessionSearchModal();
+            };
+            eventModalFooter.appendChild(searchSessionsBtn);
+            
+            // Add main Book button
+            var bookBtn = document.createElement('button');
+            bookBtn.type = "button";
+            bookBtn.className = "btn btn-success btn-glow";
+            bookBtn.innerHTML = '<i class="fa fa-plus-circle"></i> Book a Venue';
+            bookBtn.onclick = function() {
+                var bookingForm = document.getElementById('venueBookingModalForm');
+                if (bookingForm) bookingForm.requestSubmit();
+            };
+            eventModalFooter.appendChild(bookBtn);
+            
+            // Setup form submission
+            var bookingForm = document.getElementById('venueBookingModalForm');
+            if (bookingForm) {
+                bookingForm.onsubmit = function(e) {
+                    e.preventDefault();
+                    var formData = new FormData(bookingForm);
+                    fetch(formUrl, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": "{{ csrf_token }}"
+                        },
+                        body: formData
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            eventModal.hide();
+                            calendar.refetchEvents();
+                            
+                            // Show success notification
+                            var notif = document.getElementById('venueSwitchNotification');
+                            notif.innerHTML = '<i class="fa fa-check-circle" style="color:#34C759;font-size:1.5em;margin-right:8px;"></i> Venue booked successfully for ' + selectedSession.text + '!';
+                            notif.classList.add('show');
+                            setTimeout(function() {
+                                notif.classList.remove('show');
+                            }, 3000);
+                        } else if (data.html) {
+                            eventModalBody.innerHTML = data.html;
+                            // Re-initialize Select2 and set the session again
+                            setTimeout(function() {
+                                if ($('#id_project_plan').length) $('#id_project_plan').select2({ width: '100%', allowClear: true });
+                                if ($('#id_session_date').length) {
+                                    $('#id_session_date').select2({ width: '100%', allowClear: true });
+                                    $('#id_session_date').val(sessionId).trigger('change');
+                                }
+                                if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
+                            }, 100);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while booking the venue.');
+                    });
+                };
+            }
+        })
+        .catch(error => {
+            console.error('Error loading form:', error);
+            eventModalBody.innerHTML = '<div class="alert alert-danger">Error loading booking form. Please try again.</div>';
+        });
+    
+    // Set modal title and show it
+    document.getElementById('eventActionModalLabel').innerHTML = '<i class="fa fa-calendar-plus"></i> Book Venue for ' + selectedSession.text;
+    eventModal.show();
+}
+
+    function eventClickHandler(info) {
+        if (multiSelectMode) {
+            info.jsEvent.preventDefault();
+            const eventId = info.event.extendedProps.session_id || info.event.extendedProps.booking_id;
+            if (!eventId) return;
+            const el = info.el;
+            if (selectedEventIds.includes(eventId)) {
+                selectedEventIds = selectedEventIds.filter(id => id !== eventId);
+                el.classList.remove('fc-event-selected');
+            } else {
+                selectedEventIds.push(eventId);
+                el.classList.add('fc-event-selected');
+            }
+            updateMultiBookBtn();
+        } else {
+            var props = info.event.extendedProps;
+            var sessionId = props.session_id;
+            var bookingId = props.booking_id;
+            
+            var eventDate = info.event.startStr.split("T")[0];
+            
+            var eventModalBody = document.getElementById('eventActionModalBody');
+            var eventModalFooter = document.getElementById('eventActionModalFooter');
+            eventModalFooter.innerHTML = '';
+
+            var isUnbooked = props.status === "unbooked";
+            var isEditing = !isUnbooked && bookingId;
+            
+            var formUrl = isUnbooked
+                ? "{% url 'venuebooking_modal_form' %}?session=" + sessionId + "&date=" + eventDate
+                : "{% url 'venuebooking_modal_form' %}?booking=" + bookingId + "&date=" + eventDate;
+
+            eventModalBody.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:180px;"><div class="spinner-border text-primary" style="width:2.5rem;height:2.5rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+            eventModalFooter.innerHTML = '<div style="width:100%;display:flex;justify-content:center;"><div class="spinner-border text-success" style="width:1.8rem;height:1.8rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+            fetch(formUrl)
+                .then(r => r.text())
+                .then(html => {
+                    eventModalBody.innerHTML = html;
+                    
+                    setTimeout(function() {
+                        var single = document.getElementById('id_session_date');
+                        var multi = document.getElementById('id_session_dates');
+                        if (multi) multi.closest('.form-group,.mb-3,.col-12,.col-md-6')?.classList.add('d-none');
+                        if (single) single.closest('.form-group,.mb-3,.col-12,.col-md-6')?.classList.remove('d-none');
+                        
+                        var startDatetimeField = document.getElementById('id_start_datetime');
+                        var endDatetimeField = document.getElementById('id_end_datetime');
+                        
+                        if (startDatetimeField && !startDatetimeField.value) {
+                            startDatetimeField.value = eventDate + ' 08:00';
+                        }
+                        if (endDatetimeField && !endDatetimeField.value) {
+                            endDatetimeField.value = eventDate + ' 17:00';
+                        }
+                        
+                        if ($('#id_project_plan').length) $('#id_project_plan').select2({ width: '100%', allowClear: true });
+                        if ($('#id_session_date').length) $('#id_session_date').select2({ width: '100%', allowClear: true });
+                        if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
+                    }, 100);
+
+                    eventModalFooter.innerHTML = "";
+                    
+                    if (isEditing) {
+                        // EDITING MODE - Show editing buttons
+                        
+                        if (props.project_plan_id) {
+                            var viewPlanBtn = document.createElement('button');
+                            viewPlanBtn.type = "button";
+                            viewPlanBtn.className = "btn btn-info";
+                            viewPlanBtn.innerHTML = '<i class="fa fa-eye"></i> View Project Plan';
+                            viewPlanBtn.onclick = function() {
+                                window.open('/projectplan/' + props.project_plan_id + '/', '_blank');
+                            };
+                            eventModalFooter.appendChild(viewPlanBtn);
+                        }
+                        
+                        var cancelBtn = document.createElement('button');
+                        cancelBtn.type = "button";
+                        cancelBtn.className = "btn btn-danger";
+                        cancelBtn.innerHTML = '<i class="fa fa-times-circle"></i> Cancel Booking';
+                        cancelBtn.onclick = function() {
+                            if (confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
+                                window.cancelBooking(bookingId);
+                            }
+                        };
+                        eventModalFooter.appendChild(cancelBtn);
+                        
+                        var switchBtn = document.createElement('button');
+                        switchBtn.type = "button";
+                        switchBtn.className = "btn btn-warning";
+                        switchBtn.innerHTML = '<i class="fa fa-exchange-alt"></i> Switch Venue';
+                        switchBtn.onclick = function() {
+                            document.getElementById('switchBookingId').value = bookingId;
+                            eventModal.hide();
+                            switchVenueModal.show();
+                        };
+                        eventModalFooter.appendChild(switchBtn);
+                        
+                        var closeBtn = document.createElement('button');
+                        closeBtn.type = "button";
+                        closeBtn.className = "btn btn-secondary";
+                        closeBtn.setAttribute('data-bs-dismiss', 'modal');
+                        closeBtn.innerHTML = 'Close';
+                        eventModalFooter.appendChild(closeBtn);
+                        
+                        var updateBtn = document.createElement('button');
+                        updateBtn.type = "button";
+                        updateBtn.className = "btn btn-success btn-glow";
+                        updateBtn.innerHTML = '<i class="fa fa-save"></i> Update Booking';
+                        updateBtn.onclick = function() {
+                            var bookingForm = document.getElementById('venueBookingModalForm');
+                            if (bookingForm) bookingForm.requestSubmit();
+                        };
+                        eventModalFooter.appendChild(updateBtn);
+                        
+                    } else {
+                        // CREATING MODE - Show creation buttons
+                        
+                        var searchSessionsBtn = document.createElement('button');
+                        searchSessionsBtn.type = "button";
+                        searchSessionsBtn.className = "btn btn-info";
+                        searchSessionsBtn.innerHTML = '<i class="fa fa-search"></i> Search Sessions';
+                        searchSessionsBtn.onclick = function() {
+                            window.originalSelectSessionFromSearch = selectSessionFromSearch;
+                            selectSessionFromSearch = function(selectedSessionId) {
+                                if (sessionSearchModal) {
+                                    sessionSearchModal.hide();
+                                }
+                                
+                                var selectedSession = allSessionsData.find(function(session) {
+                                    return session.id == selectedSessionId;
+                                });
+                                
+                                if (!selectedSession) {
+                                    alert('Session not found!');
+                                    return;
+                                }
+                                
+                                var sessionSelect = document.getElementById('id_session_date');
+                                if (sessionSelect) {
+                                    var optionExists = false;
+                                    for (var i = 0; i < sessionSelect.options.length; i++) {
+                                        if (sessionSelect.options[i].value == selectedSessionId) {
+                                            sessionSelect.value = selectedSessionId;
+                                            optionExists = true;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    if (!optionExists) {
+                                        var option = document.createElement('option');
+                                        option.value = selectedSessionId;
+                                        option.text = selectedSession.text;
+                                        option.selected = true;
+                                        sessionSelect.appendChild(option);
+                                    }
+                                    
+                                    var event = new Event('change', { bubbles: true });
+                                    sessionSelect.dispatchEvent(event);
+                                    
+                                    if (typeof $ !== 'undefined' && $(sessionSelect).hasClass('select2-hidden-accessible')) {
+                                        $(sessionSelect).trigger('change');
+                                    }
+                                    
+                                    sessionSelect.style.border = '2px solid #34C759';
+                                    sessionSelect.style.backgroundColor = '#e8f5e8';
+                                    setTimeout(function() {
+                                        sessionSelect.style.border = '';
+                                        sessionSelect.style.backgroundColor = '';
+                                    }, 2000);
+                                    
+                                    var confirmDiv = document.createElement('div');
+                                    confirmDiv.innerHTML = '<div class="alert alert-success" style="margin-top: 10px; padding: 8px 12px; font-size: 0.9em;"><i class="fa fa-check-circle"></i> Session "' + selectedSession.text + '" has been selected!</div>';
+                                    sessionSelect.parentElement.appendChild(confirmDiv);
+                                    setTimeout(function() {
+                                        if (confirmDiv.parentElement) {
+                                            confirmDiv.parentElement.removeChild(confirmDiv);
+                                        }
+                                    }, 3000);
+                                } else {
+                                    alert('Unable to update session selection in the current form.');
+                                }
+                                
+                                selectSessionFromSearch = window.originalSelectSessionFromSearch;
+                            };
+                            
+                            eventModalFooter.appendChild(searchSessionsBtn);
+                            
+                            var bookBtn = document.createElement('button');
+                            bookBtn.type = "button";
+                            bookBtn.className = "btn btn-success btn-glow";
+                            bookBtn.innerHTML = '<i class="fa fa-plus-circle"></i> Book a Venue';
+                            bookBtn.onclick = function() {
+                                var bookingForm = document.getElementById('venueBookingModalForm');
+                                if (bookingForm) bookingForm.requestSubmit();
+                            };
+                            eventModalFooter.appendChild(bookBtn);
+                        }
+                        
+                        // **CRITICAL FIX**: Setup form submission with proper conflict handling
+                        var bookingForm = document.getElementById('venueBookingModalForm');
+                        if (bookingForm) {
+                            bookingForm.onsubmit = function(e) {
+                                e.preventDefault();
+                                var formData = new FormData(bookingForm);
+                                
+                                fetch(formUrl, {
+                                    method: "POST",
+                                    headers: {
+                                        "X-CSRFToken": "{{ csrf_token }}"
+                                    },
+                                    body: formData
+                                })
+                                .then(r => r.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        eventModal.hide();
+                                        calendar.refetchEvents();
+                                        
+                                        var notif = document.getElementById('venueSwitchNotification');
+                                        notif.innerHTML = isEditing 
+                                            ? '<i class="fa fa-check-circle" style="color:#34C759;font-size:1.5em;margin-right:8px;"></i> Booking updated successfully!'
+                                            : '<i class="fa fa-check-circle" style="color:#34C759;font-size:1.5em;margin-right:8px;"></i> Venue booked successfully!';
+                                        notif.classList.add('show');
+                                        setTimeout(function() {
+                                            notif.classList.remove('show');
+                                        }, 3000);
+                                    } else if (data.conflict && data.html) {
+                                        // **MAJOR FIX**: Handle conflict popup properly
+                                        handleConflictPopup(data, formData, formUrl, eventModalBody, isEditing);
+                                    } else if (data.html) {
+                                        eventModalBody.innerHTML = data.html;
+                                        setTimeout(function() {
+                                            if ($('#id_project_plan').length) $('#id_project_plan').select2({ width: '100%', allowClear: true });
+                                            if ($('#id_session_date').length) {
+                                                $('#id_session_date').select2({ width: '100%', allowClear: true });
+                                                if (!isEditing) $('#id_session_date').val(sessionId).trigger('change');
+                                            }
+                                            if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
+                                        }, 100);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error:', error);
+                                    alert('An error occurred while processing the booking.');
+                                });
+                            };
+                        }
+                    }
+                    
+                    // **CRITICAL FIX**: Setup form submission with proper conflict handling
+                    var bookingForm = document.getElementById('venueBookingModalForm');
+                    if (bookingForm) {
+                        bookingForm.onsubmit = function(e) {
+                            e.preventDefault();
+                            var formData = new FormData(bookingForm);
+                            
+                            fetch(formUrl, {
+                                method: "POST",
+                                headers: {
+                                    "X-CSRFToken": "{{ csrf_token }}"
+                                },
+                                body: formData
+                            })
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data.success) {
+                                    eventModal.hide();
+                                    calendar.refetchEvents();
+                                    
+                                    var notif = document.getElementById('venueSwitchNotification');
+                                    notif.innerHTML = isEditing 
+                                        ? '<i class="fa fa-check-circle" style="color:#34C759;font-size:1.5em;margin-right:8px;"></i> Booking updated successfully!'
+                                        : '<i class="fa fa-check-circle" style="color:#34C759;font-size:1.5em;margin-right:8px;"></i> Venue booked successfully!';
+                                    notif.classList.add('show');
+                                    setTimeout(function() {
+                                        notif.classList.remove('show');
+                                    }, 3000);
+                                } else if (data.conflict && data.html) {
+                                    // **MAJOR FIX**: Handle conflict popup properly
+                                    handleConflictPopup(data, formData, formUrl, eventModalBody, isEditing);
+                                } else if (data.html) {
+                                    eventModalBody.innerHTML = data.html;
+                                    setTimeout(function() {
+                                        if ($('#id_project_plan').length) $('#id_project_plan').select2({ width: '100%', allowClear: true });
+                                        if ($('#id_session_date').length) {
+                                            $('#id_session_date').select2({ width: '100%', allowClear: true });
+                                            if (!isEditing) $('#id_session_date').val(sessionId).trigger('change');
+                                        }
+                                        if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
+                                    }, 100);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('An error occurred while processing the booking.');
+                            });
+                        };
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading form:', error);
+                    eventModalBody.innerHTML = '<div class="alert alert-danger">Error loading booking form. Please try again.</div>';
+                });
+
+        document.getElementById('eventActionModalLabel').innerHTML = isEditing
+            ? '<i class="fa fa-calendar-edit"></i> Edit Booking'
+            : '<i class="fa fa-calendar-plus"></i> Book Venue';
+        eventModal.show();
+    }
+}
+
+// **NEW FUNCTION**: Handle conflict popup properly
+function handleConflictPopup(data, originalFormData, formUrl, eventModalBody, isEditing) {
+    console.log('Handling conflict popup');
+    
+    // Remove any existing conflict popup
+    var existingPopup = document.getElementById('venueConflictPopup');
+    if (existingPopup) {
+        existingPopup.remove();
+    }
+    
+    // Create and show the conflict popup
+    document.body.insertAdjacentHTML('beforeend', data.html);
+    document.body.style.overflow = 'hidden';
+    
+    // **CRITICAL FIX**: Wait for DOM insertion then attach handlers
+    setTimeout(function() {
+        var popup = document.getElementById('venueConflictPopup');
+        if (!popup) {
+            console.error('Conflict popup not found after insertion');
+            return;
+        }
+        
+        popup.style.display = 'flex';
+        popup.focus();
+        
+        // **KEY FIX**: Get buttons and attach handlers with proper error checking
+        var yesBtn = document.getElementById('venueConflictYes');
+        var noBtn = document.getElementById('venueConflictNo');
+        
+        console.log('Found buttons:', {yesBtn: !!yesBtn, noBtn: !!noBtn});
+        
+        if (yesBtn) {
+            // Remove any existing event listeners
+            yesBtn.onclick = null;
+            
+            yesBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('Yes button clicked - starting override process');
+                
+                // Show loading state
+                yesBtn.disabled = true;
+                yesBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Processing...';
+                
+                // **CRITICAL FIX**: Create completely fresh FormData
+                var overrideFormData = new FormData();
+                
+                // **Get fresh form data from the current form**
+                var currentForm = document.getElementById('venueBookingModalForm');
+                if (currentForm) {
+                    var formElements = currentForm.elements;
+                    for (var i = 0; i < formElements.length; i++) {
+                        var element = formElements[i];
+                        
+                        if (element.name && !element.disabled) {
+                            if (element.type === 'checkbox' || element.type === 'radio') {
+                                if (element.checked) {
+                                    overrideFormData.append(element.name, element.value);
+                                }
+                            } else if (element.tagName === 'SELECT') {
+                                if (element.multiple) {
+                                    for (var j = 0; j < element.options.length; j++) {
+                                        if (element.options[j].selected) {
+                                            overrideFormData.append(element.name, element.options[j].value);
+                                        }
+                                    }
+                                } else {
+                                    overrideFormData.append(element.name, element.value);
+                                }
+                            } else {
+                                overrideFormData.append(element.name, element.value);
+                            }
+                        }
+                    }
+                }
+                
+                // Add override confirmation
+                overrideFormData.append('confirm_override', 'yes');
+                
+                console.log('Sending override request to:', formUrl);
+                
+                fetch(formUrl, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": "{{ csrf_token }}"
+                    },
+                    body: overrideFormData
+                })
+                .then(response => {
+                    console.log('Override response status:', response.status);
+                    return response.json();
+                })
+                .then(data2 => {
+                    console.log('Override response data:', data2);
+                    
+                    // Clean up popup
+                    popup.remove();
+                    document.body.style.overflow = '';
+                    
+                    if (data2.success) {
+                        eventModal.hide();
+                        calendar.refetchEvents();
+                        
+                        var notif = document.getElementById('venueSwitchNotification');
+                        notif.innerHTML = '<i class="fa fa-check-circle" style="color:#34C759;font-size:1.5em;margin-right:8px;"></i> Booking override successful! Previous user notified.';
+                        notif.style.display = "block";
+                        notif.classList.add('show');
+                        setTimeout(function() {
+                            notif.classList.remove('show');
+                            setTimeout(() => {
+                                notif.style.display = "none";
+                            }, 400);
+                        }, 4000);
+                    } else if (data2.html) {
+                        eventModalBody.innerHTML = data2.html;
+                        // Re-initialize form handlers if needed
+                        setTimeout(function() {
+                            if ($('#id_project_plan').length) $('#id_project_plan').select2({ width: '100%', allowClear: true });
+                            if ($('#id_session_date').length) $('#id_session_date').select2({ width: '100%', allowClear: true });
+                            if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
+                        }, 100);
+                    } else {
+                        alert('Error processing override: ' + (data2.error || data2.message || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error during override:', error);
+                    popup.remove();
+                    document.body.style.overflow = '';
+                    alert('An error occurred while processing the override: ' + error.message);
+                });
+            });
+        } else {
+            console.error('Yes button not found in conflict popup');
+        }
+        
+        if (noBtn) {
+            // Remove any existing event listeners
+            noBtn.onclick = null;
+            
+            noBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('No button clicked - cancelling override');
+                
+                popup.remove();
+                document.body.style.overflow = '';
+            });
+        } else {
+            console.error('No button not found in conflict popup');
+        }
+        
+        // **Handle escape key and backdrop clicks**
+        function closePopup() {
+            popup.remove();
+            document.body.style.overflow = '';
+        }
+        
+        document.addEventListener('keydown', function escapeHandler(e) {
+            if (e.key === 'Escape') {
+                closePopup();
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        });
+        
+        popup.addEventListener('click', function(e) {
+            if (e.target === popup) {
+                closePopup();
+            }
+        });
+        
+    }, 50); // Small delay to ensure DOM insertion
+}
+    function renderCalendar() {
+        if (calendar) calendar.destroy();
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            height: "auto",
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'timeGridDay,dayGridMonth,timeGridWeek'
+            },
+            events: "{% url 'venuebooking_events_api' %}" + getFilterParams(),
+            eventDisplay: 'block',
+            slotMinTime: "07:00:00",
+            slotMaxTime: "20:00:00",
+            eventOverlap: false,
+            eventMaxStack: 6,
+            dayMaxEvents: false,
+            eventClick: eventClickHandler,
+            dateClick: function(info) {
+                // Store the clicked date globally
+                window.currentClickedDate = info.dateStr;
+
+                var eventModalBody = document.getElementById('eventActionModalBody');
+                var eventModalFooter = document.getElementById('eventActionModalFooter');
+
+                eventModalBody.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:180px;"><div class="spinner-border text-primary" style="width:2.5rem;height:2.5rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+                eventModalFooter.innerHTML = '<div style="width:100%;display:flex;justify-content:center;"><div class="spinner-border text-success" style="width:1.8rem;height:1.8rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+                var formUrl = "{% url 'venuebooking_modal_form' %}?date=" + encodeURIComponent(info.dateStr);
+
+                fetch(formUrl)
+                    .then(r => r.text())
+                    .then(html => {
+                        eventModalBody.innerHTML = html;
+
+                        // Pre-populate the start_datetime and end_datetime fields
+                        var startDatetimeField = document.getElementById('id_start_datetime');
+                        var endDatetimeField = document.getElementById('id_end_datetime');
+                        if (startDatetimeField && !startDatetimeField.value) {
+                            startDatetimeField.value = info.dateStr + ' 08:00';
+                        }
+                        if (endDatetimeField && !endDatetimeField.value) {
+                            endDatetimeField.value = info.dateStr + ' 17:00';
+                        }
+
+                        setTimeout(function() {
+                            if ($('#id_project_plan').length) $('#id_project_plan').select2({ width: '100%', allowClear: true });
+                            if ($('#id_session_date').length) $('#id_session_date').select2({ width: '100%', allowClear: true });
+                            if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
+                        }, 100);
+
+                        eventModalFooter.innerHTML = "";
+
+                        var bookBtn = document.createElement('button');
+                        bookBtn.type = "button";
+                        bookBtn.className = "btn btn-success btn-glow";
+                        bookBtn.innerHTML = '<i class="fa fa-plus-circle"></i> Book a Venue';
+                        bookBtn.onclick = function() {
+                            var bookingForm = document.getElementById('venueBookingModalForm');
+                            if (bookingForm) bookingForm.requestSubmit();
+                        };
+                        eventModalFooter.appendChild(bookBtn);
+
+                        var bookingForm = document.getElementById('venueBookingModalForm');
+                        if (bookingForm) {
+                            bookingForm.onsubmit = function(e) {
+                                e.preventDefault();
+                                var formData = new FormData(bookingForm);
+                                fetch(formUrl, {
+                                    method: "POST",
+                                    headers: {
+                                        "X-CSRFToken": "{{ csrf_token }}"
+                                    },
+                                    body: formData
+                                })
+                                .then(r => r.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        eventModal.hide();
+                                        calendar.refetchEvents();
+                                    } else if (data.html) {
+                                        eventModalBody.innerHTML = data.html;
+                                    }
+                                });
+                            };
+                        }
+                    });
+
+                document.getElementById('eventActionModalLabel').innerHTML = '<i class="fa fa-calendar-plus"></i> Book Venue';
+                eventModal.show();
+            },
+            eventContent: function(arg) {
+                var props = arg.event.extendedProps;
+                var group = props.group || "";
+                var moduleName = props.module || "";
+                var venue = props.venue || "";
+                var venueColor = props.venue_color || "#3A7AFE";
+                var facilitator = props.facilitator || "";
+                var bookedBy = props.booked_by || "";
+                var numLearners = props.num_learners || "";
+                var status = props.status || "";
+                var start = arg.event.start ? arg.event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "";
+                var end = arg.event.end ? arg.event.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "";
+                var badge = "";
+
+                if (status === "unbooked") {
+                    badge = `<span class="badge badge-unbooked"><i class="fa fa-times-circle"></i> Empty Slot</span>`;
+                } else if (status === "rescheduled") {
+                    badge = `<span class="badge badge-warning"><i class="fa fa-calendar-alt"></i> Rescheduled</span>`;
+                } else if (status === "cancelled") {
+                    badge = `<span class="badge badge-info"><i class="fa fa-ban"></i> Cancelled</span>`;
+                } else {
+                    badge = `<span class="badge badge-booked"><i class="fa fa-check-circle"></i> Booked</span>`;
+                }
+
+                return {
+                    html: `
+                        <div class="fc-colored-event" style="background:${venueColor};" title="${group} | ${moduleName} | ${venue} | ${start}–${end}${facilitator ? ' | ' + facilitator : ''}">
+                            <div class="fc-colored-title">${group ? group + ' - ' : ''}${moduleName}</div>
+                            <div class="fc-colored-details">
+                                <span class="venue"><i class="fa fa-building"></i> ${venue}</span>
+                                <span class="time"><i class="fa fa-clock"></i> ${start}–${end}</span>
+                                ${facilitator ? `<span class="facilitator"><i class="fa fa-user"></i> ${facilitator}</span>` : ""}
+                                ${bookedBy ? `<span class="booked-by"><i class="fa fa-user-check"></i> Booked by: ${bookedBy}</span>` : ""}
+                                ${numLearners ? `<span class="num-learners"><i class="fa fa-users"></i> Learners: ${numLearners}</span>` : ""}
+                            </div>
+                            ${badge}
+                        </div>
+                    `
+                };
+            },
+            eventDidMount: function(info) {
+                var venueColor = info.event.extendedProps.venue_color || "#3A7AFE";
+                info.el.style.background = venueColor;
+                let main = info.el.querySelector('.fc-event-main');
+                if (main) main.style.background = venueColor;
+                info.el.style.border = "none";
+                info.el.style.padding = "0";
+                info.el.style.marginBottom = "4px";
+                if (info.event.extendedProps.booking_id) {
+                    info.el.setAttribute('data-booking-id', info.event.extendedProps.booking_id);
+                }
+                if (info.event.extendedProps.session_changed) {
+                    showSessionChangeNotification(info.event);
+                }
+            },
+            eventClick: eventClickHandler,
+            dateClick: function(info) {
+                // **KEY FIX**: Store the clicked date globally
+    window.currentClickedDate = info.dateStr;
+    
+                var eventModalBody = document.getElementById('eventActionModalBody');
+                var eventModalFooter = document.getElementById('eventActionModalFooter');
+
+                eventModalBody.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:180px;"><div class="spinner-border text-primary" style="width:2.5rem;height:2.5rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+                eventModalFooter.innerHTML = '<div style="width:100%;display:flex;justify-content:center;"><div class="spinner-border text-success" style="width:1.8rem;height:1.8rem;" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+                var formUrl = "{% url 'venuebooking_modal_form' %}?date=" + encodeURIComponent(info.dateStr);
+
+                fetch(formUrl)
+                    .then(r => r.text())
+                    .then(html => {
+                        eventModalBody.innerHTML = html;
+                        setTimeout(function() {
+                            if ($('#id_project_plan').length) $('#id_project_plan').select2({ width: '100%', allowClear: true });
+                            if ($('#id_session_date').length) $('#id_session_date').select2({ width: '100%', allowClear: true });
+                            if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
+                        }, 100);
+
+                        eventModalFooter.innerHTML = "";
+
+                        // Add Search Sessions button for date click too
+                        var searchSessionsBtn = document.createElement('button');
+                        searchSessionsBtn.type = "button";
+                        searchSessionsBtn.className = "btn btn-info";
+                        searchSessionsBtn.innerHTML = '<i class="fa fa-search"></i> Search Sessions';
+                        searchSessionsBtn.onclick = function() {
+                            // Override the selectSessionFromSearch function to populate current modal
+                            window.originalSelectSessionFromSearch = selectSessionFromSearch;
+                            selectSessionFromSearch = function(selectedSessionId) {
+                                // Close search modal
+                                if (sessionSearchModal) {
+                                    sessionSearchModal.hide();
+                                }
+                                
+                                // Find the selected session
+                                var selectedSession = allSessionsData.find(function(session) {
+                                    return session.id == selectedSessionId;
+                                });
+                                
+                                if (!selectedSession) {
+                                    alert('Session not found!');
+                                    return;
+                                }
+                                
+                                // Update the session dropdown in the current modal
+                                var sessionSelect = document.getElementById('id_session_date');
+                                if (sessionSelect) {
+                                    // Check if the selected session exists in the dropdown
+                                    var optionExists = false;
+                                    for (var i = 0; i < sessionSelect.options.length; i++) {
+                                        if (sessionSelect.options[i].value == selectedSessionId) {
+                                            sessionSelect.value = selectedSessionId;
+                                            optionExists = true;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    if (!optionExists) {
+                                        // Add the option if it doesn't exist
+                                        var option = document.createElement('option');
+                                        option.value = selectedSessionId;
+                                        option.text = selectedSession.text;
+                                        option.selected = true;
+                                        sessionSelect.appendChild(option);
+                                    }
+                                    
+                                    // Trigger change event
+                                    var event = new Event('change', { bubbles: true });
+                                    sessionSelect.dispatchEvent(event);
+                                    
+                                    // Trigger Select2 update if it's being used
+                                    if (typeof $ !== 'undefined' && $(sessionSelect).hasClass('select2-hidden-accessible')) {
+                                        $(sessionSelect).trigger('change');
+                                    }
+                                    
+                                    // Visual feedback
+                                    sessionSelect.style.border = '2px solid #34C759';
+                                    sessionSelect.style.backgroundColor = '#e8f5e8';
+                                    setTimeout(function() {
+                                        sessionSelect.style.border = '';
+                                        sessionSelect.style.backgroundColor = '';
+                                    }, 2000);
+                                    
+                                    // Show brief confirmation message
+                                    var confirmDiv = document.createElement('div');
+                                    confirmDiv.innerHTML = '<div class="alert alert-success" style="margin-top: 10px; padding: 8px 12px; font-size: 0.9em;"><i class="fa fa-check-circle"></i> Session "' + selectedSession.text + '" has been selected!</div>';
+                                    sessionSelect.parentElement.appendChild(confirmDiv);
+                                    setTimeout(function() {
+                                        if (confirmDiv.parentElement) {
+                                            confirmDiv.parentElement.removeChild(confirmDiv);
+                                        }
+                                    }, 3000);
+                                } else {
+                                    alert('Unable to update session selection in the current form.');
+                                }
+                                
+                                // Restore original function
+                                selectSessionFromSearch = window.originalSelectSessionFromSearch;
+                            };
+                            
+                            // Show search modal WITHOUT hiding current modal
+                            showSessionSearchModal();
+                        };
+                        eventModalFooter.appendChild(searchSessionsBtn);
+
+                        var bookBtn = document.createElement('button');
+                        bookBtn.type = "button";
+                        bookBtn.className = "btn btn-success btn-glow";
+                        bookBtn.innerHTML = '<i class="fa fa-plus-circle"></i> Book a Venue';
+                        bookBtn.onclick = function() {
+                            var bookingForm = document.getElementById('venueBookingModalForm');
+                            if (bookingForm) bookingForm.requestSubmit();
+                        };
+                        eventModalFooter.appendChild(bookBtn);
+
+                        var bookingForm = document.getElementById('venueBookingModalForm');
+                        if (bookingForm) {
+                            bookingForm.onsubmit = function(e) {
+                                e.preventDefault();
+                                var formData = new FormData(bookingForm);
+                                fetch(formUrl, {
+                                    method: "POST",
+                                    headers: {
+                                        "X-CSRFToken": "{{ csrf_token }}"
+                                    },
+                                    body: formData
+                                })
+                                .then(r => r.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        eventModal.hide();
+                                        calendar.refetchEvents();
+                                    } else if (data.html) {
+                                        eventModalBody.innerHTML = data.html;
+                                    }
+                                });
+                            };
+                        }
+                    });
+
+                document.getElementById('eventActionModalLabel').innerHTML = '<i class="fa fa-calendar-plus"></i> Book Venue';
+                eventModal.show();
+            }
+        });
+        calendar.render();
+    }
+
+    filterForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        renderCalendar();
+    });
+
+    renderCalendar();
+
+    // Global function for refreshing calendar (can be called from modal)
+    window.refreshCalendar = function() {
+        if (calendar) {
+            calendar.refetchEvents();
+        }
+    };
+
+    setInterval(function() {
+        calendar.refetchEvents();
+    }, 60000);
+
+    var switchVenueForm = document.getElementById('switchVenueForm');
+    switchVenueForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var bookingId = document.getElementById('switchBookingId').value;
+        var newVenueId = document.getElementById('newVenueSelect').value;
+        fetch("{% url 'venuebooking_switch' %}", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                booking_id: bookingId,
+                new_venue_id: newVenueId
+            })
+        })
+        .then(r => r.json())
+        .then( data => {
+            if (data.success) {
+                switchVenueModal.hide();
+                eventModal.hide();
+                calendar.refetchEvents();
+                setTimeout(function() {
+                    var el = document.querySelector('[data-booking-id="' + bookingId + '"]');
+                    if (el) {
+                        el.classList.add('fc-event-switch-highlight');
+                        setTimeout(function() {
+                            el.classList.remove('fc-event-switch-highlight');
+                        }, 1600);
+                    }
+                },  600);
+                var notif = document.getElementById('venueSwitchNotification');
+                notif.classList.add('show');
+                setTimeout(function() {
+                    notif.classList.remove('show');
+                }, 2000);
+            }
+        })
+        .catch(error => {
+            console.error('Error switching venue:', error);
+            alert('An error occurred while switching venues. Please try again.');
+        });
+    });
+
+    
+});
+
+document.getElementById('venueAvailabilityForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var venueId = document.getElementById('venueAvailabilitySelect').value;
+    var date = document.getElementById('venueAvailabilityDate').value;
+    var resultDiv = document.getElementById('venueAvailabilityResult');
+    if (!venueId || !date) return;
+    let url;
+    if (venueId === "virtual-session-group") {
+        url = `/api/venue-availability/?virtual_group=1&date=${date}`;
+    } else {
+        url = `/api/venue-availability/?venue_id=${venueId}&date=${date}`;
+    }
+    fetch(url)
+        .then (r => r.json())
+        .then(data => {
+            if (data.available) {
+                resultDiv.innerHTML = '<span class="badge bg-success">Available</span>';
+            } else {
+                resultDiv.innerHTML = '<span class="badge bg-danger">Unavailable</span>';
+                if (data.bookings && data.bookings.length) {
+                    resultDiv.innerHTML += '<ul class="list-group mt-2">' +
+                        data.bookings.map(b => `<li class="list-group-item">${b.start}–${b.end}: ${b.purpose} (${b.status})</li>`).join('') +
+                        '</ul>';
+                }
+            }
+        });
+});
+</script>
+
+<style>
+.fc-colored-event {
+    border-radius: 8px;
+    padding: 6px 10px 6px 12px;
+    margin-bottom: 4px;
+    font-size: 1em;
+    color: #fff !important;
+    min-width: 0;
+    max-width: fit-content;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(2,3,129,0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border: 1px solid #fff2;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.18);
+}
+.fc-colored-title {
+    font-weight: 400;
+    font-size: 1em;
+    color: #000000;
+    margin-bottom: 2px;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+.fc-colored-details {
+    font-size: 0.97em;
+    color: #000000;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.fc-colored-details .venue, .fc-colored-details .facilitator, .fc-colored-details .time {
+    display: inline-block;
+}
+.badge-booked, .badge-unbooked, .badge-warning, .badge-info {
+    font-size: 0.85em;
+    border-radius: 6px;
+    padding: 2px 8px;
+    margin-top: 2px;
+    color: #fff;
+    font-weight: 600;
+    background: rgba(0,0,0,0.18);
+}
+.badge-booked { background: #34C759; }
+.badge-unbooked { background: #d32f2f; }
+.badge-warning { background: #FFA500; }
+.badge-info { background: #3AB0FF; }
+.fc-timegrid-event, .fc-event {
+    min-height: 32px;
+    font-size: 1em;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+}
+.fc-timegrid-col-frame, .fc-daygrid-day-frame {
+    max-height: none !important;
+    overflow-y: visible !important;
+}
+.fc-daygrid-event {
+    background: transparent !important;
+    color: #fff !important;
+    font-size: 1em;
+    cursor: pointer;
+    margin-bottom: 2px;
+    padding: 0 !important;
+}
+.fc-daygrid-event .fc-event-title,
+.fc-daygrid-event .fc-event-title-container {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 160px;
+    padding: 0 2px;
+}
+.fc-timegrid-event .fc-colored-event,
+.fc-event .fc-colored-event {
+    height: 100%;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: stretch;
+}
+</style>
+
+<div id="modalLoadingSpinner" style="display:none;justify-content:center;align-items:center;height:100%;width:100%;">
+  <div class="spinner-border text-primary" style="width:2.5rem;height:2.5rem;" role="status">
+    <span class="visually-hidden">Loading...</span>
+  </div>
+</div>
+{% endblock %}
