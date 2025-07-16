@@ -1,0 +1,61 @@
+/* styles.css */
+
+body {
+    background-color: #f4f4f9;
+}
+
+.container {
+    margin-top: 20px;
+}
+
+.section {
+    margin-bottom: 20px;
+}
+
+.table th {
+    background-color: #020381;
+    color: white;
+}
+
+.narrow {
+    width: 60px;
+    text-align: center;
+}
+
+/* Reduce space between qualification name and the first table row */
+.section h3 {
+    margin-bottom: 10px; /* Adjusts the gap between the qualification name and table */
+    font-size: 1.5rem; /* Makes the heading a bit smaller */
+}
+
+/* Adjust space between the total learners and the next qualification */
+.section.card {
+    margin-bottom: 10px; /* Reduced margin between qualification sections */
+}
+
+/* Customizing the table to ensure spacing is consistent */
+.table {
+    margin-bottom: 5px; /* Reduces space between tables */
+}
+
+/* Make the qualification names more concise with small margin */
+.section .card-body h4 {
+    margin-bottom: 0px;  /* Reduces gap between qualification title and table */
+}
+
+/* For 'Total learners' - reduce gap between the count and the qualification table below */
+.section.card h3 {
+    margin-top: 0;
+    margin-bottom: 10px;  /* Reduced gap under total learners heading */
+}
+
+/* Remove default padding from the qualification table row */
+.table th,
+.table td {
+    padding: 0.5rem; /* Ensure there's no extra space in table cells */
+}
+
+/* Make sure rows are more compact */
+.table tr {
+    margin-bottom: 5px;
+}

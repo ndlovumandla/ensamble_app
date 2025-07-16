@@ -29,8 +29,6 @@ Thumbs.db
 !*/migrations/__init__.py
 
 # Static/Media
-staticfiles/
-media/
 *.bak
 
 # Jupyter
