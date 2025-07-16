@@ -1583,6 +1583,13 @@ from .models import Learner, Group, LearnerQualification, Module, ModuleUnitStan
 
 from django.utils.html import format_html
 
+from django.views.generic import DetailView
+from .models import Learner, Group, LearnerQualification, Module, ModuleUnitStandard, UnitStandard, LearnerAssessment
+import re
+from .models import AssessmentUnitStandard, Learner
+
+from django.utils.html import format_html
+
 class LearnerDetailsView(RolePermissionRequiredMixin, DetailView):
     model = Learner
     template_name = 'core/learner_details.html'
@@ -1673,10 +1680,270 @@ class LearnerDetailsView(RolePermissionRequiredMixin, DetailView):
                     'modules': module_data,
                 })
         context['group_data'] = group_data
+
+        # Find competent unit standards
+        COMPETENT_STATUSES = ["C", "REM1C", "REM2C", "CAT"]
+        assessments = AssessmentUnitStandard.objects.filter(
+            learner_assessment__learner=learner,
+            status_code_abbreviation__in=COMPETENT_STATUSES
+        ).select_related('unit_standard')
+
+        def extract_code(title):
+            match = re.match(r"(\d+)", title)
+            return match.group(1) if match else title
+
+        competent_unit_standards = {}
+        for a in assessments:
+            code = extract_code(a.unit_standard.title)
+            # Only keep one per code (prefer Core > Fundamental > Elective if needed)
+            if code not in competent_unit_standards or a.unit_standard.unit_standard_type == "Core":
+                competent_unit_standards[code] = {
+                    "title": a.unit_standard.title,
+                    "type": a.unit_standard.unit_standard_type,
+                    "full_title": a.unit_standard.unit_standard_title,
+                    "level": a.unit_standard.level,
+                    "credits": a.unit_standard.credits,
+                    "status": a.status_code_abbreviation,
+                }
+        context['competent_unit_standards'] = competent_unit_standards
         return context
 
-# ─── New Views for Added Models ──────────────────────────────────────
+import re
+from django.http import JsonResponse
+from .models import (
+    UnitStandard, 
+    ModuleUnitStandard, 
+    Service_Module, 
+    AssessmentUnitStandard,
+    Service,
+    Module,
+    SLA_Qualifications,
+    Group,
+    ProjectPlan,
+    Learner,
+    LearnerQualification
+)
 
+def extract_code(title):
+    """Extract the numeric code from a unit standard title"""
+    if not title:
+        return ""
+    match = re.match(r"(\d+)", str(title))
+    return match.group(1) if match else str(title)
+
+def qualification_search_api(request):
+    q = request.GET.get('q', '').strip()
+    learner_id = request.GET.get('learner_id')
+    
+    print(f"DEBUG: Search query: '{q}', Learner ID: {learner_id}")
+    
+    if not q:
+        return JsonResponse({'qualifications': []})
+    
+    learner = Learner.objects.filter(id=learner_id).first()
+    competent_statuses = ["C", "REM1C", "REM2C", "CAT"]
+    
+    # Get all competent unit standard codes for this learner
+    competent_codes = set()
+    if learner:
+        assessments = AssessmentUnitStandard.objects.filter(
+            learner_assessment__learner=learner,
+            status_code_abbreviation__in=competent_statuses
+        ).select_related('unit_standard')
+        for a in assessments:
+            code = extract_code(a.unit_standard.title)
+            competent_codes.add(code)
+        print(f"DEBUG: Found {len(competent_codes)} competent unit standards for learner")
+
+    results = []
+
+    # Check if query is a number (unit standard search)
+    if q.isdigit():
+        print(f"DEBUG: Searching for unit standard number: {q}")
+        
+        # Search for unit standards that contain this number
+        unit_standards = UnitStandard.objects.filter(
+            title__icontains=q
+        )
+        
+        print(f"DEBUG: Found {unit_standards.count()} unit standards containing {q}")
+        
+        if unit_standards.exists():
+            # For unit standard searches, we need to find which services contain these unit standards
+            services_with_units = {}
+            
+            for us in unit_standards:
+                code = extract_code(us.title)
+                print(f"DEBUG: Processing unit standard: {us.title} (code: {code})")
+                
+                # Find modules that contain this unit standard
+                module_unit_standards = ModuleUnitStandard.objects.filter(
+                    unit_standard=us
+                ).select_related('module')
+                
+                print(f"DEBUG: Found {module_unit_standards.count()} module relationships")
+                
+                for mus in module_unit_standards:
+                    module = mus.module
+                    print(f"DEBUG: Found in module: {module.name}")
+                    
+                    # Find services that contain this module
+                    service_modules = Service_Module.objects.filter(
+                        module=module
+                    ).select_related('service')
+                    
+                    print(f"DEBUG: Found {service_modules.count()} service relationships")
+                    
+                    for sm in service_modules:
+                        service = sm.service
+                        print(f"DEBUG: Found in service: {service.name}")
+                        
+                        # Initialize service if not exists
+                        if service.id not in services_with_units:
+                            services_with_units[service.id] = {
+                                'service': service,
+                                'modules': {}
+                            }
+                        
+                        # Initialize module if not exists
+                        if module.id not in services_with_units[service.id]['modules']:
+                            services_with_units[service.id]['modules'][module.id] = {
+                                'module': module,
+                                'unit_standards': []
+                            }
+                        
+                        # Create unit standard data
+                        us_data = {
+                            'title': us.title,
+                            'unit_number': code,
+                            'type': us.unit_standard_type or 'N/A',
+                            'level': us.level,
+                            'credits': us.credits,
+                            'done': code in competent_codes
+                        }
+                        
+                        # Add unit standard if not already there
+                        module_data = services_with_units[service.id]['modules'][module.id]
+                        if not any(u['title'] == us.title for u in module_data['unit_standards']):
+                            module_data['unit_standards'].append(us_data)
+            
+            # Convert to the expected format
+            for service_id, service_data in services_with_units.items():
+                service = service_data['service']
+                modules = []
+                
+                for module_id, module_data in service_data['modules'].items():
+                    modules.append({
+                        'name': module_data['module'].name,
+                        'unit_standards': module_data['unit_standards']
+                    })
+                
+                results.append({
+                    'name': service.name,
+                    'modules': modules
+                })
+            
+            print(f"DEBUG: Unit standard search returning {len(results)} results")
+            
+            # Return unit standard results immediately
+            return JsonResponse({'qualifications': results})
+    
+    # Regular service/qualification search (only if not a digit or no unit standards found)
+    services = Service.objects.filter(name__icontains=q)[:10]
+    print(f"DEBUG: Service search found {services.count()} services for query: {q}")
+    
+    for service in services:
+        module_list = []
+        
+        # Get modules linked to this service
+        service_modules = Service_Module.objects.filter(service=service).select_related('module')
+        print(f"DEBUG: Service {service.name} has {service_modules.count()} modules")
+        
+        for sm in service_modules:
+            module = sm.module
+            
+            # Get unit standards for this module
+            module_unit_standards = ModuleUnitStandard.objects.filter(
+                module=module
+            ).select_related('unit_standard')
+            
+            print(f"DEBUG: Module {module.name} has {module_unit_standards.count()} unit standards")
+            
+            us_list = []
+            for mus in module_unit_standards:
+                us = mus.unit_standard
+                code = extract_code(us.title)
+                us_list.append({
+                    'title': us.title,
+                    'unit_number': code,
+                    'type': us.unit_standard_type or 'N/A',
+                    'level': us.level,
+                    'credits': us.credits,
+                    'done': code in competent_codes
+                })
+            
+            if us_list:
+                module_list.append({
+                    'name': module.name,
+                    'unit_standards': us_list
+                })
+        
+        # If no modules found via Service_Module, try alternative approach
+        if not module_list:
+            print(f"DEBUG: No modules found via Service_Module for {service.name}, trying alternative approach")
+            
+            # Try to find modules through SLA_Qualifications -> Groups -> ProjectPlan
+            sla_qualifications = SLA_Qualifications.objects.filter(service=service)
+            
+            for sla_qual in sla_qualifications:
+                # Get groups associated with this SLA qualification
+                groups = Group.objects.filter(sla_qualifications=sla_qual)
+                
+                for group in groups:
+                    # Get project plans for this group
+                    project_plans = ProjectPlan.objects.filter(group=group).select_related('module')
+                    
+                    for pp in project_plans:
+                        module = pp.module
+                        if module:
+                            # Get unit standards for this module
+                            module_unit_standards = ModuleUnitStandard.objects.filter(
+                                module=module
+                            ).select_related('unit_standard')
+                            
+                            us_list = []
+                            for mus in module_unit_standards:
+                                us = mus.unit_standard
+                                code = extract_code(us.title)
+                                us_list.append({
+                                    'title': us.title,
+                                    'unit_number': code,
+                                    'type': us.unit_standard_type or 'N/A',
+                                    'level': us.level,
+                                    'credits': us.credits,
+                                    'done': code in competent_codes
+                                })
+                            
+                            if us_list:
+                                # Check if module already exists in module_list
+                                existing = next((m for m in module_list if m['name'] == module.name), None)
+                                if not existing:
+                                    module_list.append({
+                                        'name': module.name,
+                                        'unit_standards': us_list
+                                    })
+                
+                # Break after first successful group to avoid duplicates
+                if module_list:
+                    break
+        
+        results.append({
+            'name': service.name,
+            'modules': module_list
+        })
+    
+    print(f"DEBUG: Final results count: {len(results)}")
+    return JsonResponse({'qualifications': results})
 # Set up logging
 logger = logging.getLogger(__name__)
 

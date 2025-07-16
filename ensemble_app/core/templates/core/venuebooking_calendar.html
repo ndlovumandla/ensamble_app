@@ -1067,6 +1067,7 @@ function selectSessionFromSearch(sessionId) {
                         if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
                     }, 100);
 
+                    // **CRITICAL FIX**: Clear footer first and create buttons properly
                     eventModalFooter.innerHTML = "";
                     
                     if (isEditing) {
@@ -1193,71 +1194,30 @@ function selectSessionFromSearch(sessionId) {
                                 selectSessionFromSearch = window.originalSelectSessionFromSearch;
                             };
                             
-                            eventModalFooter.appendChild(searchSessionsBtn);
-                            
-                            var bookBtn = document.createElement('button');
-                            bookBtn.type = "button";
-                            bookBtn.className = "btn btn-success btn-glow";
-                            bookBtn.innerHTML = '<i class="fa fa-plus-circle"></i> Book a Venue';
-                            bookBtn.onclick = function() {
-                                var bookingForm = document.getElementById('venueBookingModalForm');
-                                if (bookingForm) bookingForm.requestSubmit();
-                            };
-                            eventModalFooter.appendChild(bookBtn);
-                        }
+                            // Show search modal WITHOUT hiding current modal
+                            showSessionSearchModal();
+                        };
+                        eventModalFooter.appendChild(searchSessionsBtn);
                         
-                        // **CRITICAL FIX**: Setup form submission with proper conflict handling
-                        var bookingForm = document.getElementById('venueBookingModalForm');
-                        if (bookingForm) {
-                            bookingForm.onsubmit = function(e) {
-                                e.preventDefault();
-                                var formData = new FormData(bookingForm);
-                                
-                                fetch(formUrl, {
-                                    method: "POST",
-                                    headers: {
-                                        "X-CSRFToken": "{{ csrf_token }}"
-                                    },
-                                    body: formData
-                                })
-                                .then(r => r.json())
-                                .then(data => {
-                                    if (data.success) {
-                                        eventModal.hide();
-                                        calendar.refetchEvents();
-                                        
-                                        var notif = document.getElementById('venueSwitchNotification');
-                                        notif.innerHTML = isEditing 
-                                            ? '<i class="fa fa-check-circle" style="color:#34C759;font-size:1.5em;margin-right:8px;"></i> Booking updated successfully!'
-                                            : '<i class="fa fa-check-circle" style="color:#34C759;font-size:1.5em;margin-right:8px;"></i> Venue booked successfully!';
-                                        notif.classList.add('show');
-                                        setTimeout(function() {
-                                            notif.classList.remove('show');
-                                        }, 3000);
-                                    } else if (data.conflict && data.html) {
-                                        // **MAJOR FIX**: Handle conflict popup properly
-                                        handleConflictPopup(data, formData, formUrl, eventModalBody, isEditing);
-                                    } else if (data.html) {
-                                        eventModalBody.innerHTML = data.html;
-                                        setTimeout(function() {
-                                            if ($('#id_project_plan').length) $('#id_project_plan').select2({ width: '100%', allowClear: true });
-                                            if ($('#id_session_date').length) {
-                                                $('#id_session_date').select2({ width: '100%', allowClear: true });
-                                                if (!isEditing) $('#id_session_date').val(sessionId).trigger('change');
-                                            }
-                                            if ($('#id_facilitator').length) $('#id_facilitator').select2({ width: '100%', allowClear: true });
-                                        }, 100);
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error('Error:', error);
-                                    alert('An error occurred while processing the booking.');
-                                });
-                            };
-                        }
+    var closeBtn = document.createElement('button');
+    closeBtn.type = "button";
+    closeBtn.className = "btn btn-secondary";
+    closeBtn.setAttribute('data-bs-dismiss', 'modal');
+    closeBtn.innerHTML = 'Close';
+    eventModalFooter.appendChild(closeBtn);
+    
+                        var bookBtn = document.createElement('button');
+                        bookBtn.type = "button";
+                        bookBtn.className = "btn btn-success btn-glow";
+                        bookBtn.innerHTML = '<i class="fa fa-plus-circle"></i> Book a Venue';
+                        bookBtn.onclick = function() {
+                            var bookingForm = document.getElementById('venueBookingModalForm');
+                            if (bookingForm) bookingForm.requestSubmit();
+                        };
+                        eventModalFooter.appendChild(bookBtn);
                     }
                     
-                    // **CRITICAL FIX**: Setup form submission with proper conflict handling
+                    // **CRITICAL FIX**: Setup form submission ONCE at the end
                     var bookingForm = document.getElementById('venueBookingModalForm');
                     if (bookingForm) {
                         bookingForm.onsubmit = function(e) {

@@ -87,6 +87,8 @@
         border: 2px solid #e5e7eb;
         transition: border 0.2s, background 0.2s;
         position: relative;
+        flex-direction: column;
+        align-items: flex-start;
     }
     .unit-standard-chip .status-dot {
         display: inline-block;
@@ -96,6 +98,7 @@
         margin-right: 0.7em;
         border: 2px solid #fff;
         box-shadow: 0 0 0 2px #fff;
+        background: #e5e7eb;
     }
     .unit-standard-chip .status-label {
         font-weight: 700;
@@ -111,7 +114,7 @@
     }
     .unit-standard-chip .us-meta {
         font-size: 0.93em;
-        color: #64748b;
+        color: #000000;
         margin-left: 0.7em;
     }
     .unit-standard-chip .us-comments {
@@ -119,20 +122,45 @@
         font-size: 0.92em;
         color: #6366f1;
         margin-top: 0.2em;
-        margin-left: 2.2em;
+        margin-left: 0;
         font-style: italic;
         max-width: 400px;
         white-space: pre-line;
+        word-wrap: break-word;
     }
-    .unit-standard-chip.status-C { background: #e7fbe9; border-color: #22c55e; }
-    .unit-standard-chip.status-CAT { background: #e0f2fe; border-color: #0ea5e9; }
-    .unit-standard-chip.status-NYS { background: #fff7ed; border-color: #f59e42; }
-    .unit-standard-chip.status-NYC { background: #fef2f2; border-color: #ef4444; }
-    .unit-standard-chip.status-DO { background: #f3f4f6; border-color: #64748b; }
-    .unit-standard-chip.status-IA { background: #fef9c3; border-color: #fbbf24; }
+    .unit-standard-chip.status-C { background: #22c55e; border-color: #22c55e; }
+    .unit-standard-chip.status-CAT { background: #22c55e; border-color: #22c55e; }
+    .unit-standard-chip.status-NYS { background: #E84F0B; border-color: #E84F0B; }
+    .unit-standard-chip.status-NYC { background: #ef0404; border-color: #ef4444; }
+    .unit-standard-chip.status-DO { background: #ef0404; border-color: #ef0404; }
+    .unit-standard-chip.status-IA { background: #fef9c3; border-color: #fff3cd; }
+    .unit-standard-chip.status-NYA { background: #f0f9ff; border-color: #f8fafc; }
+    .unit-standard-chip.status-IS { background: #ef0404; border-color: #ef0404; }
+    .unit-standard-chip.status-REM1A { background: #fef3c7; border-color: #fff3cd; }
+    .unit-standard-chip.status-REM1C { background: #22c55e; border-color: #22c55e; }
+    .unit-standard-chip.status-REM1NYC { background: #ef0404; border-color: #ef0404; }
+    .unit-standard-chip.status-REM2C { background: #22c55e; border-color: #22c55e; }
+    .unit-standard-chip.status-REM2NYC { background: #ef0404; border-color: #ef0404; }
     .unit-standard-chip.status-None, .unit-standard-chip.status- { background: #f3f4f6; border-color: #e5e7eb; }
+    
+    /* Status dot colors */
+    .unit-standard-chip.status-C .status-dot { background: #e9cb08 !important; }
+    .unit-standard-chip.status-CAT .status-dot { background: #0ea5e9 !important; }
+    .unit-standard-chip.status-NYS .status-dot { background: #f59e42 !important; }
+    .unit-standard-chip.status-NYC .status-dot { background: #ef4444 !important; }
+    .unit-standard-chip.status-DO .status-dot { background: #64748b !important; }
+    .unit-standard-chip.status-IA .status-dot { background: #fbbf24 !important; }
+    .unit-standard-chip.status-NYA .status-dot { background: #3b82f6 !important; }
+    .unit-standard-chip.status-IS .status-dot { background: #64748b !important; }
+    .unit-standard-chip.status-REM1A .status-dot { background: #f59e0b !important; }
+    .unit-standard-chip.status-REM1C .status-dot { background: #22c55e !important; }
+    .unit-standard-chip.status-REM1NYC .status-dot { background: #f59e0b !important; }
+    .unit-standard-chip.status-REM2C .status-dot { background: #f59e0b !important; }
+    .unit-standard-chip.status-REM2NYC .status-dot { background: #f59e0b !important; }
+    .unit-standard-chip.status-None .status-dot, .unit-standard-chip.status- .status-dot { background: #e5e7eb !important; }
+    
     .no-unit-standards {
-        color: #64748b;
+        color: #000000;
         font-style: italic;
         margin-left: 1.2rem;
     }
@@ -150,6 +178,52 @@
     .btn-back:hover {
         background: #3730a3;
         color: #fff;
+    }
+
+    /* Modal styles */
+    #qualification-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(60,60,120,0.18);
+        z-index: 9999;
+    }
+    #qualification-modal .modal-content {
+        background: #fff;
+        border-radius: 12px;
+        max-width: 700px;
+        margin: 5vh auto;
+        padding: 2rem;
+        box-shadow: 0 8px 32px rgba(60,60,120,0.18);
+        position: relative;
+    }
+    #qualification-modal .close-modal-btn {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        font-size: 1.5rem;
+        background: none;
+        border: none;
+        cursor: pointer;
+    }
+    #qualification-modal h3 {
+        color: #3b82f6;
+        margin-bottom: 1rem;
+    }
+    #qualification-modal #qualification-search {
+        width: 100%;
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+        font-size: 1rem;
+    }
+    #qualification-modal #qualification-results {
+        max-height: 500px;
+        overflow-y: auto;
     }
 </style>
 
@@ -176,6 +250,9 @@
             </p>
         </div>
     </div>
+    <button id="check-qualification-btn" class="btn-back" type="button" style="margin-bottom:1rem;">
+        Check Learner's Unit Standards for New Qualification
+    </button>
 
     <h3 style="color:#3b82f6; margin-bottom:1.2rem;">Unit Standards by Group</h3>
     {% if group_data %}
@@ -195,7 +272,7 @@
                                 {% if mod.unit_standards %}
                                     {% for us in mod.unit_standards %}
                                         <div class="unit-standard-chip status-{{ us.status_abbr|default:"None" }}">
-                                            <span class="status-dot" style="background: {{ us.status_color }}"></span>
+                                            <span class="status-dot"></span>
                                             <span class="us-title">{{ us.unit_standard.title }}</span>
                                             <span class="status-label">
                                                 {% if us.status_abbr %}
@@ -231,6 +308,129 @@
         <div class="no-unit-standards">No group/unit standard data found for this learner.</div>
     {% endif %}
 
+
+    
+
     <a href="{% url 'learner_list' %}" class="btn-back">← Back to Learners</a>
 </div>
+
+<!-- Modal structure -->
+<div id="qualification-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(60,60,120,0.18); z-index:9999;">
+    <div style="background:#fff; border-radius:12px; max-width:800px; margin:5vh auto; padding:2rem; box-shadow:0 8px 32px rgba(60,60,120,0.18); position:relative;">
+        <button id="close-modal-btn" style="position:absolute; top:1rem; right:1rem; font-size:1.5rem; background:none; border:none; cursor:pointer;">×</button>
+        <h3 style="color:#3b82f6; margin-bottom:1rem;">Check Learner's Unit Standards for New Qualification</h3>
+        
+        <!-- Enhanced search input with placeholder -->
+        <input type="text" id="qualification-search" placeholder="Search by qualification name" style="width:100%; margin-bottom:1rem; padding:0.75rem; border-radius:6px; border:1px solid #e5e7eb; font-size:1rem;">
+        
+        <!-- Search hints -->
+        <div style="margin-bottom:1rem; font-size:0.9rem; color:#6b7280;">
+            💡 <strong>Search tips:</strong> Enter qualification name (e.g., "Project Management")
+        </div>
+        
+        <div id="qualification-results" style="max-height:500px; overflow-y:auto;"></div>
+    </div>
+</div>
+
+<script>
+document.getElementById('check-qualification-btn').onclick = function() {
+    document.getElementById('qualification-modal').style.display = 'block';
+};
+document.getElementById('close-modal-btn').onclick = function() {
+    document.getElementById('qualification-modal').style.display = 'none';
+};
+
+document.getElementById('qualification-search').addEventListener('input', function() {
+    const query = this.value.trim();
+    const resultsDiv = document.getElementById('qualification-results');
+    
+    if (!query) {
+        resultsDiv.innerHTML = '';
+        return;
+    }
+    
+    resultsDiv.innerHTML = '<div style="padding:1rem; text-align:center; color:#6b7280;"><em>Searching...</em></div>';
+    
+    fetch(`/api/qualification_search/?q=${encodeURIComponent(query)}&learner_id={{ object.id }}`)
+        .then(response => {
+            if (!response.ok) throw new Error('Network error');
+            return response.json();
+        })
+        .then(data => {
+            if (!data || !data.qualifications || data.qualifications.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding:1rem; text-align:center; color:#6b7280;">No qualifications or unit standards found.</div>';
+                return;
+            }
+            
+            let html = '';
+            data.qualifications.forEach(qual => {
+                // Check if this is a unit number search result
+                const isUnitSearch = qual.name.includes('Unit #');
+                const qualTitle = isUnitSearch ? 
+                    `🔍 ${qual.name}` : 
+                    qual.name;
+                
+                html += `<div style="margin-bottom:1.5rem; border:1px solid #e5e7eb; border-radius:8px; padding:1rem;">
+                    <div style="font-weight:600; color:#3b82f6; margin-bottom:0.5rem;">${qualTitle}</div>
+                    <div style="margin-left:1rem;">
+                        ${qual.modules.length === 0 ? '<div style="color:#6b7280; font-style:italic;">No modules found for this qualification.</div>' : ''}
+                        ${qual.modules.map(mod => `
+                            <div style="margin-bottom:1rem; background:#f8fafc; padding:1rem; border-radius:6px;">
+                                <div style="font-weight:500; color:#374151; margin-bottom:0.5rem;">📚 Module: ${mod.name}</div>
+                                <table style="width:100%; border-collapse:collapse; border:1px solid #e5e7eb; border-radius:4px; overflow:hidden;">
+                                    <thead>
+                                        <tr style="background:#f3f4f6;">
+                                            <th style="padding:0.75em; border:1px solid #e5e7eb; text-align:left; font-weight:600;">Unit #</th>
+                                            <th style="padding:0.75em; border:1px solid #e5e7eb; text-align:left; font-weight:600;">Unit Standard Title</th>
+                                            <th style="padding:0.75em; border:1px solid #e5e7eb; text-align:center; font-weight:600;">Type</th>
+                                            <th style="padding:0.75em; border:1px solid #e5e7eb; text-align:center; font-weight:600;">Level</th>
+                                            <th style="padding:0.75em; border:1px solid #e5e7eb; text-align:center; font-weight:600;">Credits</th>
+                                            <th style="padding:0.75em; border:1px solid #e5e7eb; text-align:center; font-weight:600;">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${mod.unit_standards.map(us => {
+                                            const done = us.done ? '✅ Done' : '❌ Not Done';
+                                            const doneColor = us.done ? '#22c55e' : '#ef4444';
+                                            const rowBg = us.done ? '#f0fdf4' : '#fef2f2';
+                                            
+                                            return `<tr style="border:1px solid #e5e7eb; background:${rowBg};">
+                                                <td style="padding:0.75em; border:1px solid #e5e7eb; font-weight:700; color:#3730a3; font-family:monospace;">${us.unit_number || 'N/A'}</td>
+                                                <td style="padding:0.75em; border:1px solid #e5e7eb;">${us.title}</td>
+                                                <td style="padding:0.75em; border:1px solid #e5e7eb; text-align:center;">${us.type || 'N/A'}</td>
+                                                <td style="padding:0.75em; border:1px solid #e5e7eb; text-align:center;">${us.level || 'N/A'}</td>
+                                                <td style="padding:0.75em; border:1px solid #e5e7eb; text-align:center;">${us.credits || 'N/A'}</td>
+                                                <td style="padding:0.75em; border:1px solid #e5e7eb; text-align:center; color:${doneColor}; font-weight:600;">${done}</td>
+                                            </tr>`;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>`;
+            });
+            resultsDiv.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Search error:', error);
+            resultsDiv.innerHTML = '<div style="color:red; padding:1rem; text-align:center;">❌ Error searching qualifications. Please try again.</div>';
+        });
+});
+
+// Close modal when clicking outside
+document.getElementById('qualification-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        this.style.display = 'none';
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('qualification-modal').style.display === 'block') {
+        document.getElementById('qualification-modal').style.display = 'none';
+    }
+});
+</script>
+
 {% endblock %}

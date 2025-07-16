@@ -16,9 +16,10 @@
                     <label for="search" class="form-label">Search:</label>
                     <input type="text" id="search" name="search" value="{{ filters.search|default:'' }}" placeholder="Name, ID number, User ID" class="form-control">
                 </div>
-                <div class="form-group filter-group">
+                <div class="form-group filter-group" style="position: relative;">
                     <label for="qualification_search" class="form-label">Qualification:</label>
-                    <input type="text" id="qualification_search" name="qualification_search" value="{{ filters.qualification_search|default:'' }}" placeholder="Search by qualification" class="form-control">
+                    <input type="text" id="qualification_search" name="qualification_search" value="{{ filters.qualification_search|default:'' }}" placeholder="Search by qualification" class="form-control" autocomplete="off">
+                    <div id="qualification-dropdown" style="display:none; position:absolute; background:#fff; border:1px solid #e5e7eb; border-radius:6px; max-height:200px; overflow-y:auto; width:100%; z-index:1000; box-shadow:0 4px 8px rgba(0,0,0,0.1);"></div>
                 </div>
                 <div class="form-group filter-group">
                     <label for="status" class="form-label">Status:</label>
@@ -175,13 +176,138 @@
             timeoutId = setTimeout(() => func.apply(this, args), delay);
         };
     }
-    // Submit the form after a short delay
+
+    // Submit the form after a short delay for regular search only
     const submitForm = debounce(() => {
         document.getElementById('filter-form').submit();
     }, 300);
-    // Attach the debounced submit to text inputs
-    document.querySelectorAll('#search, #qualification_search').forEach(input => {
-        input.addEventListener('input', submitForm);
+
+    // Attach the debounced submit to regular search input ONLY
+    document.getElementById('search').addEventListener('input', submitForm);
+
+    // Fast qualification search using the same API as learner_details modal
+    const qualificationInput = document.getElementById('qualification_search');
+    const qualificationDropdown = document.getElementById('qualification-dropdown');
+    let searchTimeout;
+
+    qualificationInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        // Clear previous timeout
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+        
+        if (!query) {
+            qualificationDropdown.style.display = 'none';
+            // If field is cleared, submit form to show all learners
+            if (this.value === '') {
+                document.getElementById('filter-form').submit();
+            }
+            return;
+        }
+
+        // Debounce the API call for better performance
+        searchTimeout = setTimeout(() => {
+            // Use the same API as the modal (without learner_id since we're filtering learners)
+            fetch(`/api/qualification_search/?q=${encodeURIComponent(query)}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network error');
+                    return response.json();
+                })
+                .then(data => {
+                    if (!data || !data.qualifications || data.qualifications.length === 0) {
+                        qualificationDropdown.innerHTML = '<div style="padding:0.5rem; color:#666;">No qualifications found</div>';
+                        qualificationDropdown.style.display = 'block';
+                        return;
+                    }
+
+                    let html = '';
+                    // Remove duplicates by using a Set
+                    const uniqueQualifications = [...new Set(data.qualifications.map(qual => qual.name))];
+                    
+                    uniqueQualifications.forEach(qualName => {
+                        html += `<div class="qualification-option" style="padding:0.5rem; cursor:pointer; border-bottom:1px solid #f0f0f0; transition: background-color 0.2s;" onclick="selectQualification('${qualName.replace(/'/g, "\\'")}')">
+                            ${qualName}
+                        </div>`;
+                    });
+                    
+                    qualificationDropdown.innerHTML = html;
+                    qualificationDropdown.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Qualification search error:', error);
+                    qualificationDropdown.innerHTML = '<div style="padding:0.5rem; color:red;">Error searching qualifications</div>';
+                    qualificationDropdown.style.display = 'block';
+                });
+        }, 150); // Fast 150ms debounce for better UX
     });
+
+    // Function to select a qualification from dropdown
+    function selectQualification(qualificationName) {
+        qualificationInput.value = qualificationName;
+        qualificationDropdown.style.display = 'none';
+        
+        // Submit the form with the selected qualification
+        document.getElementById('filter-form').submit();
+    }
+
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!qualificationInput.contains(event.target) && !qualificationDropdown.contains(event.target)) {
+            qualificationDropdown.style.display = 'none';
+        }
+    });
+
+    // Handle hover effects for dropdown options
+    document.addEventListener('mouseover', function(event) {
+        if (event.target.classList.contains('qualification-option')) {
+            event.target.style.backgroundColor = '#f8fafc';
+        }
+    });
+
+    document.addEventListener('mouseout', function(event) {
+        if (event.target.classList.contains('qualification-option')) {
+            event.target.style.backgroundColor = '';
+        }
+    });
+
+    // Handle keyboard navigation for better UX
+    qualificationInput.addEventListener('keydown', function(event) {
+        const options = qualificationDropdown.querySelectorAll('.qualification-option');
+        let currentIndex = -1;
+        
+        // Find currently highlighted option
+        options.forEach((option, index) => {
+            if (option.style.backgroundColor === 'rgb(248, 250, 252)' || option.style.backgroundColor === '#f8fafc') {
+                currentIndex = index;
+            }
+        });
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            const nextIndex = currentIndex < options.length - 1 ? currentIndex + 1 : 0;
+            highlightOption(options, nextIndex);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            const prevIndex = currentIndex > 0 ? currentIndex - 1 : options.length - 1;
+            highlightOption(options, prevIndex);
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            if (currentIndex >= 0 && options[currentIndex]) {
+                options[currentIndex].click();
+            }
+        } else if (event.key === 'Escape') {
+            qualificationDropdown.style.display = 'none';
+        }
+    });
+
+    function highlightOption(options, index) {
+        options.forEach(opt => opt.style.backgroundColor = '');
+        if (options[index]) {
+            options[index].style.backgroundColor = '#f8fafc';
+            options[index].scrollIntoView({ block: 'nearest' });
+        }
+    }
 </script>
 {% endblock %}

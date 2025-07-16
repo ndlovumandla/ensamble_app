@@ -361,3 +361,9 @@ urlpatterns += [
     path('lif/<int:pk>/delete/', LIFDeleteView.as_view(), name='lif_delete'),  # Delete
 ]
 
+from .views import qualification_search_api
+
+urlpatterns += [
+    path('api/qualification_search/', qualification_search_api, name='qualification_search_api'),
+]
+
