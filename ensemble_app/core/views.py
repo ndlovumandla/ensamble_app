@@ -743,7 +743,7 @@ class SetLearnerPasswordView(RolePermissionRequiredMixin, View):
         return redirect('learner_list')
     
 
-class SLADashboardView(ListView):
+class SLADashboardView(RolePermissionRequiredMixin ,ListView):
     model = SLA
     template_name = "core/sla_dashboard.html"
     context_object_name = "slas"

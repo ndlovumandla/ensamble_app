@@ -907,13 +907,6 @@ class AssessmentUnitStandard(models.Model):
         blank=True,
         related_name='created_assessment_unit_standards'
     )
-    modified_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='modified_assessment_unit_standards'
-    )
 
     class Meta:
         unique_together = ('learner_assessment', 'unit_standard')
