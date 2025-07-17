@@ -174,3 +174,4 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 60.0,  # every minute
     },
 }
+STATIC_ROOT = BASE_DIR / 'staticfiles'
